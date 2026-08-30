@@ -481,6 +481,8 @@ export default function App() {
   const isDesktop = width>=1024;
   const [region,setRegion] = useState("florida");
   const [selected,setSelected] = useState("KVRB");
+  const [query,setQuery] = useState("KVRB");
+  const [suggestions,setSuggestions] = useState([]);
   const [phase,setPhase] = useState("all");
   const [expanded,setExpanded] = useState({});
   const [menuOpen,setMenuOpen] = useState(false);
@@ -490,6 +492,25 @@ export default function App() {
   const [briefing,setBrief] = useState("");
   const [briefLoad,setBriefLoad] = useState(false);
   const airfield = AIRFIELDS[selected];
+
+  function handleSearch(val) {
+    setQuery(val.toUpperCase());
+    const up = val.toUpperCase().trim();
+    if (up.length < 1) { setSuggestions([]); return; }
+    const matches = Object.entries(AIRFIELDS).filter(([code,a]) =>
+      code.includes(up) ||
+      a.name.toUpperCase().includes(up) ||
+      a.city.toUpperCase().includes(up)
+    ).slice(0, 6);
+    setSuggestions(matches);
+  }
+
+  function selectAirfield(code) {
+    setSelected(code);
+    setQuery(code);
+    setSuggestions([]);
+    if (isMobile) setMenuOpen(false);
+  }
 
   useEffect(()=>{ setLiveWx(null);setWxLoad(true);setBrief("");setExpanded({});
     fetchLiveWeather(airfield.weather_icao).then(wx=>{setLiveWx(wx);setWxLoad(false);}).catch(()=>setWxLoad(false));
@@ -517,43 +538,95 @@ export default function App() {
 
   const floridaFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="florida");
   const phoenixFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="phoenix");
-  const group = region==="florida"?floridaFields:phoenixFields;
 
   const sidebar = (
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",background:"#06101C"}}>
       <div style={{padding:"14px 12px 10px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
-        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.15em",marginBottom:10}}>SELECT TRAINING FIELD</div>
-        <div style={{display:"flex",gap:6,marginBottom:10}}>
+
+        {/* Search input */}
+        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.15em",marginBottom:8}}>SEARCH AIRFIELD</div>
+        <div style={{position:"relative",marginBottom:10}}>
+          <input
+            value={query}
+            onChange={e=>handleSearch(e.target.value)}
+            placeholder="ICAO code or name…"
+            style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,fontFamily:"'DM Mono',monospace",outline:"none",letterSpacing:"0.05em"}}
+          />
+          {/* Suggestions dropdown */}
+          {suggestions.length > 0 && (
+            <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:300,background:"#0D1E32",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,marginTop:4,overflow:"hidden",boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
+              {suggestions.map(([code,a])=>{
+                const critCount = a.hazards.filter(h=>h.sev==="critical").length;
+                return (
+                  <div key={code} onMouseDown={()=>selectAirfield(code)} style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid rgba(255,255,255,0.05)",transition:"background 0.1s"}}
+                    onMouseEnter={e=>e.currentTarget.style.background="rgba(0,180,255,0.1)"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#00B4FF",fontWeight:"bold",marginRight:8}}>{code}</span>
+                        <span style={{fontSize:11,color:"#8BCCF0"}}>{a.name}</span>
+                        <div style={{fontSize:9,color:"#445566",marginTop:2}}>{a.city} · {a.class}</div>
+                      </div>
+                      {critCount>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#FF3B3B",background:"rgba(255,59,59,0.12)",border:"1px solid rgba(255,59,59,0.3)",padding:"2px 6px",borderRadius:3,flexShrink:0}}>⚠ {critCount}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Current airfield info */}
+        {airfield && (
+          <div style={{background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:7,padding:"10px 12px",marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:15,color:"#00B4FF",fontWeight:"bold"}}>{selected}</div>
+                <div style={{fontSize:11,color:"#FFFFFF",marginTop:2}}>{airfield.name}</div>
+                <div style={{fontSize:9,color:"#8899AA",marginTop:2}}>{airfield.city}</div>
+                <div style={{fontSize:9,color:"#445566",marginTop:2}}>{airfield.class} · {airfield.type} · {airfield.elevation.toLocaleString()}ft</div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"flex-end"}}>
+                {["critical","high"].map(s=>{
+                  const c=airfield.hazards.filter(h=>h.sev===s).length;
+                  if(!c) return null;
+                  const sc=SEV[s];
+                  return <span key={s} style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:sc.color,background:sc.bg,border:`1px solid ${sc.border}`,padding:"2px 6px",borderRadius:3}}>{c} {s.toUpperCase()}</span>;
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quick access by region */}
+        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.12em",marginBottom:6}}>QUICK ACCESS</div>
+        <div style={{display:"flex",gap:6,marginBottom:8}}>
           {["florida","phoenix"].map(r=>(
-            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"7px 6px",borderRadius:6,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.08em",background:region===r?"rgba(0,180,255,0.2)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,color:region===r?"#00B4FF":"#556677"}}>{r.toUpperCase()}</button>
+            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 4px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴 FLORIDA":"☀ PHOENIX"}</button>
           ))}
         </div>
-        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 200px)"}}>
-          {group.map(([code,a])=>{
+        <div style={{overflowY:"auto",maxHeight:220}}>
+          {(region==="florida"?floridaFields:phoenixFields).map(([code,a])=>{
             const critCount=a.hazards.filter(h=>h.sev==="critical").length;
             return (
-              <div key={code} onClick={()=>{setSelected(code);if(isMobile)setMenuOpen(false);}} style={{padding:"10px 11px",borderRadius:8,marginBottom:5,cursor:"pointer",background:selected===code?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.03)",border:`1px solid ${selected===code?"rgba(0,180,255,0.45)":"rgba(255,255,255,0.07)"}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                  <div>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#00B4FF",fontWeight:"bold"}}>{code}</span>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#445566",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",padding:"1px 5px",borderRadius:2}}>{a.class}</span>
-                    </div>
-                    <div style={{fontSize:10,color:"#8899AA",marginTop:2}}>{a.name}</div>
-                    <div style={{fontSize:9,color:"#445566",marginTop:1}}>{a.city}</div>
-                  </div>
-                  {critCount>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#FF3B3B",background:"rgba(255,59,59,0.12)",border:"1px solid rgba(255,59,59,0.3)",padding:"2px 6px",borderRadius:3,flexShrink:0}}>⚠ {critCount} CRIT</span>}
+              <div key={code} onClick={()=>selectAirfield(code)} style={{padding:"7px 10px",borderRadius:6,marginBottom:3,cursor:"pointer",background:selected===code?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.02)",border:`1px solid ${selected===code?"rgba(0,180,255,0.35)":"rgba(255,255,255,0.05)"}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:selected===code?"#00B4FF":"#FFFFFF",fontWeight:"bold",marginRight:6}}>{code}</span>
+                  <span style={{fontSize:9,color:"#556677"}}>{a.name.split(" ").slice(0,2).join(" ")}</span>
                 </div>
+                {critCount>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#FF3B3B",background:"rgba(255,59,59,0.1)",border:"1px solid rgba(255,59,59,0.25)",padding:"1px 5px",borderRadius:2}}>⚠{critCount}</span>}
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Phase filter */}
       <div style={{padding:"10px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.12em",marginBottom:7}}>FLIGHT PHASE</div>
         <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
           {PHASES.map(p=>(
-            <button key={p.id} onClick={()=>setPhase(p.id)} style={{fontSize:8,fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em",padding:"4px 8px",borderRadius:4,cursor:"pointer",background:phase===p.id?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${phase===p.id?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:phase===p.id?"#00B4FF":"#556677"}}>{p.label}</button>
+            <button key={p.id} onClick={()=>setPhase(p.id)} style={{fontSize:8,fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em",padding:"4px 8px",borderRadius:4,cursor:"pointer",background:phase===p.id?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${phase===p.id?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:phase===p.id?"#00B4FF":"#FFFFFF"}}>{p.label}</button>
           ))}
         </div>
       </div>
