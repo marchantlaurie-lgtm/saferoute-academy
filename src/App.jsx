@@ -901,7 +901,7 @@ function WeatherStrip({ liveWx, wxLoad }) {
           {tafThreats.map((t,i)=><div key={i} style={{fontSize:12,color:t.color,marginBottom:3,fontWeight:"500"}}>{t.icon}  {t.text}</div>)}
         </div>
       )}
-      <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#334455",lineHeight:1.6,wordBreak:"break-all"}}>{liveWx.metar}</div>
+      <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#C0D4E8",lineHeight:1.6,wordBreak:"break-all"}}>{liveWx.metar}</div>
     </div>
   );
 }
