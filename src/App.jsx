@@ -1157,6 +1157,7 @@ export default function App() {
         </div>
         <div style={{flex:1}}/>
         <button onClick={()=>setShowWelcome(true)} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 10px",color:"#8899AA",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",marginRight:10}}>⟲ CHANGE LOCATION</button>
+        <a href="https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_academy_feedback_form.html" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.12)",border:"1px solid rgba(0,180,255,0.35)",borderRadius:6,padding:"6px 10px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",marginRight:10,textDecoration:"none",display:"inline-block"}}>💬 FEEDBACK</a>
         <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:wxLoad?"#FFD700":"#00C896"}}>● {wxLoad?"LOADING":"LIVE"}</span>
       </div>
       <div style={{flex:1,display:"flex",overflow:"hidden",height:"calc(100vh - 56px)"}}>
