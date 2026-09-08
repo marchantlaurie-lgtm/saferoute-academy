@@ -384,8 +384,6 @@ const AIRFIELDS = {
     atcNotes:"Tower 123.0 · Ground 121.9",
     cfiNotes:"Show Low is an excellent high-altitude cross-country destination for advanced students. Density altitude and Mogollon Rim terrain are the essential briefs.",
   },
-};
-
 
   // ── UK TRAINING AIRFIELDS ────────────────────────────────────────────────
   EGTE:{ name:"Exeter Airport", city:"Exeter, UK", elevation:102, class:"Class D", type:"Towered", runways:["08/26 — 6,834ft","13/31 — 3,294ft"], region:"uk", weather_icao:"EGTE",
@@ -553,8 +551,9 @@ Bird activity significant — report to ATC.",
     ],
     atcNotes:"Military/test ATC — PPR required for all visits.
 Tower 130.8 · Approach 130.8",
-    cfiNotes:"Warton is primarily an educational visit — the PPR process and military/civil interface are the key lessons. Not suitable for general training use without specific liaison with BAE Systems."},
-];
+    cfiNotes:"Warton is primarily an educational visit — the PPR process and military/civil interface are the key lessons. Not suitable for general training use without specific liaison with BAE Systems.",
+  },
+};
 
 const SEV = {
   critical:{ color:"#FF3B3B", bg:"rgba(255,59,59,0.15)", border:"rgba(255,59,59,0.45)", label:"CRITICAL" },
