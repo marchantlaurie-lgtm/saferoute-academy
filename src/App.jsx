@@ -135,7 +135,7 @@ const AIRFIELDS = {
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Atlantic Coast Thunderstorms",detail:"Atlantic sea breeze CB development. Check TAF. Plan morning flights in summer."},
     ],
     atcNotes:"Approach 124.0 · Tower 126.0 · Ground 121.9\nClass C — mandatory contact before entering airspace.",
-    cfiNotes:"KDAB is excellent for Class C introduction. Focus on communication requirements and traffic awareness in the ERAU environment.",
+    cfiNotes:"KDAB is excellent for Class C introduction. Focus on communication requirements and traffic awareness in the ERAU environment. Always confirm: have you checked NOTAMs before departure?",
   },
   KVRB:{ name:"Vero Beach Regional Airport", city:"Vero Beach, FL", elevation:24, class:"Class D", type:"Towered", runways:["04/22 — 7,314ft","11L/29R — 4,000ft","11R/29L — 3,301ft"], region:"florida", weather_icao:"KVRB",
     hazards:[
@@ -145,7 +145,7 @@ const AIRFIELDS = {
       {id:"CROSSING",phase:["pattern","all"],sev:"medium",icon:"📻",title:"Multi-School Pattern / Crossing Operations",detail:"Multiple flight schools operate at VRB including Skyborne. With aircraft at different skill levels sharing the pattern, expect non-standard spacing. Announce clearly, look before every turn."},
     ],
     atcNotes:"Tower 119.4 · Ground 121.9 · CTAF 119.4 (when tower closed)",
-    cfiNotes:"Bird strike risk at VRB is genuinely serious. The 13:00 rule for summer afternoon flights should be non-negotiable. Brief the MOA status check before every cross-country departure.",
+    cfiNotes:"Bird strike risk at VRB is genuinely serious. The 13:00 rule for summer afternoon flights should be non-negotiable. Brief the MOA status check before every cross-country departure. Always confirm: have you checked NOTAMs before departure?",
   },
   KFXE:{ name:"Fort Lauderdale Executive Airport", city:"Fort Lauderdale, FL", elevation:13, class:"Class D", type:"Towered", runways:["09/27 — 4,000ft","13/31 — 6,001ft"], region:"florida", weather_icao:"KFXE",
     hazards:[
@@ -155,7 +155,7 @@ const AIRFIELDS = {
       {id:"MULTI",phase:["pattern","all"],sev:"high",icon:"📻",title:"Non-Native English Readbacks",detail:"KFXE hosts many international students. Readbacks may be unclear or incomplete. Monitor all traffic calls carefully."},
     ],
     atcNotes:"Tower 128.025 · Ground 121.9 · Miami Approach 124.15\nDo NOT climb above 1,200ft without explicit Class B clearance.",
-    cfiNotes:"Class B altitude discipline is the defining brief at FXE — say it explicitly every flight: 'We do not climb above 1,200ft without a clearance.'",
+    cfiNotes:"Class B altitude discipline is the defining brief at FXE — say it explicitly every flight: 'We do not climb above 1,200ft without a clearance.' Always confirm: have you checked NOTAMs before departure?",
   },
   KPMP:{ name:"Pompano Beach Airpark", city:"Pompano Beach, FL", elevation:19, class:"Class D", type:"Towered", runways:["15/33 — 3,600ft","06/24 — 2,800ft"], region:"florida", weather_icao:"KPMP",
     hazards:[
@@ -165,7 +165,7 @@ const AIRFIELDS = {
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Afternoon Thunderstorms",detail:"South Florida CB — plan morning flights, ground by 13:00 in summer. Check TAF."},
     ],
     atcNotes:"Tower 134.95 · Ground 121.9 · Miami Approach 124.15\nClass B floor varies by sector — confirm before every departure.",
-    cfiNotes:"Pompano is known as one of Florida's 'gotcha' fields. Short runway, Class B floor, non-standard pattern — all need specific briefing.",
+    cfiNotes:"Pompano is known as one of Florida's 'gotcha' fields. Short runway, Class B floor, non-standard pattern — all need specific briefing. Always confirm: have you checked NOTAMs before departure?",
   },
   KFPR:{ name:"Treasure Coast International", city:"Fort Pierce, FL", elevation:25, class:"Class D", type:"Towered", runways:["14/32 — 4,000ft","09/27 — 6,492ft"], region:"florida", weather_icao:"KFPR",
     hazards:[
@@ -175,7 +175,7 @@ const AIRFIELDS = {
       {id:"MULTI",phase:["pattern","all"],sev:"medium",icon:"📻",title:"Multi-School Pattern Ops",detail:"Multiple schools including Skyborne based at KFPR. Announce all positions."},
     ],
     atcNotes:"Tower 126.0 · Ground 121.9\nCheck MOA/TFR status before all departures.",
-    cfiNotes:"KFPR is a well-organised training environment. Key focus: MOA awareness and weather decision-making.",
+    cfiNotes:"KFPR is a well-organised training environment. Key focus: MOA awareness and weather decision-making. Always confirm: have you checked NOTAMs before departure?",
   },
   KTMB:{ name:"Miami Executive Airport (Tamiami)", city:"Miami, FL", elevation:8, class:"Class D", type:"Towered", runways:["09L/27R — 5,000ft","09R/27L — 4,007ft","13/31 — 3,897ft"], region:"florida", weather_icao:"KTMB",
     hazards:[
@@ -185,7 +185,7 @@ const AIRFIELDS = {
       {id:"ADIZ",phase:["all"],sev:"high",icon:"🔒",title:"Florida ADIZ — Offshore Flight Restriction",detail:"The Florida ADIZ begins 12nm offshore. Do not fly over the ocean without a DVFR flight plan and CFI brief on ADIZ procedures."},
     ],
     atcNotes:"Tower 132.075 · Ground 121.9 · Miami Approach 125.5 (N), 119.75 (S)",
-    cfiNotes:"Tamiami's Class B geometry is complex — brief it sector by sector. Everglades bird risk is genuine and high.",
+    cfiNotes:"Tamiami's Class B geometry is complex — brief it sector by sector. Everglades bird risk is genuine and high. Always confirm: have you checked NOTAMs before departure?",
   },
   KSRQ:{ name:"Sarasota-Bradenton International", city:"Sarasota, FL", elevation:30, class:"Class C", type:"Towered", runways:["14/32 — 9,500ft","04/22 — 5,006ft"], region:"florida", weather_icao:"KSRQ",
     hazards:[
@@ -194,7 +194,7 @@ const AIRFIELDS = {
       {id:"BIRDS",phase:["takeoff","landing"],sev:"high",icon:"🦅",title:"Gulf Coast Bird Activity",detail:"Sarasota Bay wetlands adjacent. Wading birds and seabirds common on approach paths."},
     ],
     atcNotes:"Approach 119.15 · Tower 118.05 · Ground 121.9",
-    cfiNotes:"SRQ is ideal for Class C introduction — less complex than Miami/FLL, professional environment.",
+    cfiNotes:"SRQ is ideal for Class C introduction — less complex than Miami/FLL, professional environment. Always confirm: have you checked NOTAMs before departure?",
   },
   KFMY:{ name:"Page Field", city:"Fort Myers, FL", elevation:17, class:"Class D", type:"Towered", runways:["05/23 — 6,397ft","13/31 — 4,116ft"], region:"florida", weather_icao:"KFMY",
     hazards:[
@@ -204,7 +204,7 @@ const AIRFIELDS = {
       {id:"MULTI",phase:["pattern","all"],sev:"medium",icon:"📻",title:"Multi-School Pattern Operations",detail:"Multiple training schools based at KFMY including Paragon Flight. Announce all pattern positions."},
     ],
     atcNotes:"Tower 119.4 · Ground 121.9 · Fort Myers Approach 124.0\nRSW Class C to the north — confirm clearance before climbing northbound.",
-    cfiNotes:"KFMY has intersecting runways — reinforce runway crossing discipline. Gulf/Atlantic convergence makes afternoon weather particularly fast-developing.",
+    cfiNotes:"KFMY has intersecting runways — reinforce runway crossing discipline. Gulf/Atlantic convergence makes afternoon weather particularly fast-developing. Always confirm: have you checked NOTAMs before departure?",
   },
   KGNV:{ name:"Gainesville Regional Airport", city:"Gainesville, FL", elevation:152, class:"Class C", type:"Towered", runways:["10/28 — 7,503ft","07/25 — 3,002ft"], region:"florida", weather_icao:"KGNV",
     hazards:[
@@ -214,7 +214,7 @@ const AIRFIELDS = {
       {id:"BIRDS",phase:["takeoff","landing"],sev:"medium",icon:"🦅",title:"Paynes Prairie Wildlife Corridor",detail:"Paynes Prairie wildlife preserve is adjacent. Sandhill cranes, wading birds and raptors are common."},
     ],
     atcNotes:"Approach 124.15 · Tower 118.5 · Ground 121.9",
-    cfiNotes:"KGNV is a good Class C introduction field. Short runway 07/25 needs specific briefing.",
+    cfiNotes:"KGNV is a good Class C introduction field. Short runway 07/25 needs specific briefing. Always confirm: have you checked NOTAMs before departure?",
   },
   KVNC:{ name:"Venice Municipal Airport", city:"Venice, FL", elevation:18, class:"Class D", type:"Towered", runways:["05/23 — 5,000ft","13/31 — 3,580ft"], region:"florida", weather_icao:"KVNC",
     hazards:[
@@ -223,7 +223,7 @@ const AIRFIELDS = {
       {id:"CROSS",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Intersecting Runway Operations",detail:"Runways 05/23 and 13/31 intersect. Confirm runway crossing clearances carefully."},
     ],
     atcNotes:"Tower 119.05 · Ground 121.9\nIntersecting runways — confirm all crossing clearances.",
-    cfiNotes:"Venice has a high bird strike record. Intersecting runways need specific crossing discipline briefing.",
+    cfiNotes:"Venice has a high bird strike record. Intersecting runways need specific crossing discipline briefing. Always confirm: have you checked NOTAMs before departure?",
   },
   KBOW:{ name:"Bartow Executive Airport", city:"Bartow, FL", elevation:125, class:"Class D", type:"Towered", runways:["09L/27R — 5,000ft","09R/27L — 5,001ft"], region:"florida", weather_icao:"KBOW",
     hazards:[
@@ -232,7 +232,7 @@ const AIRFIELDS = {
       {id:"MULTI",phase:["pattern","all"],sev:"high",icon:"📻",title:"High Volume Multi-School Operations",why:"Bartow is a major training hub.",detail:"KBOW hosts very high training volumes — multiple schools operate simultaneously on parallel runways. Radio discipline and visual lookout are critical."},
     ],
     atcNotes:"Tower 123.8 · Ground 121.9\nParallel runway ops — confirm assigned runway before every lineup.",
-    cfiNotes:"Bartow's equal-length parallel runways are a known student confusion point. Reinforce runway readback discipline every flight.",
+    cfiNotes:"Bartow's equal-length parallel runways are a known student confusion point. Reinforce runway readback discipline every flight. Always confirm: have you checked NOTAMs before departure?",
   },
   KLAL:{ name:"Lakeland Linder Regional", city:"Lakeland, FL", elevation:142, class:"Class D", type:"Towered", runways:["09/27 — 8,500ft","05/23 — 5,001ft","18/36 — 3,700ft"], region:"florida", weather_icao:"KLAL",
     hazards:[
@@ -249,7 +249,7 @@ const AIRFIELDS = {
       {id:"BIRDS",phase:["takeoff","landing"],sev:"high",icon:"🦅",title:"Peace River Wildlife Corridor",detail:"Peace River corridor brings large bird populations near KPGD. Wading birds and vultures common on runway."},
     ],
     atcNotes:"Tower 124.0 · Ground 121.9 · Fort Myers Approach",
-    cfiNotes:"PGD is a good primary training field — long runway, professional ATC. Charlotte convergence zone weather needs specific briefing.",
+    cfiNotes:"PGD is a good primary training field — long runway, professional ATC. Charlotte convergence zone weather needs specific briefing. Always confirm: have you checked NOTAMs before departure?",
   },
   KSPG:{ name:"Albert Whitted Airport", city:"St Petersburg, FL", elevation:7, class:"Class D", type:"Towered", runways:["07/25 — 3,326ft","18/36 — 2,864ft"], region:"florida", weather_icao:"KSPG",
     hazards:[
@@ -258,7 +258,7 @@ const AIRFIELDS = {
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Thunderstorm Convergence",detail:"Tampa Bay is a known thunderstorm convergence zone. Ground by 12:30 in summer."},
     ],
     atcNotes:"Tower 124.1 · Ground 121.9 · Tampa Approach 119.9\nClass B begins at 1,200ft — do not climb without clearance.",
-    cfiNotes:"Albert Whitted is challenging — Class B overhead, short runways, water surroundings. Not suitable for early solo without thorough briefing on all three hazards.",
+    cfiNotes:"Albert Whitted is challenging — Class B overhead, short runways, water surroundings. Not suitable for early solo without thorough briefing on all three hazards. Always confirm: have you checked NOTAMs before departure?",
   },
   // ── TAMPA BAY ADDITIONS ───────────────────────────────────────────────────
   KPIE:{ name:"St Pete-Clearwater International Airport", city:"Clearwater, FL", elevation:11, class:"Class C", type:"Towered", runways:["18/36 — 8,800ft","07/25 — 4,800ft"], region:"florida", weather_icao:"KPIE",
@@ -269,7 +269,7 @@ const AIRFIELDS = {
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Afternoon Thunderstorms",detail:"Tampa Bay is statistically the most lightning-active region in the USA. Sea breeze convergence creates rapidly developing CB. Ground by 13:00 in summer."},
     ],
     atcNotes:"Tower 120.6 · Ground 121.6 · Clearance 125.025\nSt Pete-Clearwater Approach 124.9 · ATIS 124.6",
-    cfiNotes:"KPIE is good for introducing Class C procedures — mandatory contact, transponder requirements, and commercial traffic awareness. Watch the Tampa Class B to the east on departure.",
+    cfiNotes:"KPIE is good for introducing Class C procedures — mandatory contact, transponder requirements, and commercial traffic awareness. Watch the Tampa Class B to the east on departure. Always confirm: have you checked NOTAMs before departure?",
   },
   KVDF:{ name:"Tampa Executive Airport (Vandenberg)", city:"Tampa, FL", elevation:14, class:"Class D", type:"Towered", runways:["09/27 — 3,500ft","18/36 — 3,200ft"], region:"florida", weather_icao:"KVDF",
     hazards:[
@@ -279,7 +279,7 @@ const AIRFIELDS = {
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Thunderstorm Convergence",detail:"Tampa Bay sea breeze convergence creates rapid CB development. Ground all training by 13:00 in summer."},
     ],
     atcNotes:"Tower 119.1 · Ground 121.6 · Tampa Approach 119.9\nP-50 (MacDill) — check NOTAM before southbound flight.",
-    cfiNotes:"KVDF is complex airspace — excellent for advanced students but not appropriate for early solos without specific Class B/airspace briefing. The MacDill P-50 restricted area to the south must be pre-briefed.",
+    cfiNotes:"KVDF is complex airspace — excellent for advanced students but not appropriate for early solos without specific Class B/airspace briefing. The MacDill P-50 restricted area to the south must be pre-briefed. Always confirm: have you checked NOTAMs before departure?",
   },
   KCLW:{ name:"Clearwater Airpark", city:"Clearwater, FL", elevation:71, class:"Uncontrolled", type:"Non-Towered", runways:["16/34 — 3,000ft"], region:"florida", weather_icao:"KPIE",
     hazards:[
@@ -288,7 +288,7 @@ const AIRFIELDS = {
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Thunderstorms",detail:"Tampa Bay sea breeze convergence. Ground all flights by 13:00 in summer. No tower for weather warnings — you are responsible for your own weather awareness."},
     ],
     atcNotes:"CTAF 122.8 — Non-towered BUT inside Class C.\nMandatory: contact St Pete-Clearwater Approach 124.9 before entry/exit.\nNo tower weather service — monitor independently.",
-    cfiNotes:"KCLW is excellent for teaching the combination of non-towered procedures AND Class C requirements simultaneously. Students must understand that CTAF self-announce alone is not sufficient here — ATC contact is mandatory. Short runway demands disciplined approach technique.",
+    cfiNotes:"KCLW is excellent for teaching the combination of non-towered procedures AND Class C requirements simultaneously. Students must understand that CTAF self-announce alone is not sufficient here — ATC contact is mandatory. Short runway demands disciplined approach technique. Always confirm: have you checked NOTAMs before departure?",
   },
   KIMM:{ name:"Immokalee Regional Airport", city:"Immokalee, FL", elevation:37, class:"Uncontrolled", type:"Non-Towered", runways:["09/27 — 5,000ft","18/36 — 4,999ft","13/31 — 3,200ft"], region:"florida", weather_icao:"KIMM",
     hazards:[
@@ -297,7 +297,7 @@ const AIRFIELDS = {
       {id:"AGRIC",phase:["pattern","all"],sev:"high",icon:"✈",title:"Agricultural / Crop-Dusting Traffic",detail:"Immokalee area has active agricultural aviation operating at very low altitude. Maintain vigilant lookout below pattern altitude."},
     ],
     atcNotes:"CTAF 122.8 — No tower.\nNo ATC weather service — monitor weather independently.",
-    cfiNotes:"KIMM is excellent for introducing non-towered operations. Key lesson: all separation is pilot responsibility. Weather self-briefing discipline is critical.",
+    cfiNotes:"KIMM is excellent for introducing non-towered operations. Key lesson: all separation is pilot responsibility. Weather self-briefing discipline is critical. Always confirm: have you checked NOTAMs before departure?",
   },
   KDED:{ name:"DeLand Municipal Airport", city:"DeLand, FL", elevation:79, class:"Uncontrolled", type:"Non-Towered", runways:["12/30 — 5,000ft","05/23 — 3,702ft"], region:"florida", weather_icao:"KDED",
     hazards:[
@@ -306,7 +306,7 @@ const AIRFIELDS = {
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Central Florida Thunderstorms",detail:"Central Florida afternoon CB — check TAF, morning flights preferred."},
     ],
     atcNotes:"CTAF 122.9 — No tower.\nSkydive DeLand actively operating — monitor jump aircraft calls continuously.",
-    cfiNotes:"DeLand is the most important non-towered skydiving airport in Florida for student awareness. Do not send students here without a comprehensive parachute operations brief.",
+    cfiNotes:"DeLand is the most important non-towered skydiving airport in Florida for student awareness. Do not send students here without a comprehensive parachute operations brief. Always confirm: have you checked NOTAMs before departure?",
   },
   KZPH:{ name:"Zephyrhills Municipal Airport", city:"Zephyrhills, FL", elevation:90, class:"Uncontrolled", type:"Non-Towered", runways:["05/23 — 5,001ft","18/36 — 4,002ft"], region:"florida", weather_icao:"KZPH",
     hazards:[
@@ -315,7 +315,7 @@ const AIRFIELDS = {
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Central Florida Thunderstorms",detail:"Tampa Bay/central Florida CB — afternoon storms common. Check TAF."},
     ],
     atcNotes:"CTAF 122.8 — No tower.\nSkydive City actively operating — monitor jump aircraft calls.",
-    cfiNotes:"Same brief as DeLand — skydiving operations are the defining hazard.",
+    cfiNotes:"Same brief as DeLand — skydiving operations are the defining hazard. Always confirm: have you checked NOTAMs before departure?",
   },
   KTIX:{ name:"Space Coast Regional Airport", city:"Titusville, FL", elevation:34, class:"Class D", type:"Towered", runways:["18/36 — 7,295ft","09/27 — 4,001ft"], region:"florida", weather_icao:"KTIX",
     hazards:[
@@ -324,7 +324,7 @@ const AIRFIELDS = {
       {id:"BIRDS",phase:["takeoff","landing"],sev:"high",icon:"🦅",title:"Merritt Island Wildlife Refuge",detail:"Merritt Island NWR is adjacent — one of the most diverse wildlife refuges in the eastern USA. Birds common on and near runways at all times."},
     ],
     atcNotes:"Tower 120.5 · Ground 121.9\nCheck KSC launch NOTAM before every flight — TFR to FL180 possible.",
-    cfiNotes:"TIX is excellent for cross-country training with long runway. KSC TFR awareness is the critical brief — check it every flight.",
+    cfiNotes:"TIX is excellent for cross-country training with long runway. KSC TFR awareness is the critical brief — check it every flight. Always confirm: have you checked NOTAMs before departure?",
   },
   KAPF:{ name:"Naples Municipal Airport", city:"Naples, FL", elevation:8, class:"Class D", type:"Towered", runways:["05/23 — 5,000ft","14/32 — 5,000ft"], region:"florida", weather_icao:"KAPF",
     hazards:[
@@ -333,7 +333,7 @@ const AIRFIELDS = {
       {id:"CROSS",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Intersecting Runway Operations",detail:"Runways 05/23 and 14/32 intersect. Confirm all crossing clearances. Never cross active runway without explicit ATC clearance."},
     ],
     atcNotes:"Tower 120.95 · Ground 121.9 · Fort Myers Approach 119.9",
-    cfiNotes:"Naples has high bird activity and some of Florida's worst afternoon CB development. Both hazards need specific daily briefing.",
+    cfiNotes:"Naples has high bird activity and some of Florida's worst afternoon CB development. Both hazards need specific daily briefing. Always confirm: have you checked NOTAMs before departure?",
   },
 
   // ── ARIZONA ───────────────────────────────────────────────────────────────
@@ -346,7 +346,7 @@ const AIRFIELDS = {
       {id:"DUST",phase:["all"],sev:"high",icon:"🌪",title:"Haboob / Dust Storm",why:"Can reduce visibility to zero in minutes with no warning.",detail:"A haboob is a wall of dust that can be 1,500ft high and move at 30-50kt. Land immediately and tie down. Do not try to outrun a haboob."},
     ],
     atcNotes:"Tower 132.075 · Ground 121.8 · ATIS 134.975\nExpect sequencing in busy periods. Report parallel runway confusion immediately.",
-    cfiNotes:"Deer Valley's parallel runways are the #1 student confusion point. DA briefing is non-negotiable before every summer flight.",
+    cfiNotes:"Deer Valley's parallel runways are the #1 student confusion point. DA briefing is non-negotiable before every summer flight. Always confirm: have you checked NOTAMs before departure?",
   },
   KFFZ:{ name:"Falcon Field Airport", city:"Mesa, AZ", elevation:1394, class:"Class D", type:"Towered", runways:["04L/22R — 3,799ft","04R/22L — 5,101ft"], region:"phoenix", weather_icao:"KFFZ",
     hazards:[
@@ -356,7 +356,7 @@ const AIRFIELDS = {
       {id:"DUST",phase:["all"],sev:"high",icon:"🌪",title:"Haboob Risk",detail:"Same Phoenix haboob hazard as all valley fields. Land immediately at first sign of approaching dust wall."},
     ],
     atcNotes:"Tower 132.85 · Ground 121.9 · Phoenix Approach 124.0 (departing east)",
-    cfiNotes:"Short runway 04L is the key trap at Falcon — reinforce runway selection in hot weather. Class B proximity is the second critical brief.",
+    cfiNotes:"Short runway 04L is the key trap at Falcon — reinforce runway selection in hot weather. Class B proximity is the second critical brief. Always confirm: have you checked NOTAMs before departure?",
   },
   KCHD:{ name:"Chandler Municipal Airport", city:"Chandler, AZ", elevation:1243, class:"Class D", type:"Towered", runways:["04L/22R — 4,900ft","04R/22L — 5,600ft"], region:"phoenix", weather_icao:"KCHD",
     hazards:[
@@ -366,7 +366,7 @@ const AIRFIELDS = {
       {id:"DUST",phase:["all"],sev:"high",icon:"🌪",title:"Haboob Risk",detail:"Standard Phoenix haboob hazard. Land and tie down immediately."},
     ],
     atcNotes:"Tower 132.35 · Ground 121.9 · Williams Gateway Approach 119.5 (eastbound departures)",
-    cfiNotes:"KIWA Class C proximity is the defining hazard at Chandler — students have entered Class C inadvertently on eastbound departures.",
+    cfiNotes:"KIWA Class C proximity is the defining hazard at Chandler — students have entered Class C inadvertently on eastbound departures. Always confirm: have you checked NOTAMs before departure?",
   },
   KIWA:{ name:"Phoenix-Mesa Gateway Airport", city:"Mesa, AZ", elevation:1382, class:"Class C", type:"Towered", runways:["12L/30R — 10,401ft","12R/30L — 10,201ft"], region:"phoenix", weather_icao:"KIWA",
     hazards:[
@@ -376,7 +376,7 @@ const AIRFIELDS = {
       {id:"MULTI",phase:["all"],sev:"high",icon:"📻",title:"Multi-School / Non-Native Readbacks",detail:"KIWA hosts international training programmes. Non-native English readbacks are common. Monitor radio carefully."},
     ],
     atcNotes:"Approach 119.5 · Tower 118.7 · Ground 121.9\nMandatory Class C contact before entering. Wake turbulence separation from jets — ask ATC if unsure.",
-    cfiNotes:"KIWA is excellent for introducing Class C operations. Focus the brief on the two-way communication requirement and wake turbulence from airline training jets.",
+    cfiNotes:"KIWA is excellent for introducing Class C operations. Focus the brief on the two-way communication requirement and wake turbulence from airline training jets. Always confirm: have you checked NOTAMs before departure?",
   },
   KGYR:{ name:"Phoenix Goodyear Airport", city:"Goodyear, AZ", elevation:968, class:"Class D", type:"Towered", runways:["03/21 — 8,500ft","21L/03R — 7,800ft"], region:"phoenix", weather_icao:"KGYR",
     hazards:[
@@ -386,7 +386,7 @@ const AIRFIELDS = {
       {id:"MULTI",phase:["pattern","all"],sev:"high",icon:"📻",title:"Multi-School / Non-Native Readbacks",detail:"Multiple international training programmes at GYR. Non-native English readbacks common."},
     ],
     atcNotes:"Tower 133.4 · Ground 121.9 · Luke Approach 124.5\nConfirm Luke restricted area status before northbound departures.",
-    cfiNotes:"Goodyear's Luke AFB adjacency is the key brief — reinforce restricted area boundaries before every flight.",
+    cfiNotes:"Goodyear's Luke AFB adjacency is the key brief — reinforce restricted area boundaries before every flight. Always confirm: have you checked NOTAMs before departure?",
   },
   KSDL:{ name:"Scottsdale Airport", city:"Scottsdale, AZ", elevation:1510, class:"Class D", type:"Towered", runways:["03/21 — 8,249ft","21L/03R — 7,800ft"], region:"phoenix", weather_icao:"KSDL",
     hazards:[
@@ -396,7 +396,7 @@ const AIRFIELDS = {
       {id:"DUST",phase:["all"],sev:"high",icon:"🌪",title:"Haboob Risk",detail:"Standard Phoenix haboob hazard. Land and tie down immediately."},
     ],
     atcNotes:"Tower 132.1 · Ground 121.9 · Phoenix Approach 124.0\nClass B begins at 3,000ft — confirm before climbing.",
-    cfiNotes:"SDL is a good progression field for students ready for a more complex environment. Not recommended for early solo students.",
+    cfiNotes:"SDL is a good progression field for students ready for a more complex environment. Not recommended for early solo students. Always confirm: have you checked NOTAMs before departure?",
   },
   KPRC:{ name:"Ernest A. Love Field (Prescott)", city:"Prescott, AZ", elevation:5045, class:"Class D", type:"Towered", runways:["03L/21R — 7,550ft","03R/21L — 4,847ft","12/30 — 4,000ft"], region:"phoenix", weather_icao:"KPRC",
     hazards:[
@@ -405,7 +405,7 @@ const AIRFIELDS = {
       {id:"THUNDER",phase:["all"],sev:"high",icon:"⛈",title:"Arizona Monsoon — Mountain Thunderstorms",detail:"Monsoon season (July-September): afternoon CB develops rapidly on surrounding mountains. Morning flights only in monsoon season."},
     ],
     atcNotes:"Tower 119.9 · Ground 121.9\nMountain terrain — know your departure procedure and minimum safe altitudes.",
-    cfiNotes:"Prescott is an advanced training environment. Density altitude at 5,045ft is critical. Embry-Riddle operates here — high training volume.",
+    cfiNotes:"Prescott is an advanced training environment. Density altitude at 5,045ft is critical. Embry-Riddle operates here — high training volume. Always confirm: have you checked NOTAMs before departure?",
   },
   KFLG:{ name:"Flagstaff Pulliam Airport", city:"Flagstaff, AZ", elevation:7014, class:"Class D", type:"Towered", runways:["03/21 — 8,800ft","15/33 — 6,999ft"], region:"phoenix", weather_icao:"KFLG",
     hazards:[
@@ -415,7 +415,7 @@ const AIRFIELDS = {
       {id:"THUNDER",phase:["all"],sev:"high",icon:"⛈",title:"Monsoon Thunderstorms — Mountain Enhanced",detail:"Summer monsoon with mountain-enhanced CB. Afternoon storms are severe and fast-developing at 7,000ft."},
     ],
     atcNotes:"Tower 118.65 · Ground 121.9\nHigh elevation — brief performance carefully before every flight.",
-    cfiNotes:"Flagstaff is an advanced training environment not suitable for early students. Do not use Cessna 172 sea-level POH data here — it is not applicable.",
+    cfiNotes:"Flagstaff is an advanced training environment not suitable for early students. Do not use Cessna 172 sea-level POH data here — it is not applicable. Always confirm: have you checked NOTAMs before departure?",
   },
   KBXK:{ name:"Buckeye Municipal Airport", city:"Buckeye, AZ", elevation:1033, class:"Uncontrolled", type:"Non-Towered", runways:["07/25 — 7,000ft","17/35 — 5,200ft"], region:"phoenix", weather_icao:"KGYR",
     hazards:[
@@ -425,7 +425,7 @@ const AIRFIELDS = {
       {id:"DUST",phase:["all"],sev:"high",icon:"🌪",title:"Haboob Risk",detail:"Western Phoenix desert location — high haboob risk. Land and tie down immediately."},
     ],
     atcNotes:"CTAF 122.8 — No tower.\nLuke MOA immediately adjacent — confirm status before northbound or westbound departures.",
-    cfiNotes:"Buckeye's combination of non-towered operations and Luke military airspace makes it an excellent advanced training field.",
+    cfiNotes:"Buckeye's combination of non-towered operations and Luke military airspace makes it an excellent advanced training field. Always confirm: have you checked NOTAMs before departure?",
   },
   KCGZ:{ name:"Casa Grande Municipal Airport", city:"Casa Grande, AZ", elevation:1464, class:"Uncontrolled", type:"Non-Towered", runways:["05/23 — 5,201ft","18/36 — 4,802ft"], region:"phoenix", weather_icao:"KCGZ",
     hazards:[
@@ -434,7 +434,7 @@ const AIRFIELDS = {
       {id:"DUST",phase:["all"],sev:"high",icon:"🌪",title:"Haboob Risk",detail:"Desert location — haboob risk. Land and tie down immediately at first sign of dust wall."},
     ],
     atcNotes:"CTAF 122.8 — No tower.",
-    cfiNotes:"CGZ is a useful non-towered field for self-announce practice away from the Phoenix metro.",
+    cfiNotes:"CGZ is a useful non-towered field for self-announce practice away from the Phoenix metro. Always confirm: have you checked NOTAMs before departure?",
   },
   KSOW:{ name:"Show Low Regional Airport", city:"Show Low, AZ", elevation:6415, class:"Class D", type:"Towered", runways:["06/24 — 7,400ft"], region:"phoenix", weather_icao:"KSOW",
     hazards:[
@@ -443,7 +443,7 @@ const AIRFIELDS = {
       {id:"THUNDER",phase:["all"],sev:"high",icon:"⛈",title:"Mountain Monsoon Thunderstorms",detail:"White Mountains monsoon season — severe afternoon CB. Morning flights only July-September."},
     ],
     atcNotes:"Tower 123.0 · Ground 121.9",
-    cfiNotes:"Show Low is an excellent high-altitude cross-country destination for advanced students. Density altitude and Mogollon Rim terrain are the essential briefs.",
+    cfiNotes:"Show Low is an excellent high-altitude cross-country destination for advanced students. Density altitude and Mogollon Rim terrain are the essential briefs. Always confirm: have you checked NOTAMs before departure?",
   },
 
   // ── UNITED KINGDOM ────────────────────────────────────────────────────────
@@ -454,7 +454,7 @@ const AIRFIELDS = {
       {id:"CLOUD",phase:["all"],sev:"high",icon:"☁",title:"Low Cloud Base — Common in Winter",why:"UK weather brings frequent low cloud and reduced visibility, especially Oct–Mar.",detail:"Check the actual TAF/METAR cloud base before flight. Use the cloud base tool in the weather panel as a planning aid, not a substitute for the actual report."},
     ],
     atcNotes:"Kemble A/G 122.995\nNo ATC — self-announce all positions.",
-    cfiNotes:"Kemble is a good introduction to uncontrolled UK fields. Radio discipline and lookout are the defining briefs here.",
+    cfiNotes:"Kemble is a good introduction to uncontrolled UK fields. Radio discipline and lookout are the defining briefs here. Always confirm: have you checked NOTAMs before departure?",
   },
   EGTE:{ name:"Exeter Airport", city:"Exeter, Devon", elevation:102, class:"Class D", type:"Towered", runways:["08/26 — 2,894m"], region:"uk", weather_icao:"EGTE",
     hazards:[
@@ -462,7 +462,7 @@ const AIRFIELDS = {
       {id:"COAST",phase:["all"],sev:"medium",icon:"🌊",title:"Coastal Weather — Fast-Changing Visibility",why:"Sea fog and haze can form quickly on the South Devon coast.",detail:"Check the actual METAR trend before and during flight, not just at departure. Coastal visibility can deteriorate faster than inland forecasts suggest."},
     ],
     atcNotes:"Exeter Approach 128.98 · Tower 119.8",
-    cfiNotes:"Good Class D introduction field. Coastal weather changes fast — reinforce in-flight weather monitoring.",
+    cfiNotes:"Good Class D introduction field. Coastal weather changes fast — reinforce in-flight weather monitoring. Always confirm: have you checked NOTAMs before departure?",
   },
   EGHH:{ name:"Bournemouth Airport", city:"Bournemouth, Dorset", elevation:38, class:"Class D", type:"Towered", runways:["08/26 — 2,073m"], region:"uk", weather_icao:"EGHH",
     hazards:[
@@ -470,7 +470,7 @@ const AIRFIELDS = {
       {id:"TRAFFIC",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Mixed Traffic — GA and Commercial",why:"Shared with scheduled and charter commercial traffic.",detail:"Expect sequencing behind larger aircraft. Follow ATC instructions precisely and be ready for extended patterns."},
     ],
     atcNotes:"Bournemouth Approach 119.475 · Tower 125.6",
-    cfiNotes:"Good introduction to a mixed GA/commercial traffic environment.",
+    cfiNotes:"Good introduction to a mixed GA/commercial traffic environment. Always confirm: have you checked NOTAMs before departure?",
   },
   EGBJ:{ name:"Gloucestershire Airport (Staverton)", city:"Staverton, Gloucestershire", elevation:101, class:"Class G", type:"Uncontrolled (ATZ)", runways:["09/27 — 1,246m","04/22 — 786m"], region:"uk", weather_icao:"EGBJ",
     hazards:[
@@ -478,7 +478,7 @@ const AIRFIELDS = {
       {id:"CROSS",phase:["takeoff","landing"],sev:"medium",icon:"🛬",title:"Intersecting Runways",detail:"09/27 and 04/22 intersect. Confirm which runway is in use and expect circuit direction to vary."},
     ],
     atcNotes:"Staverton Radio 122.9",
-    cfiNotes:"Good field for practising radio discipline in a Flight Information Service environment.",
+    cfiNotes:"Good field for practising radio discipline in a Flight Information Service environment. Always confirm: have you checked NOTAMs before departure?",
   },
   EGTK:{ name:"Oxford Airport (Kidlington)", city:"Kidlington, Oxfordshire", elevation:270, class:"Class D", type:"Towered", runways:["01/19 — 1,506m","10/28 — 1,206m"], region:"uk", weather_icao:"EGTK",
     hazards:[
@@ -486,7 +486,7 @@ const AIRFIELDS = {
       {id:"TRAINING",phase:["pattern","all"],sev:"medium",icon:"✈",title:"High-Density Flight Training",why:"Oxford hosts a major flight training organisation.",detail:"Expect heavy circuit traffic and multiple training aircraft operating simultaneously. Maintain a strict lookout scan."},
     ],
     atcNotes:"Oxford Approach 125.325 · Tower 133.42",
-    cfiNotes:"Busy Class D training environment — good for building radio and pattern discipline under load.",
+    cfiNotes:"Busy Class D training environment — good for building radio and pattern discipline under load. Always confirm: have you checked NOTAMs before departure?",
   },
   EGTC:{ name:"Cranfield Airport", city:"Cranfield, Bedfordshire", elevation:358, class:"Class D", type:"Towered", runways:["04/22 — 1,808m"], region:"uk", weather_icao:"EGTC",
     hazards:[
@@ -494,7 +494,7 @@ const AIRFIELDS = {
       {id:"UNI",phase:["pattern","all"],sev:"medium",icon:"✈",title:"University Flight Training Operations",detail:"Cranfield hosts university-affiliated flight training — expect structured but busy circuit traffic."},
     ],
     atcNotes:"Cranfield Approach 123.15 · Tower 134.22",
-    cfiNotes:"Well-organised Class D field, good progression step from an uncontrolled airfield.",
+    cfiNotes:"Well-organised Class D field, good progression step from an uncontrolled airfield. Always confirm: have you checked NOTAMs before departure?",
   },
   EGKA:{ name:"Shoreham Airport", city:"Shoreham-by-Sea, West Sussex", elevation:7, class:"Class D", type:"Towered", runways:["02/20 — 1,000m","07/25 — 796m"], region:"uk", weather_icao:"EGKA",
     hazards:[
@@ -503,7 +503,7 @@ const AIRFIELDS = {
       {id:"SHORT",phase:["takeoff","landing"],sev:"medium",icon:"🛬",title:"Short Secondary Runway",detail:"07/25 is short at 796m — know your aircraft's performance before accepting it."},
     ],
     atcNotes:"Shoreham Tower 123.15",
-    cfiNotes:"Coastal fog awareness is the standout brief here — reinforce checking trends, not just current conditions.",
+    cfiNotes:"Coastal fog awareness is the standout brief here — reinforce checking trends, not just current conditions. Always confirm: have you checked NOTAMs before departure?",
   },
   EGBW:{ name:"Wellesbourne Mountford Airfield", city:"Wellesbourne, Warwickshire", elevation:154, class:"Class G", type:"Uncontrolled", runways:["18/36 — 1,097m","05/23 — 741m"], region:"uk", weather_icao:"EGBW",
     hazards:[
@@ -511,7 +511,7 @@ const AIRFIELDS = {
       {id:"MULTI",phase:["pattern","all"],sev:"medium",icon:"📻",title:"Multiple Flying Schools",detail:"Several schools operate from Wellesbourne. Expect non-standard spacing — announce clearly, look before every turn."},
     ],
     atcNotes:"Wellesbourne A/G 124.025\nNo ATC — self-announce all positions.",
-    cfiNotes:"Good uncontrolled field for reinforcing radio discipline in a busy multi-school pattern.",
+    cfiNotes:"Good uncontrolled field for reinforcing radio discipline in a busy multi-school pattern. Always confirm: have you checked NOTAMs before departure?",
   },
   EGHI:{ name:"Southampton Airport", city:"Southampton, Hampshire", elevation:44, class:"Class D", type:"Towered", runways:["02/20 — 1,723m"], region:"uk", weather_icao:"EGHI",
     hazards:[
@@ -519,7 +519,7 @@ const AIRFIELDS = {
       {id:"TRAFFIC",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Scheduled Commercial Traffic",detail:"Shared with scheduled airline services. Expect to be sequenced behind larger aircraft."},
     ],
     atcNotes:"Southampton Approach 128.85 · Tower 118.2",
-    cfiNotes:"Good introduction to mixed GA/commercial Class D operations.",
+    cfiNotes:"Good introduction to mixed GA/commercial Class D operations. Always confirm: have you checked NOTAMs before departure?",
   },
   EGLK:{ name:"Blackbushe Airport", city:"Camberley, Hampshire", elevation:325, class:"Class G", type:"Uncontrolled (ATZ)", runways:["07/25 — 1,384m"], region:"uk", weather_icao:"EGLK",
     hazards:[
@@ -527,7 +527,7 @@ const AIRFIELDS = {
       {id:"BUSY",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Busy Business Aviation Traffic",detail:"Blackbushe sees significant business jet and turboprop traffic alongside GA training — expect faster-moving aircraft in the pattern."},
     ],
     atcNotes:"Blackbushe Radio 122.3",
-    cfiNotes:"Mixed traffic speeds are the key brief — reinforce lookout and pattern spacing awareness.",
+    cfiNotes:"Mixed traffic speeds are the key brief — reinforce lookout and pattern spacing awareness. Always confirm: have you checked NOTAMs before departure?",
   },
   EGHC:{ name:"Land's End Airport", city:"St Just, Cornwall", elevation:386, class:"Class G", type:"Uncontrolled (ATZ)", runways:["07/25 — 664m","13/31 — 605m"], region:"uk", weather_icao:"EGHC",
     hazards:[
@@ -536,7 +536,7 @@ const AIRFIELDS = {
       {id:"SHORT",phase:["takeoff","landing"],sev:"medium",icon:"🛬",title:"Short Runways",detail:"Both runways are under 700m — know your aircraft's performance margins."},
     ],
     atcNotes:"Land's End A/G 120.25",
-    cfiNotes:"Exposed coastal weather is the defining hazard — not a field for early solo cross-country without a thorough weather brief.",
+    cfiNotes:"Exposed coastal weather is the defining hazard — not a field for early solo cross-country without a thorough weather brief. Always confirm: have you checked NOTAMs before departure?",
   },
   EGFH:{ name:"Swansea Airport", city:"Swansea, Wales", elevation:299, class:"Class G", type:"Uncontrolled (ATZ)", runways:["04/22 — 1,190m"], region:"uk", weather_icao:"EGFH",
     hazards:[
@@ -544,7 +544,7 @@ const AIRFIELDS = {
       {id:"TERRAIN",phase:["departure","all"],sev:"medium",icon:"⛰",title:"Rising Terrain to the North",detail:"South Wales terrain rises inland. Be aware of minimum safe altitudes on northbound routings, especially in poor visibility."},
     ],
     atcNotes:"Swansea Radio 119.7",
-    cfiNotes:"Good field for introducing terrain awareness in a Welsh coastal-to-inland transition.",
+    cfiNotes:"Good field for introducing terrain awareness in a Welsh coastal-to-inland transition. Always confirm: have you checked NOTAMs before departure?",
   },
   EGNX:{ name:"East Midlands Airport", city:"Castle Donington, Leicestershire", elevation:306, class:"Class D", type:"Towered", runways:["09/27 — 2,894m"], region:"uk", weather_icao:"EGNX",
     hazards:[
@@ -552,7 +552,7 @@ const AIRFIELDS = {
       {id:"CARGO",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Heavy Cargo and Commercial Traffic",why:"Major overnight cargo hub.",detail:"East Midlands is a significant freight hub with heavy aircraft movements. Expect to be sequenced carefully, including wake turbulence separation from larger jets."},
     ],
     atcNotes:"East Midlands Approach 134.175 · Tower 124.0",
-    cfiNotes:"Good exposure to procedural separation from heavy commercial traffic, including wake turbulence awareness.",
+    cfiNotes:"Good exposure to procedural separation from heavy commercial traffic, including wake turbulence awareness. Always confirm: have you checked NOTAMs before departure?",
   },
   EGBB:{ name:"Birmingham Airport", city:"Birmingham, West Midlands", elevation:327, class:"Class D", type:"Towered", runways:["15/33 — 3,052m"], region:"uk", weather_icao:"EGBB",
     hazards:[
@@ -560,7 +560,7 @@ const AIRFIELDS = {
       {id:"TRAFFIC",phase:["pattern","all"],sev:"high",icon:"✈",title:"High-Volume Commercial Traffic",detail:"Significant scheduled and charter traffic. GA aircraft are a small minority of movements here."},
     ],
     atcNotes:"Birmingham Approach 118.05 · Tower 118.3",
-    cfiNotes:"Reserve Birmingham for advanced radio procedure and complex-airspace training — not a first-solo environment.",
+    cfiNotes:"Reserve Birmingham for advanced radio procedure and complex-airspace training — not a first-solo environment. Always confirm: have you checked NOTAMs before departure?",
   },
   EGSC:{ name:"Cambridge Airport", city:"Cambridge, Cambridgeshire", elevation:47, class:"Class D", type:"Towered", runways:["05/23 — 1,997m"], region:"uk", weather_icao:"EGSC",
     hazards:[
@@ -568,7 +568,7 @@ const AIRFIELDS = {
       {id:"BUSY",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Business Aviation Traffic",detail:"Significant business jet movements alongside GA training. Expect a range of aircraft speeds in the pattern."},
     ],
     atcNotes:"Cambridge Approach 123.6 · Tower 122.2",
-    cfiNotes:"Good mixed-traffic Class D environment for building confidence with faster aircraft sharing the circuit.",
+    cfiNotes:"Good mixed-traffic Class D environment for building confidence with faster aircraft sharing the circuit. Always confirm: have you checked NOTAMs before departure?",
   },
   EGSX:{ name:"North Weald Airfield", city:"North Weald, Essex", elevation:321, class:"Class G", type:"Uncontrolled (ATZ)", runways:["02/20 — 1,401m"], region:"uk", weather_icao:"EGSX",
     hazards:[
@@ -576,7 +576,7 @@ const AIRFIELDS = {
       {id:"HISTORIC",phase:["pattern","all"],sev:"low",icon:"✈",title:"Historic/Warbird Aircraft Activity",detail:"North Weald hosts historic and warbird aircraft — some with limited radio or non-standard circuit patterns. Maintain a strong visual lookout."},
     ],
     atcNotes:"North Weald A/G 123.525",
-    cfiNotes:"Good field for reinforcing see-and-avoid discipline given the mix of aircraft types and speeds.",
+    cfiNotes:"Good field for reinforcing see-and-avoid discipline given the mix of aircraft types and speeds. Always confirm: have you checked NOTAMs before departure?",
   },
   EGMC:{ name:"Southend Airport", city:"Southend-on-Sea, Essex", elevation:49, class:"Class D", type:"Towered", runways:["05/23 — 1,856m"], region:"uk", weather_icao:"EGMC",
     hazards:[
@@ -584,7 +584,7 @@ const AIRFIELDS = {
       {id:"THAMES",phase:["all"],sev:"medium",icon:"📡",title:"Proximity to London TMA / Thames Estuary Airspace",why:"Southend sits close to complex London-area controlled airspace.",detail:"Be aware of the boundaries of surrounding controlled airspace, particularly on routes towards London. Confirm clearances precisely."},
     ],
     atcNotes:"Southend Approach 130.775 · Tower 128.95",
-    cfiNotes:"Good field for introducing students to operating near complex London-area airspace.",
+    cfiNotes:"Good field for introducing students to operating near complex London-area airspace. Always confirm: have you checked NOTAMs before departure?",
   },
   EGKB:{ name:"Biggin Hill Airport", city:"Biggin Hill, Kent", elevation:599, class:"Class D", type:"Towered", runways:["03/21 — 1,802m"], region:"uk", weather_icao:"EGKB",
     hazards:[
@@ -592,7 +592,7 @@ const AIRFIELDS = {
       {id:"LONDON",phase:["all"],sev:"high",icon:"📡",title:"Close to London Airspace",why:"Biggin Hill sits close to London TMA and Gatwick/Heathrow zones.",detail:"Confirm routing and altitude restrictions carefully — this is a complex airspace environment close to some of the busiest controlled airspace in Europe."},
     ],
     atcNotes:"Biggin Approach 129.4 · Tower 134.8",
-    cfiNotes:"Excellent field for advanced students building confidence operating near London's complex airspace.",
+    cfiNotes:"Excellent field for advanced students building confidence operating near London's complex airspace. Always confirm: have you checked NOTAMs before departure?",
   },
   EGLF:{ name:"Fairoaks Airport", city:"Chobham, Surrey", elevation:80, class:"Class G", type:"Uncontrolled (ATZ)", runways:["06/24 — 823m"], region:"uk", weather_icao:"EGLF",
     hazards:[
@@ -600,7 +600,7 @@ const AIRFIELDS = {
       {id:"SHORT",phase:["takeoff","landing"],sev:"medium",icon:"🛬",title:"Short Runway",detail:"823m runway — know your aircraft's performance margins, especially in wet conditions."},
     ],
     atcNotes:"Fairoaks Radio 123.425",
-    cfiNotes:"Good short-field practice location close to complex Southeast airspace.",
+    cfiNotes:"Good short-field practice location close to complex Southeast airspace. Always confirm: have you checked NOTAMs before departure?",
   },
   EGTB:{ name:"Wycombe Air Park", city:"Booker, Buckinghamshire", elevation:520, class:"Class G", type:"Uncontrolled (ATZ)", runways:["06/24 — 823m","01/19 — 561m"], region:"uk", weather_icao:"EGTB",
     hazards:[
@@ -608,14 +608,14 @@ const AIRFIELDS = {
       {id:"GLIDER",phase:["pattern","all"],sev:"medium",icon:"🪂",title:"Gliding and Parachute Operations",detail:"Wycombe has active gliding and parachute operations. Check NOTAMs before flight."},
     ],
     atcNotes:"Wycombe Radio 126.55",
-    cfiNotes:"Good field for reinforcing lookout discipline given shared use with gliders and parachutists.",
+    cfiNotes:"Good field for reinforcing lookout discipline given shared use with gliders and parachutists. Always confirm: have you checked NOTAMs before departure?",
   },
   EGCC:{ name:"Manchester Airport", city:"Manchester, Greater Manchester", elevation:257, class:"Class D", type:"Towered", runways:["05L/23R — 3,048m","05R/23L — 3,048m"], region:"uk", weather_icao:"EGCC",
     hazards:[
       {id:"CLASS_D",phase:["all"],sev:"critical",icon:"🗼",title:"Major Airport — Not for Ab-Initio Training",why:"Manchester is one of the busiest airports in the UK.",detail:"Manchester handles very high volumes of scheduled commercial traffic. This is a procedural/radio-exposure destination for advanced students, not a routine training field."},
     ],
     atcNotes:"Manchester Approach 118.575 · Tower 118.625",
-    cfiNotes:"Use only for advanced radio-procedure exposure with thorough pre-flight briefing — not for routine circuit training.",
+    cfiNotes:"Use only for advanced radio-procedure exposure with thorough pre-flight briefing — not for routine circuit training. Always confirm: have you checked NOTAMs before departure?",
   },
   EGCB:{ name:"City Airport Manchester (Barton)", city:"Eccles, Greater Manchester", elevation:75, class:"Class G", type:"Uncontrolled (ATZ)", runways:["08/26 — 610m","14/32 — 555m"], region:"uk", weather_icao:"EGCB",
     hazards:[
@@ -624,7 +624,7 @@ const AIRFIELDS = {
       {id:"PROXIMITY",phase:["all"],sev:"medium",icon:"📡",title:"Proximity to Manchester Class D",detail:"Barton sits close to Manchester's controlled airspace. Confirm boundaries carefully before departure."},
     ],
     atcNotes:"Barton Radio 120.25",
-    cfiNotes:"Good short-field training location — reinforce demonstrated performance numbers, not book figures.",
+    cfiNotes:"Good short-field training location — reinforce demonstrated performance numbers, not book figures. Always confirm: have you checked NOTAMs before departure?",
   },
   EGNJ:{ name:"Humberside Airport", city:"Kirmington, Lincolnshire", elevation:32, class:"Class D", type:"Towered", runways:["02/20 — 1,857m"], region:"uk", weather_icao:"EGNJ",
     hazards:[
@@ -632,14 +632,14 @@ const AIRFIELDS = {
       {id:"COAST",phase:["all"],sev:"medium",icon:"🌊",title:"Coastal/Estuary Weather",detail:"Proximity to the Humber Estuary can bring fast-changing visibility. Check actual METAR trend."},
     ],
     atcNotes:"Humberside Approach 118.55 · Tower 124.75",
-    cfiNotes:"Straightforward Class D field, good for building confidence with estuary weather awareness.",
+    cfiNotes:"Straightforward Class D field, good for building confidence with estuary weather awareness. Always confirm: have you checked NOTAMs before departure?",
   },
   EGPF:{ name:"Glasgow Airport", city:"Paisley, Scotland", elevation:26, class:"Class D", type:"Towered", runways:["05/23 — 2,658m"], region:"uk", weather_icao:"EGPF",
     hazards:[
       {id:"CLASS_D",phase:["all"],sev:"critical",icon:"🗼",title:"Major Airport — Not for Ab-Initio Training",detail:"Glasgow is a busy commercial hub. Use for advanced radio-procedure exposure only, with a thorough pre-flight brief."},
     ],
     atcNotes:"Glasgow Approach 119.1 · Tower 118.8",
-    cfiNotes:"Advanced students only — complex commercial traffic environment.",
+    cfiNotes:"Advanced students only — complex commercial traffic environment. Always confirm: have you checked NOTAMs before departure?",
   },
   EGPN:{ name:"Dundee Airport", city:"Dundee, Scotland", elevation:15, class:"Class D", type:"Towered", runways:["09/27 — 1,400m"], region:"uk", weather_icao:"EGPN",
     hazards:[
@@ -647,7 +647,7 @@ const AIRFIELDS = {
       {id:"TERRAIN",phase:["departure","all"],sev:"medium",icon:"⛰",title:"Rising Terrain to the North",detail:"Terrain rises quickly north of Dundee towards the Angus glens. Be aware of minimum safe altitudes on northbound routes."},
     ],
     atcNotes:"Dundee Approach/Tower 122.9",
-    cfiNotes:"Quieter Class D field — good for a calmer controlled-airspace introduction before busier fields.",
+    cfiNotes:"Quieter Class D field — good for a calmer controlled-airspace introduction before busier fields. Always confirm: have you checked NOTAMs before departure?",
   },
   EGPK:{ name:"Prestwick Airport", city:"Prestwick, Scotland", elevation:65, class:"Class D", type:"Towered", runways:["12/30 — 2,987m"], region:"uk", weather_icao:"EGPK",
     hazards:[
@@ -655,7 +655,7 @@ const AIRFIELDS = {
       {id:"CARGO",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Cargo and Training Traffic",detail:"Prestwick handles cargo operations and hosts flight training. Expect a mix of traffic types and speeds."},
     ],
     atcNotes:"Prestwick Approach 126.2 · Tower 118.15",
-    cfiNotes:"Reasonable step up in complexity — long runway with mixed commercial and training traffic.",
+    cfiNotes:"Reasonable step up in complexity — long runway with mixed commercial and training traffic. Always confirm: have you checked NOTAMs before departure?",
   },
   EGNS:{ name:"Isle of Man Airport (Ronaldsway)", city:"Ballasalla, Isle of Man", elevation:52, class:"Class D", type:"Towered", runways:["08/26 — 1,970m","03/21 — 1,187m"], region:"uk", weather_icao:"EGNS",
     hazards:[
@@ -663,7 +663,7 @@ const AIRFIELDS = {
       {id:"SEA",phase:["all"],sev:"high",icon:"🌊",title:"Island Location — Overwater Routing Awareness",why:"Any cross-country to/from the Isle of Man involves overwater flight.",detail:"Overwater flight planning, life jacket requirements, and diversion options need specific briefing before any Ronaldsway cross-country."},
     ],
     atcNotes:"Ronaldsway Approach 120.85 · Tower 118.9",
-    cfiNotes:"Overwater routing brief is essential and specific to this field — do not treat it as a standard mainland Class D.",
+    cfiNotes:"Overwater routing brief is essential and specific to this field — do not treat it as a standard mainland Class D. Always confirm: have you checked NOTAMs before departure?",
   },
   EGHQ:{ name:"Newquay Airport (Cornwall)", city:"Newquay, Cornwall", elevation:468, class:"Class D", type:"Towered", runways:["12/30 — 2,744m"], region:"uk", weather_icao:"EGHQ",
     hazards:[
@@ -671,7 +671,7 @@ const AIRFIELDS = {
       {id:"COAST",phase:["all"],sev:"high",icon:"🌊",title:"Exposed Coastal Weather",why:"North Cornwall coast is exposed to fast-moving Atlantic weather systems.",detail:"Weather can change quickly here. Check actual METAR trend closely before and during flight, not just the forecast."},
     ],
     atcNotes:"Newquay Approach 125.475 · Tower 133.4",
-    cfiNotes:"Coastal weather awareness is the standout brief — reinforce trend-checking over single-report reliance.",
+    cfiNotes:"Coastal weather awareness is the standout brief — reinforce trend-checking over single-report reliance. Always confirm: have you checked NOTAMs before departure?",
   },
   EGLM:{ name:"White Waltham Airfield", city:"White Waltham, Berkshire", elevation:133, class:"Class G", type:"Uncontrolled (ATZ)", runways:["03/21 — 823m","07/25 — 796m"], region:"uk", weather_icao:"EGLM",
     hazards:[
@@ -679,7 +679,7 @@ const AIRFIELDS = {
       {id:"GRASS",phase:["takeoff","landing"],sev:"medium",icon:"🛬",title:"Grass Runways",detail:"All runways are grass — performance and braking differ from paved surfaces, especially when wet."},
     ],
     atcNotes:"White Waltham Radio 122.6",
-    cfiNotes:"Good grass-field introduction — reinforce the performance differences from paved-runway training.",
+    cfiNotes:"Good grass-field introduction — reinforce the performance differences from paved-runway training. Always confirm: have you checked NOTAMs before departure?",
   },
   EGSG:{ name:"Stapleford Aerodrome", city:"Stapleford Tawney, Essex", elevation:190, class:"Class G", type:"Uncontrolled (ATZ)", runways:["04/22 — 793m"], region:"uk", weather_icao:"EGSG",
     hazards:[
@@ -687,7 +687,7 @@ const AIRFIELDS = {
       {id:"MULTI",phase:["pattern","all"],sev:"medium",icon:"📻",title:"Busy Multi-School Circuit",detail:"Multiple schools operate from Stapleford. Expect non-standard spacing — announce clearly, look before every turn."},
     ],
     atcNotes:"Stapleford Radio 122.8",
-    cfiNotes:"Busy uncontrolled circuit — good for reinforcing lookout and radio discipline under load.",
+    cfiNotes:"Busy uncontrolled circuit — good for reinforcing lookout and radio discipline under load. Always confirm: have you checked NOTAMs before departure?",
   },
 };
 
