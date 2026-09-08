@@ -386,6 +386,176 @@ const AIRFIELDS = {
   },
 };
 
+
+  // ── UK TRAINING AIRFIELDS ────────────────────────────────────────────────
+  EGTE:{ name:"Exeter Airport", city:"Exeter, UK", elevation:102, class:"Class D", type:"Towered", runways:["08/26 — 6,834ft","13/31 — 3,294ft"], region:"uk", weather_icao:"EGTE",
+    hazards:[
+      {id:"TERRAIN",phase:["all"],sev:"high",icon:"⛰",title:"Dartmoor Terrain — Immediate West",why:"Dartmoor rises to 2,038ft immediately west of EGTE.",detail:"Dartmoor National Park begins within 5nm west of Exeter. High ground up to 2,038ft (High Willhays) is inside the Exeter CTA/CTR boundary. In reduced visibility or low cloud, westbound departures carry a CFIT risk. Know your MSA in all sectors before departure in marginal VMC."},
+      {id:"ICING",phase:["all"],sev:"high",icon:"❄",title:"Icing Risk — Dartmoor Orographic Lift",why:"Orographic cloud on Dartmoor brings significant icing in winter.",detail:"Dartmoor forces moist airflow upward, generating orographic cloud with serious icing potential in autumn and winter. Even in VMC at field level, icing conditions can exist on the western approaches. Check SIGMET and icing forecasts before winter operations."},
+      {id:"SEA_FRET",phase:["all"],sev:"high",icon:"🌫",title:"Sea Fret — Rapid Visibility Reduction",why:"Estuary location causes sudden sea fret formation.",detail:"Exeter sits close to the Exe estuary. Sea fret (coastal fog) can form and reduce visibility rapidly — from CAVOK to 200m in 20 minutes in certain easterly airflow conditions. Monitor METAR trends and TAF carefully."},
+      {id:"BIRD",phase:["takeoff","landing"],sev:"medium",icon:"🦅",title:"Bird Activity — Exe Estuary",detail:"The Exe estuary is a major bird habitat. Waders and wildfowl are common on approaches over the estuary."},
+    ],
+    atcNotes:"Tower 119.8 · Ground 121.9 · Approach 128.975
+Dartmoor terrain to the west — confirm MSA before westbound departures.",
+    cfiNotes:"Exeter is Skyborne's home base. Dartmoor terrain to the west is the key hazard — brief MSA sectors specifically. Sea fret can close the field very quickly in easterly flow.",
+  },
+  EGBP:{ name:"Cotswold Airport (Kemble)", city:"Kemble, UK", elevation:433, class:"Uncontrolled", type:"Non-Towered", runways:["08/26 — 6,001ft","18/36 — 3,051ft"], region:"uk", weather_icao:"EGBP",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — A/G Radio Only",why:"No ATC — self-announce on A/G frequency.",detail:"Kemble has no ATC — only an Air/Ground (A/G) radio operator who provides information but cannot give clearances or instructions. Self-announce all positions. A/G cannot sequence traffic. All separation is pilot responsibility."},
+      {id:"GLIDER",phase:["pattern","all"],sev:"high",icon:"🛩",title:"Glider and Powered Glider Operations",why:"Kemble is an active glider site with unpowered aircraft sharing the circuit.",detail:"Cotswold Airport has active glider operations. Gliders have no ATC transponder requirement and may not be on radio. They have right of way over powered aircraft. Maintain lookout above, below and at pattern altitude. Ask A/G about glider activity before joining."},
+      {id:"AIRSPACE",phase:["all"],sev:"medium",icon:"📡",title:"Brize Norton MATZ/CTA Proximity",why:"RAF Brize Norton MATZ is immediately north of Kemble.",detail:"RAF Brize Norton operates a Military Air Traffic Zone (MATZ) immediately to the north. Northbound departures from Kemble may penetrate the MATZ. Contact Brize Norton on 124.275 if routing north."},
+    ],
+    atcNotes:"A/G Radio 118.9 — No ATC, information only.
+Brize Norton MATZ to north — 124.275 if routing northbound.",
+    cfiNotes:"Kemble is good for introducing non-towered UK operations and the A/G radio concept. The MATZ awareness lesson is important — students often don't understand the difference between CAS and MATZ.",
+  },
+  EGBJ:{ name:"Gloucestershire Airport", city:"Staverton, UK", elevation:101, class:"Class D", type:"Towered", runways:["09/27 — 5,046ft","04/22 — 3,287ft"], region:"uk", weather_icao:"EGBJ",
+    hazards:[
+      {id:"TERRAIN",phase:["departure","all"],sev:"high",icon:"⛰",title:"Cotswold Escarpment — Eastern Terrain",why:"The Cotswold scarp rises to 1,000ft+ immediately east.",detail:"The Cotswold escarpment rises sharply east of Gloucestershire. Eastbound departures encounter rising terrain quickly. In low cloud or reduced VMC, eastbound routing requires terrain awareness. Check MSA for eastern sectors."},
+      {id:"ICING",phase:["all"],sev:"high",icon:"❄",title:"Orographic Icing — Cotswold Uplift",detail:"Moist westerly airflow forced over the Cotswolds generates significant icing potential in winter and autumn. Check SIGMET before departure."},
+      {id:"SEA_FRET",phase:["all"],sev:"high",icon:"🌫",title:"Severn Valley Fog",why:"Severn estuary fog can rapidly reduce visibility.",detail:"The Severn estuary funnels moisture inland causing radiation and advection fog in the valley. Gloucestershire is susceptible to rapid visibility reduction especially at dawn and dusk in autumn/winter."},
+      {id:"BIRD",phase:["takeoff","landing"],sev:"medium",icon:"🦅",title:"Severn Valley Bird Activity",detail:"Proximity to Severn estuary and Berkeley Vale wetlands brings significant bird activity."},
+    ],
+    atcNotes:"Tower 122.9 · Approach 128.55 · ATIS 127.475",
+    cfiNotes:"Staverton is a busy training field. Cotswold terrain to the east is the key brief. Severn fog can close the field quickly in autumn/winter — weather decision making is a key training topic here.",
+  },
+  EGBK:{ name:"Sywell Aerodrome", city:"Northampton, UK", elevation:429, class:"Uncontrolled", type:"Non-Towered", runways:["03/21 — 3,609ft","10/28 — 2,999ft"], region:"uk", weather_icao:"EGBK",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — AFIS",why:"AFIS provides information only — no ATC clearances.",detail:"Sywell has an Aerodrome Flight Information Service (AFIS). AFIS gives information but cannot issue clearances or instructions. All separation is pilot responsibility. Self-announce on AFIS frequency 122.7."},
+      {id:"TRAFFIC",phase:["pattern","all"],sev:"high",icon:"✈",title:"High Training Volume — Multiple Schools",why:"Sywell is a busy training aerodrome with multiple schools sharing the pattern.",detail:"Multiple flight training organisations operate at Sywell. The circuit can be busy with mixed traffic at different skill levels. Announce all positions clearly. Do not assume the pattern is empty."},
+      {id:"BIRD",phase:["takeoff","landing"],sev:"medium",icon:"🦅",title:"Rural Wildlife — Bird Activity",detail:"Agricultural land surrounds Sywell. Lapwings, corvids and raptors are common on and near the runways."},
+    ],
+    atcNotes:"AFIS 122.7 — Information only, not ATC.
+All separation is pilot responsibility.",
+    cfiNotes:"Sywell is a good introduction to AFIS operations — the distinction between AFIS (information) and ATC (instructions) is a key teaching point. High traffic volume means lookout discipline is critical.",
+  },
+  EGHN:{ name:"Isle of Wight Airport (Sandown)", city:"Sandown, Isle of Wight", elevation:55, class:"Uncontrolled", type:"Non-Towered", runways:["05/23 — 2,952ft","14/32 — 1,968ft"], region:"uk", weather_icao:"EGHN",
+    hazards:[
+      {id:"WATER",phase:["departure","all"],sev:"critical",icon:"🌊",title:"Over-Water Flight — Solent Crossing",why:"All approaches require over-water flight across the Solent.",detail:"Sandown Airport is on the Isle of Wight — all arrivals and departures involve over-water flight across the Solent. Students must carry a life jacket and brief ditching procedures before every flight. Check Solent weather and sea state. The Solent is busy with commercial shipping — low-level over-water flying requires increased situational awareness."},
+      {id:"SHORT",phase:["takeoff","landing"],sev:"critical",icon:"🛬",title:"Very Short Runways — 14/32 at 1,968ft",why:"1,968ft is extremely short and requires disciplined technique.",detail:"Runway 14/32 is only 1,968ft. This is very short for most touring aircraft. Runway 05/23 at 2,952ft is the primary runway. Calculate performance carefully for all runways. A go-around on 14/32 requires immediate climb to avoid terrain."},
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered Airport",detail:"No ATC. Self-announce all positions on CTAF 123.5."},
+      {id:"SEA_FRET",phase:["all"],sev:"high",icon:"🌫",title:"Sea Fret — Rapid Visibility Reduction",detail:"Island location means sea fret can form very rapidly. The Solent may be VMC while the island is IMC. Check TAF and METAR trends carefully."},
+    ],
+    atcNotes:"A/G 123.5 — Information only.
+Solent crossing — life jackets mandatory.",
+    cfiNotes:"Sandown is an important life jacket and over-water briefing opportunity. Students should formally brief ditching procedures before every sortie. The short runway demands precise technique.",
+  },
+  EGKA:{ name:"Shoreham Airport (Brighton City)", city:"Shoreham-by-Sea, UK", elevation:7, class:"Class D", type:"Towered", runways:["02/20 — 3,927ft","07/25 — 2,598ft"], region:"uk", weather_icao:"EGKA",
+    hazards:[
+      {id:"SEA",phase:["takeoff","landing"],sev:"high",icon:"🌊",title:"English Channel — Over-Water Approaches",why:"Coastal location means approaches over the sea from the south.",detail:"Shoreham is immediately adjacent to the English Channel. Southerly approaches are over water. Northerly departures immediately enter the South Downs. Life jacket carriage is advisable for any southerly routing. Sea fret can reduce visibility rapidly."},
+      {id:"TERRAIN",phase:["departure","all"],sev:"high",icon:"⛰",title:"South Downs — Immediate Northern Terrain",why:"South Downs rise to 800ft immediately north of Shoreham.",detail:"The South Downs AONB rises to 800ft immediately north of Shoreham. Northbound departures climb into rising terrain. In low cloud, northbound departures require specific terrain awareness. MSA north of the field is significantly higher than the circuit altitude."},
+      {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Short Runway 07/25 — 2,598ft",detail:"Runway 07/25 is 2,598ft. Know your aircraft's performance. Use runway 02/20 (3,927ft) as the primary runway."},
+      {id:"AIRSPACE",phase:["all"],sev:"high",icon:"📡",title:"Gatwick Class D / London TMA",why:"Gatwick's CTA begins close overhead.",detail:"Gatwick Airport's Class D CTA begins at 2,500ft directly overhead Shoreham. The London TMA overlies the area. Do not climb above 2,500ft without explicit Gatwick Approach clearance."},
+    ],
+    atcNotes:"Tower 123.15 · Approach 123.15 · ATIS 132.4
+Gatwick CTA from 2,500ft — do not climb without clearance.",
+    cfiNotes:"Shoreham is a good teaching field for coastal operations, over-water awareness, and CAS boundary management. South Downs terrain to the north needs specific briefing.",
+  },
+  EGHR:{ name:"Chichester/Goodwood Aerodrome", city:"Goodwood, West Sussex", elevation:110, class:"Uncontrolled", type:"Non-Towered", runways:["24/06 — 2,713ft","10/28 — 1,837ft","14/32 — 1,637ft"], region:"uk", weather_icao:"EGHR",
+    hazards:[
+      {id:"SHORT",phase:["takeoff","landing"],sev:"critical",icon:"🛬",title:"Very Short Runways — Multiple Options",why:"All runways are short and demand disciplined technique.",detail:"Goodwood has three short runways — the longest is 2,713ft. Runway 10/28 at 1,837ft and 14/32 at 1,637ft are extremely short. Know your aircraft's demonstrated distances before accepting any runway. Soft/wet grass surface adds significant landing roll."},
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — AFIS",detail:"Goodwood has AFIS on 122.45. AFIS provides information only — not ATC. All separation is pilot responsibility."},
+      {id:"AIRSPACE",phase:["all"],sev:"high",icon:"📡",title:"Solent CTA and Gatwick CTA",detail:"Goodwood sits between the Solent CTA to the south and Gatwick's CTA to the north. Climbing above circuit altitude in either direction requires care. Know the CTA floor for your departure direction."},
+      {id:"GRASS",phase:["takeoff","landing"],sev:"high",icon:"🌧",title:"Grass Surface — Performance Reduction",why:"Wet or long grass significantly increases stopping distance.",detail:"All runways at Goodwood are grass. In wet conditions, landing roll can increase by 60% or more. Add significant safety margins to demonstrated landing distance. Check ATIS for grass condition reports."},
+    ],
+    atcNotes:"AFIS 122.45 — Information only.
+Check grass condition before landing.",
+    cfiNotes:"Goodwood is classic UK grass strip training. Key lessons: performance on grass, AFIS operations, and CAS awareness. Very short runways demand accurate technique — this is not a field for early solo students.",
+  },
+  EGLF:{ name:"Farnborough Airport", city:"Farnborough, UK", elevation:238, class:"Class D", type:"Towered", runways:["06/24 — 8,008ft","11/29 — 4,166ft"], region:"uk", weather_icao:"EGLF",
+    hazards:[
+      {id:"AIRSHOW",phase:["all"],sev:"critical",icon:"✈",title:"Farnborough Airshow — Biennial Closure",why:"Every 2 years EGLF closes for the international airshow with extensive TFRs.",detail:"Farnborough hosts the biennial SBAC airshow — one of the world's largest aviation events. The airport closes to normal traffic and an extensive TFR covers the region. Check NOTAMs before any flight near Farnborough in July of even-numbered years."},
+      {id:"AIRSPACE",phase:["all"],sev:"high",icon:"📡",title:"London TMA — Complex Layered Airspace",why:"Farnborough sits under London's complex TMA.",detail:"EGLF is inside the London TMA. The airspace above and around Farnborough is layered with restrictions. Departures require specific co-ordination with Farnborough LARS (124.325). Brief the airspace structure before every flight."},
+      {id:"BIZ",phase:["pattern","landing"],sev:"high",icon:"✈",title:"Business Jet Traffic",why:"EGLF is a major business aviation hub.",detail:"Farnborough handles significant business jet traffic. Wake turbulence from large jets is a real hazard for training aircraft sharing the pattern. Maintain separation and request wake turbulence spacing from ATC."},
+    ],
+    atcNotes:"Tower 130.05 · Ground 121.75 · LARS 124.325
+London TMA — specific departure co-ordination required.",
+    cfiNotes:"Farnborough is an advanced training environment. London TMA airspace awareness and business jet wake turbulence are the key briefs. Airshow TFR check is a mandatory NOTAM lesson.",
+  },
+  EGBO:{ name:"Wolverhampton Halfpenny Green Airport", city:"Bobbington, UK", elevation:283, class:"Uncontrolled", type:"Non-Towered", runways:["04/22 — 4,501ft","10/28 — 3,524ft","16/34 — 2,257ft"], region:"uk", weather_icao:"EGBO",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — AFIS",detail:"AFIS on 123.0. Information only — not ATC. All separation is pilot responsibility. Self-announce all positions."},
+      {id:"GLIDER",phase:["pattern","all"],sev:"high",icon:"🛩",title:"Glider and Microlight Operations",detail:"Halfpenny Green hosts active glider and microlight operations alongside conventional training. Gliders have priority and may not be on radio. Maintain lookout at all altitudes."},
+      {id:"AIRSPACE",phase:["departure","all"],sev:"medium",icon:"📡",title:"Birmingham CTA Proximity",why:"Birmingham's Class D begins relatively close to the north.",detail:"Birmingham Airport's Class D CTA begins at low levels to the northeast. Check Birmingham Approach (118.05) before northbound or northeastbound departures if climbing above local circuit altitude."},
+    ],
+    atcNotes:"AFIS 123.0 — Information only.
+Check Birmingham CTA before northbound departures.",
+    cfiNotes:"Halfpenny Green is a good West Midlands training aerodrome. Mixed operations with gliders and microlights demand specific briefing. AFIS concept and CTA boundary awareness are the teaching priorities.",
+  },
+  EGCB:{ name:"Manchester Barton Aerodrome", city:"Eccles, Manchester", elevation:73, class:"Uncontrolled", type:"Non-Towered", runways:["09/27 — 3,051ft","13/31 — 1,969ft","18/36 — 2,461ft"], region:"uk", weather_icao:"EGCB",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered Inside Manchester CTA",why:"Uncontrolled field inside complex Class D CTA.",detail:"Barton is a non-towered aerodrome within the Manchester Class D Control Zone. Departures and arrivals require co-ordination with Manchester Approach (119.4) for CTA transits. Self-announce on AFIS 122.7 for aerodrome traffic — but ATC clearance is needed to enter/exit the CTA."},
+      {id:"CTA",phase:["departure","arrival"],sev:"critical",icon:"📡",title:"Manchester Class D CTA — ATC Clearance Required",why:"Manchester's CTA surrounds Barton — you cannot leave without a clearance.",detail:"Manchester Airport's Class D CTA extends to low levels around Barton. Any departure that climbs above 1,500ft ALT or routes beyond the local area requires a Manchester Approach clearance. Contact Manchester on 119.4 before departure."},
+      {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Short Runways — Grass Surface",detail:"Runways range from 1,969ft to 3,051ft on grass. Performance planning is essential. Wet grass significantly increases landing roll."},
+    ],
+    atcNotes:"AFIS 122.7 (aerodrome info) · Manchester Approach 119.4 (CTA clearances)
+Mandatory: contact Manchester Approach before leaving the local area.",
+    cfiNotes:"Barton is one of the most educationally complex training aerodromes in the UK — non-towered field inside Class D CTA. The lesson: two separate radio calls are needed (AFIS for aerodrome, Manchester for CTA transit). An excellent real-world airspace lesson."},
+  EGNH:{ name:"Blackpool Airport", city:"Blackpool, UK", elevation:34, class:"Class D", type:"Towered", runways:["10/28 — 6,001ft","13/31 — 4,997ft"], region:"uk", weather_icao:"EGNH",
+    hazards:[
+      {id:"SEA_FRET",phase:["all"],sev:"critical",icon:"🌫",title:"Irish Sea Sea Fret — Rapid Closure",why:"Coastal position makes Blackpool extremely susceptible to sea fret.",detail:"Blackpool sits immediately adjacent to the Irish Sea. Sea fret (haar/coastal fog) can reduce visibility from clear to 100m within 15 minutes in onshore wind conditions. Diversion planning is mandatory — always carry enough fuel for an alternate. Check TREND forecasts and back-bearing conditions."},
+      {id:"ICING",phase:["all"],sev:"high",icon:"❄",title:"Winter Icing — Maritime Airflow",why:"Irish Sea maritime airflow creates persistent icing risk in winter.",detail:"Moist maritime air from the Irish Sea creates significant airframe icing risk from October to April. Even in VMC, icing conditions can exist at low levels. Check icing SIGMET and AIRMET before all winter operations."},
+      {id:"BIRD",phase:["takeoff","landing"],sev:"high",icon:"🦅",title:"Coastal Bird Activity",detail:"Blackpool's coastal location brings significant gull, wader and waterfowl activity. Report all bird strikes and hazardous activity to the tower."},
+    ],
+    atcNotes:"Tower 119.95 · Ground 121.75 · Approach 135.95
+Sea fret risk — always plan diversion and carry alternate fuel.",
+    cfiNotes:"Blackpool's sea fret is operationally significant and not just a textbook hazard — brief it as a real scenario. Diversion planning and alternate fuel carriage are essential disciplines here."},
+  EGPD:{ name:"Aberdeen Airport", city:"Aberdeen, UK", elevation:215, class:"Class D", type:"Towered", runways:["16/34 — 6,001ft","11/29 — 4,757ft"], region:"uk", weather_icao:"EGPD",
+    hazards:[
+      {id:"ICING",phase:["all"],sev:"critical",icon:"❄",title:"Severe Icing Risk — North Sea Maritime",why:"Aberdeen is one of the UK's highest-risk icing environments.",detail:"Aberdeen's North Sea exposure and northern latitude create severe airframe icing conditions for much of the year (October to May). Icing can occur at low levels in maritime airflow. SIGMET monitoring is essential. De-icing facilities are available but student aircraft are not certified for flight in icing conditions."},
+      {id:"SEA_FRET",phase:["all"],sev:"high",icon:"🌫",title:"Haar (Sea Fret) — North Sea",why:"Aberdeen is the UK's most haar-prone airport.",detail:"Aberdeen sees frequent haar (North Sea sea fret) that can reduce visibility to 50-100m with almost no warning. Haar can persist for days. Always carry fuel for an alternate and check regional forecasts carefully."},
+      {id:"OIL",phase:["all"],sev:"high",icon:"🚁",title:"Offshore Helicopter Traffic — North Sea Operations",why:"Aberdeen is a major North Sea oil helicopter hub.",detail:"EGPD handles very high helicopter traffic for North Sea oil platforms. Helicopters operate at low level on instrument approaches and may not always follow standard VFR traffic patterns. Maintain vigilant lookout and follow all ATC instructions precisely."},
+    ],
+    atcNotes:"Tower 118.1 · Ground 121.7 · Approach 120.4
+Heavy helicopter traffic — maintain lookout at all altitudes.",
+    cfiNotes:"Aberdeen is an advanced training environment for Scottish weather operations. Haar and icing are genuinely hazardous here. A clear diversion planning and alternate fuel brief is essential before every winter flight."},
+  EGQL:{ name:"RAF Leuchars (St Andrews)", city:"St Andrews, Fife", elevation:38, class:"Class D", type:"Towered", runways:["09/27 — 9,006ft","18/36 — 4,498ft"], region:"uk", weather_icao:"EGQL",
+    hazards:[
+      {id:"MILITARY",phase:["all"],sev:"critical",icon:"📡",title:"Military Aerodrome — Strict Procedures",why:"RAF Leuchars operates under military ATC with specific civil visiting procedures.",detail:"Leuchars is an active military station. Prior Permission Required (PPR) for all civil visits. Military aircraft operate alongside civil traffic. Follow all ATC instructions precisely and do not deviate from cleared routes without permission."},
+      {id:"SEA_FRET",phase:["all"],sev:"high",icon:"🌫",title:"North Sea Haar",detail:"East coast location — North Sea haar can form rapidly and reduce visibility significantly. Always plan an alternate."},
+      {id:"ICING",phase:["all"],sev:"high",icon:"❄",title:"Scottish Winter Icing",detail:"Scottish maritime airflow — significant icing risk October to April. Check SIGMET before winter operations."},
+    ],
+    atcNotes:"Military ATC — contact in advance. PPR required for all civil flights.
+Tower 118.625 · Approach 126.5",
+    cfiNotes:"Leuchars is an excellent military/civil co-operation teaching environment. PPR process and military procedure awareness are the key lessons. Haar and icing are real Scottish hazards."},
+  EGBE:{ name:"Coventry Airport", city:"Coventry, UK", elevation:267, class:"Class D", type:"Towered", runways:["05/23 — 6,020ft","18/36 — 3,281ft"], region:"uk", weather_icao:"EGBE",
+    hazards:[
+      {id:"AIRSPACE",phase:["all"],sev:"high",icon:"📡",title:"Birmingham CTA — Close Proximity",why:"Birmingham Airport's CTA begins close to Coventry.",detail:"Birmingham's Class D CTA is immediately adjacent. Northbound departures and arrivals from some directions route through or near Birmingham CTA. Contact Birmingham Approach (118.05) if routing northbound above circuit altitude."},
+      {id:"BIRD",phase:["takeoff","landing"],sev:"medium",icon:"🦅",title:"Central England Bird Activity",detail:"Agricultural land surrounds Coventry. Corvids, lapwings and raptors are common."},
+      {id:"ICING",phase:["all"],sev:"medium",icon:"❄",title:"Winter Icing — Midlands",detail:"Midlands winter weather can bring significant icing potential in maritime airflow. Check SIGMET and icing AIRMET before winter operations."},
+    ],
+    atcNotes:"Tower 124.8 · Approach 119.25 · ATIS 113.475
+Birmingham CTA to north — contact Birmingham Approach before northbound departures.",
+    cfiNotes:"Coventry is a well-equipped training field with good runway length. Birmingham CTA proximity is the key airspace lesson."},
+  EGBW:{ name:"Wellesbourne Mountford Aerodrome", city:"Wellesbourne, Warwickshire", elevation:159, class:"Uncontrolled", type:"Non-Towered", runways:["18/36 — 4,416ft","11/29 — 3,209ft"], region:"uk", weather_icao:"EGBW",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — AFIS",detail:"Wellesbourne has AFIS on 124.025. Information only — not ATC. All separation is pilot responsibility. Self-announce all positions."},
+      {id:"TRAFFIC",phase:["pattern","all"],sev:"high",icon:"✈",title:"High Volume Training Traffic",why:"Wellesbourne is one of the UK's busiest training aerodromes.",detail:"Multiple training schools operate at Wellesbourne generating high circuit traffic. Announce all positions clearly. Do not assume the circuit is empty. Visual lookout is critical."},
+      {id:"AIRSPACE",phase:["departure"],sev:"medium",icon:"📡",title:"Birmingham CTA Proximity",detail:"Birmingham CTA to the northwest. Check Birmingham Approach (118.05) before northwest departures if climbing above local area."},
+    ],
+    atcNotes:"AFIS 124.025 — Information only.
+High training volume — announce all circuit positions.",
+    cfiNotes:"Wellesbourne is a high-volume training aerodrome. Circuit discipline and lookout are the priorities. AFIS concept is important — students must understand they cannot receive ATC clearances here."},
+  EGNJ:{ name:"Humberside Airport", city:"Humberside, UK", elevation:121, class:"Class D", type:"Towered", runways:["08/26 — 7,218ft","03/21 — 4,898ft"], region:"uk", weather_icao:"EGNJ",
+    hazards:[
+      {id:"SEA_FRET",phase:["all"],sev:"high",icon:"🌫",title:"North Sea Haar / Sea Fret",why:"East coast location — North Sea haar is frequent.",detail:"Humberside's east coast location makes it susceptible to North Sea haar. Visibility can drop to 200m rapidly in onshore easterly conditions. Always plan an alternate and carry diversion fuel. Check TREND forecasts."},
+      {id:"ICING",phase:["all"],sev:"high",icon:"❄",title:"Winter Icing — North Sea Maritime",detail:"Maritime airflow from the North Sea brings icing risk October to April. Check SIGMET before winter operations."},
+      {id:"BIRD",phase:["takeoff","landing"],sev:"high",icon:"🦅",title:"Humber Estuary Bird Activity",why:"Humber estuary is a major RAMSAR wetland site.",detail:"The Humber estuary is internationally designated for birdlife. Large flocks of waders, ducks and geese are common on approach and departure paths especially during migration. Report all bird activity to ATC."},
+    ],
+    atcNotes:"Tower 124.675 · Approach 119.125 · ATIS 116.6
+Bird activity significant — report to ATC.",
+    cfiNotes:"Humberside is good for introducing sea fret and North Sea icing hazards. The Humber bird activity is genuinely significant — brief it before every sortie."},
+  EGNO:{ name:"Warton Aerodrome (BAE Systems)", city:"Warton, Lancashire", elevation:55, class:"Class D", type:"Towered", runways:["08/26 — 7,999ft","14/32 — 4,593ft"], region:"uk", weather_icao:"EGNO",
+    hazards:[
+      {id:"MILITARY",phase:["all"],sev:"critical",icon:"📡",title:"BAE Systems Test & Military Operations — PPR Required",why:"Warton is an active military aircraft test and production facility.",detail:"Warton is the main BAE Systems test and production site for Typhoon and other military aircraft. Very strict PPR process for all visiting aircraft. Test flying operations take priority. Military-standard ATC procedures apply. Do not attempt to visit without prior permission and specific clearance."},
+      {id:"SEA_FRET",phase:["all"],sev:"high",icon:"🌫",title:"Ribble Estuary Sea Fret",detail:"Coastal location adjacent to Ribble estuary — sea fret can form rapidly. Always plan alternate."},
+      {id:"ICING",phase:["all"],sev:"high",icon:"❄",title:"Lancashire Coastal Icing",detail:"Irish Sea maritime airflow brings significant icing risk in winter. Check SIGMET before operations."},
+    ],
+    atcNotes:"Military/test ATC — PPR required for all visits.
+Tower 130.8 · Approach 130.8",
+    cfiNotes:"Warton is primarily an educational visit — the PPR process and military/civil interface are the key lessons. Not suitable for general training use without specific liaison with BAE Systems."},
+];
+
 const SEV = {
   critical:{ color:"#FF3B3B", bg:"rgba(255,59,59,0.15)", border:"rgba(255,59,59,0.45)", label:"CRITICAL" },
   high:    { color:"#FF8C00", bg:"rgba(255,140,0,0.15)", border:"rgba(255,140,0,0.45)", label:"HIGH" },
@@ -653,6 +823,7 @@ export default function App() {
 
   const floridaFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="florida");
   const phoenixFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="phoenix");
+  const ukFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="uk");
 
   const sidebar = (
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",background:"#06101C"}}>
@@ -716,12 +887,12 @@ export default function App() {
         {/* Quick access by region */}
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.12em",marginBottom:6}}>QUICK ACCESS</div>
         <div style={{display:"flex",gap:6,marginBottom:8}}>
-          {["florida","phoenix"].map(r=>(
-            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 4px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴 FLORIDA":"☀ PHOENIX"}</button>
+          {["florida","phoenix","uk"].map(r=>(
+            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 4px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴 FLORIDA":r==="phoenix"?"☀ PHOENIX":"🇬🇧 UK"}</button>
           ))}
         </div>
         <div style={{overflowY:"auto",maxHeight:220}}>
-          {(region==="florida"?floridaFields:phoenixFields).map(([code,a])=>{
+          {(region==="florida"?floridaFields:region==="phoenix"?phoenixFields:ukFields).map(([code,a])=>{
             const critCount=a.hazards.filter(h=>h.sev==="critical").length;
             return (
               <div key={code} onClick={()=>selectAirfield(code)} style={{padding:"7px 10px",borderRadius:6,marginBottom:3,cursor:"pointer",background:selected===code?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.02)",border:`1px solid ${selected===code?"rgba(0,180,255,0.35)":"rgba(255,255,255,0.05)"}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -788,7 +959,7 @@ export default function App() {
             </div>
           </div>
           <WeatherStrip liveWx={liveWx} wxLoad={wxLoad}/>
-          <DAWidget airfield={airfield} liveWx={liveWx}/>
+          {airfield.region!=="uk" && <DAWidget airfield={airfield} liveWx={liveWx}/>}
           <div style={{display:"flex",borderBottom:"2px solid rgba(255,255,255,0.06)",marginBottom:14,overflowX:"auto",gap:2}}>
             {[["hazards",`HAZARDS (${filteredHazards.length})`],["atc","ATC & AIRSPACE"],["cfi","CFI NOTES"],["brief","AI BRIEF"]].map(([tid,label])=>(
               <button key={tid} onClick={()=>setTab(tid)} style={{background:tab===tid?"rgba(0,180,255,0.08)":"none",border:"none",cursor:"pointer",padding:"10px 16px",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.08em",whiteSpace:"nowrap",color:tab===tid?"#00B4FF":"#FFFFFF",borderBottom:tab===tid?"2px solid #00B4FF":"2px solid transparent",transition:"all 0.15s",marginBottom:"-2px"}}>{label}</button>
