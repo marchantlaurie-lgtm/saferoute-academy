@@ -48,6 +48,58 @@ function parseTAFThreats(tafs) {
   if (/LLWS|WS\d/.test(taf)) threats.push({ icon:"💨", text:"Low-level windshear in TAF", color:"#FF3B3B" });
   return threats;
 }
+
+// ── TAF parser ────────────────────────────────────────────────────────────
+function parseTAFPeriods(tafRaw) {
+  if (!tafRaw) return [];
+  const lines = tafRaw.replace(/\n/g," ").replace(/\s+/g," ").trim();
+  // Split on period-type keywords
+  const periodRegex = /(BECMG|TEMPO|PROB\d+\s*TEMPO|PROB\d+|FM\d{6}|FROM\s+\d)/g;
+  const parts = lines.split(periodRegex).filter(Boolean);
+  const periods = [];
+  let i = 0;
+  // First chunk is the base forecast
+  const base = parts[0];
+  if (base) periods.push({ type:"BASE", raw: base.trim() });
+  i = 1;
+  while (i < parts.length) {
+    const keyword = parts[i]?.trim();
+    const body = parts[i+1]?.trim() || "";
+    if (keyword) {
+      const type = keyword.startsWith("BECMG") ? "BECMG"
+        : keyword.startsWith("TEMPO") ? "TEMPO"
+        : keyword.startsWith("PROB") && keyword.includes("TEMPO") ? "PROB TEMPO"
+        : keyword.startsWith("PROB") ? "PROB"
+        : keyword.startsWith("FM") || keyword.startsWith("FROM") ? "FROM"
+        : "PERIOD";
+      periods.push({ type, keyword, raw: body });
+    }
+    i += 2;
+  }
+  return periods;
+}
+
+function parsePeriodSummary(raw) {
+  if (!raw) return "—";
+  const parts = [];
+  const wind = raw.match(/(\d{3}|VRB)(\d{2,3})(G(\d{2,3}))?KT/);
+  if (wind) parts.push(`Wind ${wind[1]==="VRB"?"VRB":wind[1]+"°"} ${wind[2]}kt${wind[4]?" G"+wind[4]+"kt":""}`);
+  if (/CAVOK/.test(raw)) parts.push("CAVOK");
+  else {
+    if (/\bTS\b|\bTSRA\b/.test(raw)) parts.push("⛈ Thunderstorm");
+    if (/\bRA\b/.test(raw)) parts.push("Rain");
+    if (/\bSN\b/.test(raw)) parts.push("Snow");
+    if (/\bFG\b/.test(raw)) parts.push("Fog");
+    if (/\bBR\b/.test(raw)) parts.push("Mist");
+    const clouds = [...raw.matchAll(/(FEW|SCT|BKN|OVC)(\d{3})/g)];
+    if (clouds.length) parts.push(clouds.map(c=>`${c[1]} ${parseInt(c[2])*100}ft`).join(", "));
+    const vis = raw.match(/\b(\d{4})\b/);
+    if (vis && parseInt(vis[1]) < 9999) parts.push(`Vis ${vis[1]}m`);
+  }
+  if (raw.match(/\bCB\b/)) parts.push("⚠ CB");
+  return parts.join(" · ") || raw.slice(0,60);
+}
+
 function interpretMetarShort(metar) {
   if (!metar) return "No data";
   const out = [];
@@ -208,6 +260,36 @@ const AIRFIELDS = {
     atcNotes:"Tower 124.1 · Ground 121.9 · Tampa Approach 119.9\nClass B begins at 1,200ft — do not climb without clearance.",
     cfiNotes:"Albert Whitted is challenging — Class B overhead, short runways, water surroundings. Not suitable for early solo without thorough briefing on all three hazards.",
   },
+  // ── TAMPA BAY ADDITIONS ───────────────────────────────────────────────────
+  KPIE:{ name:"St Pete-Clearwater International Airport", city:"Clearwater, FL", elevation:11, class:"Class C", type:"Towered", runways:["18/36 — 8,800ft","07/25 — 4,800ft"], region:"florida", weather_icao:"KPIE",
+    hazards:[
+      {id:"CLASS_C",phase:["all"],sev:"critical",icon:"📡",title:"Class C Airspace — Mandatory Contact Before Entry",why:"Class C requires two-way radio contact before entry.",detail:"KPIE is Class C from surface to 3,200ft MSL. You must establish two-way communication with St Pete-Clearwater Approach before entering Class C. Squawk your assigned code. The Class C shelf extends 10nm — plan contact well in advance."},
+      {id:"AIRLINE",phase:["all"],sev:"high",icon:"✈",title:"Commercial and Charter Traffic Mix",why:"Scheduled airline and charter operations share the field with training traffic.",detail:"KPIE handles commercial airline, charter, and cargo traffic alongside training aircraft. Be alert to wake turbulence on departure and arrival. Monitor approach and tower frequencies carefully for commercial traffic sequencing."},
+      {id:"CLASS_B",phase:["departure","all"],sev:"high",icon:"📡",title:"Tampa Class B Immediately Adjacent",why:"Tampa International's Class B begins just east of KPIE.",detail:"Departing north or east from KPIE brings you immediately towards Tampa International's Class B airspace. Co-ordinate with St Pete-Clearwater Approach before any northbound or eastbound departure climb."},
+      {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Afternoon Thunderstorms",detail:"Tampa Bay is statistically the most lightning-active region in the USA. Sea breeze convergence creates rapidly developing CB. Ground by 13:00 in summer."},
+    ],
+    atcNotes:"Tower 120.6 · Ground 121.6 · Clearance 125.025\nSt Pete-Clearwater Approach 124.9 · ATIS 124.6",
+    cfiNotes:"KPIE is good for introducing Class C procedures — mandatory contact, transponder requirements, and commercial traffic awareness. Watch the Tampa Class B to the east on departure.",
+  },
+  KVDF:{ name:"Tampa Executive Airport (Vandenberg)", city:"Tampa, FL", elevation:14, class:"Class D", type:"Towered", runways:["09/27 — 3,500ft","18/36 — 3,200ft"], region:"florida", weather_icao:"KVDF",
+    hazards:[
+      {id:"CLASS_B",phase:["all"],sev:"critical",icon:"📡",title:"Tampa International Class B — Inside the Lateral Boundary",why:"KVDF sits inside Tampa's Class B outer boundary requiring careful altitude management.",detail:"KVDF operates inside Tampa International's Class B lateral boundary. Strict altitude restrictions apply — the Class B shelf begins at 1,500ft MSL in this sector. KVDF Tower co-ordinates with Tampa Approach. Do not climb without explicit clearance."},
+      {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Short Runways — Performance Planning Required",why:"Both runways are short for a busy training environment.",detail:"Runway 09/27 is 3,500ft and 18/36 is 3,200ft. In summer heat and humidity, performance will be reduced. Always calculate actual take-off and landing distances. A go-around decision must be made early."},
+      {id:"AIRSPACE",phase:["all"],sev:"high",icon:"📡",title:"Complex Overlapping Airspace",why:"KVDF sits in one of Florida's most complex airspace environments.",detail:"Tampa International to the northwest, MacDill AFB Class C/P-50 restricted area to the south, and St Pete-Clearwater Class C to the west. Know your airspace chart thoroughly before flying in this area."},
+      {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Thunderstorm Convergence",detail:"Tampa Bay sea breeze convergence creates rapid CB development. Ground all training by 13:00 in summer."},
+    ],
+    atcNotes:"Tower 119.1 · Ground 121.6 · Tampa Approach 119.9\nP-50 (MacDill) — check NOTAM before southbound flight.",
+    cfiNotes:"KVDF is complex airspace — excellent for advanced students but not appropriate for early solos without specific Class B/airspace briefing. The MacDill P-50 restricted area to the south must be pre-briefed.",
+  },
+  KCLW:{ name:"Clearwater Airpark", city:"Clearwater, FL", elevation:71, class:"Uncontrolled", type:"Non-Towered", runways:["16/34 — 3,000ft"], region:"florida", weather_icao:"KPIE",
+    hazards:[
+      {id:"NONTOW_CLS_C",phase:["all"],sev:"critical",icon:"📻",title:"Non-Towered Inside Class C Airspace",why:"Unusual combination — uncontrolled field inside St Pete-Clearwater Class C.",detail:"KCLW is a non-towered field located within the St Pete-Clearwater Class C airspace. You must contact St Pete-Clearwater Approach 124.9 and receive a Class C clearance before operating in and out of KCLW. CTAF 122.8 for aerodrome traffic — but ATC contact is mandatory. This catches students who assume uncontrolled means no ATC required."},
+      {id:"SHORT",phase:["takeoff","landing"],sev:"critical",icon:"🛬",title:"Very Short Single Runway — 3,000ft Only",why:"One of the shortest runways in the Tampa Bay training area.",detail:"Runway 16/34 is only 3,000ft. In summer heat any density altitude penalty makes this operationally demanding. Performance calculations are essential. A go-around must be initiated early — overrun risk is real."},
+      {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Thunderstorms",detail:"Tampa Bay sea breeze convergence. Ground all flights by 13:00 in summer. No tower for weather warnings — you are responsible for your own weather awareness."},
+    ],
+    atcNotes:"CTAF 122.8 — Non-towered BUT inside Class C.\nMandatory: contact St Pete-Clearwater Approach 124.9 before entry/exit.\nNo tower weather service — monitor independently.",
+    cfiNotes:"KCLW is excellent for teaching the combination of non-towered procedures AND Class C requirements simultaneously. Students must understand that CTAF self-announce alone is not sufficient here — ATC contact is mandatory. Short runway demands disciplined approach technique.",
+  },
   KIMM:{ name:"Immokalee Regional Airport", city:"Immokalee, FL", elevation:37, class:"Uncontrolled", type:"Non-Towered", runways:["09/27 — 5,000ft","18/36 — 4,999ft","13/31 — 3,200ft"], region:"florida", weather_icao:"KIMM",
     hazards:[
       {id:"NONTOW",phase:["all"],sev:"critical",icon:"📻",title:"Non-Towered — Self-Announce Required",why:"No ATC — all separation is pilot responsibility.",detail:"KIMM has no control tower. All pilots must self-announce on CTAF 122.8. Announce at every standard reporting point: 10nm inbound, downwind, base, final, and clear of runway."},
@@ -364,13 +446,7 @@ const AIRFIELDS = {
     cfiNotes:"Show Low is an excellent high-altitude cross-country destination for advanced students. Density altitude and Mogollon Rim terrain are the essential briefs.",
   },
 
-  // ── UNITED KINGDOM ───────────────────────────────────────────────────────
-  // NOTE: coordinates carried on AIRFIELDS entries elsewhere in the app assume
-  // US-style fields (no lat/lon here since the existing schema doesn't use
-  // them for rendering) — elevation values below are reference-quality for
-  // scaffolding. Confirm against the current UK AIP before this is used for
-  // real student briefings, same caveat as raised earlier for the standalone
-  // uk-airfields.js file.
+  // ── UNITED KINGDOM ────────────────────────────────────────────────────────
   EGBP:{ name:"Kemble (Cotswold Airport)", city:"Kemble, Gloucestershire", elevation:433, class:"Class G", type:"Uncontrolled", runways:["08/26 — 2,000m"], region:"uk", weather_icao:"EGBP",
     hazards:[
       {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Uncontrolled — Radio Discipline Required",why:"No ATC — all separation is pilot responsibility.",detail:"Kemble is a busy uncontrolled field. Make blind calls at all reporting points and listen out continuously on the A/G frequency. Do not assume other traffic has heard your call."},
@@ -615,21 +691,17 @@ const AIRFIELDS = {
   },
 };
 
-// Lat/lon reference for all fields — used only to center the weather map.
-// Approximate values for scaffolding; not used for any performance or
-// navigation calculation, so precision requirements here are low.
 const FIELD_COORDS = {
-  // Florida
   KDAB:[29.1799,-81.0581], KVRB:[27.6556,-80.4178], KFXE:[26.1973,-80.1707], KPMP:[26.2470,-80.1113],
   KFPR:[27.4950,-80.3661], KTMB:[25.6479,-80.4328], KSRQ:[27.3954,-82.5544], KFMY:[26.5864,-81.8631],
   KGNV:[29.6900,-82.2718], KVNC:[27.0719,-82.4401], KBOW:[27.9436,-81.7834], KLAL:[27.9889,-82.0181],
-  KPGD:[26.9200,-81.9906], KSPG:[27.7658,-82.6270], KIMM:[26.4326,-81.3953], KDED:[29.0722,-81.2839],
+  KPGD:[26.9200,-81.9906], KSPG:[27.7658,-82.6270],
+  KPIE:[27.9102,-82.6874], KVDF:[27.9575,-82.5269], KCLW:[27.9767,-82.7573],
+  KIMM:[26.4326,-81.3953], KDED:[29.0722,-81.2839],
   KZPH:[28.2283,-82.1561], KTIX:[28.5150,-80.7998], KAPF:[26.1526,-81.7752],
-  // Arizona
   KDVT:[33.6883,-112.0827], KFFZ:[33.4106,-111.7278], KCHD:[33.2691,-111.8107], KIWA:[33.3078,-111.6555],
   KGYR:[33.4225,-112.3755], KSDL:[33.6229,-111.9106], KPRC:[34.6546,-112.4196], KFLG:[35.1385,-111.6710],
   KBXK:[33.4522,-112.6879], KCGZ:[32.9548,-111.7679], KSOW:[34.2653,-110.0052],
-  // UK
   EGBP:[51.6660,-2.0567], EGTE:[50.7344,-3.4139], EGHH:[50.7800,-1.8425], EGBJ:[51.8942,-2.1672],
   EGTK:[51.8369,-1.3200], EGTC:[52.0719,-0.6169], EGKA:[50.8356,-0.2972], EGBW:[52.1922,-1.6142],
   EGHI:[50.9503,-1.3567], EGLK:[51.3236,-0.8478], EGHC:[50.1028,-5.6706], EGFH:[51.6053,-4.0678],
@@ -705,23 +777,14 @@ function DAWidget({ airfield, liveWx }) {
   );
 }
 
-// ── UK cloud base + icing widget ────────────────────────────────────────
-// Replaces DAWidget for UK-region airfields. Density altitude matters far
-// less in the UK's climate than the two things the Met Office itself flags
-// as the real risk drivers for UK GA: low cloud/VMC compliance and icing.
-// Both estimates below are standard rule-of-thumb approximations from a
-// single surface reading — not a substitute for the actual TAF/METAR or the
-// F214/F215 charts. That caveat is shown in the widget itself, not just here.
-
 function calcCloudBase(tempC, dewpointC, elevFt) {
   const spread = tempC - dewpointC;
-  const aglFt = Math.max(0, spread * 400); // ~1000ft AGL per 2.5°C spread
-  return Math.round(aglFt + elevFt); // returns AMSL
+  const aglFt = Math.max(0, spread * 400);
+  return Math.round(aglFt + elevFt);
 }
-
 function calcFreezingLevel(tempC, elevFt) {
-  if (tempC <= 0) return elevFt; // already at/below freezing at the surface
-  return Math.round(elevFt + tempC * 500); // ~1000ft per 2°C, standard lapse rate
+  if (tempC <= 0) return elevFt;
+  return Math.round(elevFt + tempC * 500);
 }
 
 function UkWeatherWidget({ airfield, liveWx }) {
@@ -730,18 +793,12 @@ function UkWeatherWidget({ airfield, liveWx }) {
   const [tempC,setTempC] = useState(liveTemp??15);
   const [dewC,setDewC] = useState(liveDew??10);
   const [useLive,setUseLive] = useState(!!liveTemp);
-
-  useEffect(()=>{
-    if(liveTemp!==null){setTempC(liveTemp);setUseLive(true);}
-    if(liveDew!==null){setDewC(liveDew);}
-  },[liveTemp,liveDew]);
-
+  useEffect(()=>{ if(liveTemp!==null){setTempC(liveTemp);setUseLive(true);} if(liveDew!==null){setDewC(liveDew);} },[liveTemp,liveDew]);
   const cloudBaseAmsl = calcCloudBase(tempC, dewC, airfield.elevation);
   const cloudBaseAgl = Math.max(0, cloudBaseAmsl - airfield.elevation);
   const freezingLevel = calcFreezingLevel(tempC, airfield.elevation);
   const icingRisk = tempC<=0 ? "LIKELY" : (freezingLevel < cloudBaseAmsl+2000 ? "POSSIBLE" : "LOW");
   const riskColor = icingRisk==="LIKELY" ? "#FF3B3B" : icingRisk==="POSSIBLE" ? "#FFD700" : "#00C896";
-
   return (
     <div style={{background:"#0A1828",border:`2px solid ${riskColor}55`,borderRadius:8,padding:"11px 13px",marginBottom:10}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
@@ -769,16 +826,10 @@ function UkWeatherWidget({ airfield, liveWx }) {
           <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:riskColor,fontWeight:"bold"}}>ICING: {icingRisk}</span>
         </div>
       </div>
-      <div style={{fontSize:7,color:"#556677",marginTop:7,lineHeight:1.4}}>Estimates only, from standard rule-of-thumb approximations. Always confirm against the actual TAF/METAR and F214/F215 charts before flight — this tool does not model carburettor icing.</div>
+      <div style={{fontSize:7,color:"#556677",marginTop:7,lineHeight:1.4}}>Estimates only. Always confirm against the actual TAF/METAR and F214/F215 charts before flight.</div>
     </div>
   );
 }
-
-// ── UK radar/cloud map widget ───────────────────────────────────────────
-// Free, keyless RainViewer API — https://www.rainviewer.com/api.html.
-// Not a substitute for the Met Office Aviation Briefing Service (MAVIS);
-// this is a quick visual, with a link out to MAVIS for the regulated
-// products (TAFs, SIGMETs, F214/F215 charts).
 
 const RAINVIEWER_API_URL = "https://api.rainviewer.com/public/weather-maps.json";
 
@@ -790,8 +841,7 @@ function MapWidget({ airfield, icao }) {
   const [frameIndex, setFrameIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loadError, setLoadError] = useState(null);
-
-  const coords = FIELD_COORDS[icao] || [39.8, -98.6]; // fallback: rough US center
+  const coords = FIELD_COORDS[icao] || [39.8, -98.6];
 
   useEffect(() => {
     let cancelled = false;
@@ -811,30 +861,12 @@ function MapWidget({ airfield, icao }) {
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
-
-    const map = L.map(mapContainerRef.current, {
-      center: coords,
-      zoom: 7,
-      minZoom: 4,
-      maxZoom: 12,
-      scrollWheelZoom: false,
-      doubleClickZoom: true,
-      touchZoom: true,
-      zoomControl: true,
-    });
-    // Let scroll-wheel zoom take over only once the user has clicked into the
-    // map — avoids hijacking page scroll on first hover, but still allows
-    // wheel zoom once they've engaged with it.
+    const map = L.map(mapContainerRef.current, { center:coords, zoom:7, minZoom:4, maxZoom:12, scrollWheelZoom:false, doubleClickZoom:true, touchZoom:true, zoomControl:true });
     map.on('click', () => map.scrollWheelZoom.enable());
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> | Radar: <a href="https://www.rainviewer.com/">RainViewer</a>',
-      maxZoom: 12,
-    }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> | Radar: <a href="https://www.rainviewer.com/">RainViewer</a>', maxZoom:12 }).addTo(map);
     L.marker(coords).addTo(map).bindPopup(`${airfield.name} (${icao})`).openPopup();
     mapRef.current = map;
-
     return () => { map.remove(); mapRef.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [icao]);
 
   useEffect(() => {
@@ -844,14 +876,14 @@ function MapWidget({ airfield, icao }) {
     if (!frame) return;
     const tileUrl = `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
     if (radarLayerRef.current) map.removeLayer(radarLayerRef.current);
-    const layer = L.tileLayer(tileUrl, { opacity: 0.7, zIndex: 10, maxZoom: 12 });
+    const layer = L.tileLayer(tileUrl, { opacity:0.7, zIndex:10, maxZoom:12 });
     layer.addTo(map);
     radarLayerRef.current = layer;
   }, [frames, frameIndex]);
 
   useEffect(() => {
     if (!isPlaying || !frames.length) return;
-    const interval = setInterval(() => setFrameIndex(p => (p + 1) % frames.length), 600);
+    const interval = setInterval(() => setFrameIndex(p => (p+1) % frames.length), 600);
     return () => clearInterval(interval);
   }, [isPlaying, frames.length]);
 
@@ -864,7 +896,7 @@ function MapWidget({ airfield, icao }) {
         {currentFrameTime && <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#8899AA"}}>{currentFrameTime}</span>}
       </div>
       <div ref={mapContainerRef} style={{height:280,width:"100%",borderRadius:8,overflow:"hidden",position:"relative"}}/>
-      <div style={{fontSize:9,color:"#556677",marginTop:6}}>Click the map to enable scroll-wheel zoom, or use the +/− buttons. This map is capped at zoom level 12, matching RainViewer's radar tile limit.</div>
+      <div style={{fontSize:9,color:"#556677",marginTop:6}}>Click the map to enable scroll-wheel zoom. Capped at zoom 12 (RainViewer radar tile limit).</div>
       {loadError && <div style={{fontSize:10,color:"#FF8C00",marginTop:8}}>{loadError}</div>}
       {!loadError && frames.length>0 && (
         <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10}}>
@@ -879,7 +911,40 @@ function MapWidget({ airfield, icao }) {
   );
 }
 
+// ── TAF Display Component ─────────────────────────────────────────────────
+function TAFDisplay({ tafs }) {
+  if (!tafs || !tafs.length) return (
+    <div style={{fontSize:11,color:"#334455",fontFamily:"'DM Mono',monospace",padding:"12px 0"}}>No TAF available for this field.</div>
+  );
+  const tafRaw = tafs[0];
+  const periods = parseTAFPeriods(tafRaw);
+  const periodColors = { BASE:"#00B4FF", BECMG:"#00C896", TEMPO:"#FFD700", "PROB TEMPO":"#FF8C00", PROB:"#FF8C00", FROM:"#8899AA", PERIOD:"#8899AA" };
+
+  return (
+    <div>
+      {periods.map((p,i)=>{
+        const hasCB = /CB|TSRA|\+TS/.test(p.raw);
+        const color = periodColors[p.type] || "#8899AA";
+        return (
+          <div key={i} style={{display:"flex",gap:10,marginBottom:8,padding:"10px 12px",background:"rgba(0,0,0,0.3)",borderRadius:7,borderLeft:`3px solid ${hasCB?"#FF3B3B":color}`}}>
+            <div style={{flexShrink:0,minWidth:80}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:hasCB?"#FF3B3B":color,fontWeight:"bold",letterSpacing:"0.08em"}}>{p.type}</div>
+              {hasCB && <div style={{fontSize:9,color:"#FF3B3B",marginTop:3}}>⛈ CB/TS</div>}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,color:"#FFFFFF",fontWeight:500,lineHeight:1.6}}>{parsePeriodSummary(p.raw)}</div>
+              <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#334455",marginTop:4,lineHeight:1.5,wordBreak:"break-all"}}>{p.raw.slice(0,120)}{p.raw.length>120?"…":""}</div>
+            </div>
+          </div>
+        );
+      })}
+      <div style={{fontSize:8,color:"#334455",marginTop:8,lineHeight:1.5,fontFamily:"'DM Mono',monospace"}}>TAF IS A FORECAST — NOT A CURRENT OBSERVATION. ALWAYS OBTAIN AN OFFICIAL WEATHER BRIEFING BEFORE FLIGHT.</div>
+    </div>
+  );
+}
+
 function WeatherStrip({ liveWx, wxLoad }) {
+  const [wxTab, setWxTab] = useState("metar");
   if (wxLoad) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>Loading live weather…</div>;
   if (!liveWx) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>No live weather data available for this field.</div>;
   const tafThreats = parseTAFThreats(liveWx.tafs);
@@ -890,18 +955,30 @@ function WeatherStrip({ liveWx, wxLoad }) {
         <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>🌤 LIVE WEATHER</div>
         <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#FF3B3B"}}>● LIVE</span>
       </div>
-      <div style={{background:"rgba(255,255,255,0.04)",borderRadius:6,padding:"10px 12px",marginBottom:10}}>
-        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",marginBottom:4,letterSpacing:"0.1em"}}>CURRENT CONDITIONS (METAR)</div>
-        <div style={{fontSize:13,color:"#FFFFFF",fontWeight:"500",lineHeight:1.6}}>{interpretMetarShort(liveWx.metar)}</div>
-        {hasCB && <div style={{marginTop:6,fontSize:11,color:"#FF3B3B",fontWeight:"bold"}}>⛈ ACTIVE THUNDERSTORM / CB DETECTED IN METAR</div>}
+      {/* Weather sub-tabs */}
+      <div style={{display:"flex",gap:2,marginBottom:12,borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+        {[["metar","METAR"],["taf","TAF FORECAST"]].map(([tid,label])=>(
+          <button key={tid} onClick={()=>setWxTab(tid)} style={{background:"none",border:"none",cursor:"pointer",padding:"6px 12px",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.08em",color:wxTab===tid?"#00B4FF":"#556677",borderBottom:wxTab===tid?"2px solid #00B4FF":"2px solid transparent",marginBottom:"-1px",transition:"all 0.15s"}}>{label}</button>
+        ))}
       </div>
-      {tafThreats.length>0 && (
-        <div style={{background:"rgba(255,59,59,0.08)",border:"1px solid rgba(255,59,59,0.3)",borderRadius:6,padding:"10px 12px",marginBottom:10}}>
-          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#FF8C00",marginBottom:6,letterSpacing:"0.1em"}}>⚠ FORECAST HAZARDS (TAF)</div>
-          {tafThreats.map((t,i)=><div key={i} style={{fontSize:12,color:t.color,marginBottom:3,fontWeight:"500"}}>{t.icon}  {t.text}</div>)}
+      {wxTab==="metar" && (
+        <div>
+          <div style={{background:"rgba(255,255,255,0.04)",borderRadius:6,padding:"10px 12px",marginBottom:10}}>
+            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",marginBottom:4,letterSpacing:"0.1em"}}>CURRENT CONDITIONS</div>
+            {/* CHANGE 2: METAR interpretation text now white */}
+            <div style={{fontSize:13,color:"#FFFFFF",fontWeight:"500",lineHeight:1.6}}>{interpretMetarShort(liveWx.metar)}</div>
+            {hasCB && <div style={{marginTop:6,fontSize:11,color:"#FF3B3B",fontWeight:"bold"}}>⛈ ACTIVE THUNDERSTORM / CB DETECTED IN METAR</div>}
+          </div>
+          {tafThreats.length>0 && (
+            <div style={{background:"rgba(255,59,59,0.08)",border:"1px solid rgba(255,59,59,0.3)",borderRadius:6,padding:"10px 12px",marginBottom:10}}>
+              <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#FF8C00",marginBottom:6,letterSpacing:"0.1em"}}>⚠ FORECAST HAZARDS (TAF)</div>
+              {tafThreats.map((t,i)=><div key={i} style={{fontSize:12,color:t.color,marginBottom:3,fontWeight:"500"}}>{t.icon}  {t.text}</div>)}
+            </div>
+          )}
+          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#FFFFFF",lineHeight:1.6,wordBreak:"break-all"}}>{liveWx.metar}</div>
         </div>
       )}
-      <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#334455",lineHeight:1.6,wordBreak:"break-all"}}>{liveWx.metar}</div>
+      {wxTab==="taf" && <TAFDisplay tafs={liveWx.tafs}/>}
     </div>
   );
 }
@@ -935,7 +1012,7 @@ function HazardCard({ h, expanded, onToggle }) {
 
 function WelcomeScreen({ onSelect }) {
   const options = [
-    { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields." },
+    { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay." },
     { id:"phoenix", label:"PHOENIX / ARIZONA", icon:"☀", desc:"13 training airfields across the Phoenix area and Arizona — density altitude, haboobs, high terrain, military airspace." },
     { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:"29 training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar." },
   ];
@@ -988,9 +1065,7 @@ export default function App() {
     const up = val.toUpperCase().trim();
     if (up.length < 1) { setSuggestions([]); return; }
     const matches = Object.entries(AIRFIELDS).filter(([code,a]) =>
-      code.includes(up) ||
-      a.name.toUpperCase().includes(up) ||
-      a.city.toUpperCase().includes(up)
+      code.includes(up) || a.name.toUpperCase().includes(up) || a.city.toUpperCase().includes(up)
     ).slice(0, 6);
     setSuggestions(matches);
   }
@@ -1049,17 +1124,10 @@ export default function App() {
   const sidebar = (
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",background:"#06101C"}}>
       <div style={{padding:"14px 12px 10px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
-
-        {/* Search input */}
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.15em",marginBottom:8}}>SEARCH AIRFIELD</div>
         <div style={{position:"relative",marginBottom:10}}>
-          <input
-            value={query}
-            onChange={e=>handleSearch(e.target.value)}
-            placeholder="ICAO code or name…"
-            style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,fontFamily:"'DM Mono',monospace",outline:"none",letterSpacing:"0.05em"}}
-          />
-          {/* Suggestions dropdown */}
+          <input value={query} onChange={e=>handleSearch(e.target.value)} placeholder="ICAO code or name…"
+            style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,fontFamily:"'DM Mono',monospace",outline:"none",letterSpacing:"0.05em"}}/>
           {suggestions.length > 0 && (
             <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:300,background:"#0D1E32",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,marginTop:4,overflow:"hidden",boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
               {suggestions.map(([code,a])=>{
@@ -1082,8 +1150,6 @@ export default function App() {
             </div>
           )}
         </div>
-
-        {/* Current airfield info */}
         {airfield && (
           <div style={{background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:7,padding:"10px 12px",marginBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
@@ -1104,12 +1170,10 @@ export default function App() {
             </div>
           </div>
         )}
-
-        {/* Quick access by region */}
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.12em",marginBottom:6}}>QUICK ACCESS</div>
         <div style={{display:"flex",gap:6,marginBottom:8}}>
           {["florida","phoenix","uk"].map(r=>(
-            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 4px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴 FLORIDA":r==="phoenix"?"☀ PHOENIX":"🇬🇧 UK"}</button>
+            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 4px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴 FL":r==="phoenix"?"☀ AZ":"🇬🇧 UK"}</button>
           ))}
         </div>
         <div style={{overflowY:"auto",maxHeight:220}}>
@@ -1127,8 +1191,6 @@ export default function App() {
           })}
         </div>
       </div>
-
-      {/* Phase filter */}
       <div style={{padding:"10px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.12em",marginBottom:7}}>FLIGHT PHASE</div>
         <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
@@ -1215,7 +1277,7 @@ export default function App() {
             </div>}
             {briefing&&<div style={{background:"rgba(0,15,35,0.8)",border:"1px solid rgba(0,180,255,0.18)",borderRadius:10,padding:"20px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>★ CFI AI SAFETY BRIEFING — {selected}</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>★ AI SAFETY BRIEFING — {selected}</div>
                 <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:5,padding:"5px 12px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9}}>↻ REGENERATE</button>
               </div>
               <pre style={{fontSize:12,color:"#C0D8F0",lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{briefing}</pre>
