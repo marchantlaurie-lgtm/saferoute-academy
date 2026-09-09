@@ -862,6 +862,35 @@ function calcDA(elevFt, tempC, altimInHg=29.92) {
   return Math.round(pa+120*(tempC-isa));
 }
 
+// ── E6B calculations ─────────────────────────────────────────────────────
+// True airspeed from CAS + pressure altitude + OAT, using the standard
+// "2% per 1,000ft of density altitude" approximation — this is what a real
+// E6B slide rule effectively computes, since density altitude captures both
+// the pressure and temperature effects together. Reuses calcDA (passing
+// altimeter=29.92 so calcDA returns pressure altitude + temp deviation,
+// i.e. density altitude directly) for consistency with the rest of the app.
+function calcTAS(casKt, pressureAltFt, oatC) {
+  const da = calcDA(pressureAltFt, oatC, 29.92);
+  return casKt * (1 + 0.02 * (da / 1000));
+}
+
+// Wind triangle: true course + true airspeed + wind (direction wind is FROM,
+// speed) → wind correction angle, true heading, groundspeed. Standard
+// trigonometric solution — returns null if the wind speed exceeds what's
+// resolvable at that airspeed/course combination (asin out of domain).
+function calcWindTriangle(trueCourseDeg, tasKt, windDirDeg, windSpdKt) {
+  const toRad = d => (d * Math.PI) / 180;
+  const toDeg = r => (r * 180) / Math.PI;
+  const angleDiff = toRad(windDirDeg - trueCourseDeg);
+  const ratio = (windSpdKt * Math.sin(angleDiff)) / tasKt;
+  if (ratio > 1 || ratio < -1 || tasKt <= 0) return null;
+  const wcaRad = Math.asin(ratio);
+  const wcaDeg = toDeg(wcaRad);
+  const trueHeading = (trueCourseDeg + wcaDeg + 360) % 360;
+  const groundspeed = tasKt * Math.cos(wcaRad) - windSpdKt * Math.cos(angleDiff);
+  return { wca: wcaDeg, trueHeading, groundspeed };
+}
+
 function DAWidget({ airfield, liveWx }) {
   const liveTemp = liveWx?parseMetarTemp(liveWx.metar):null;
   const liveAlt  = liveWx?parseMetarAltimeter(liveWx.metar):null;
@@ -1171,6 +1200,158 @@ function WelcomeScreen({ onSelect }) {
   );
 }
 
+// ── E6B flight computer screen ──────────────────────────────────────────
+function LabeledNumberInput({ label, value, onChange, suffix }) {
+  return (
+    <div style={{flex:1,minWidth:130}}>
+      <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.08em"}}>{label}</div>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <input
+          type="number"
+          value={value}
+          onChange={e=>onChange(e.target.value)}
+          style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:6,padding:"9px 10px",color:"#FFFFFF",fontSize:14,fontFamily:"'DM Mono',monospace",outline:"none"}}
+        />
+        {suffix && <span style={{fontSize:10,color:"#556677",fontFamily:"'DM Mono',monospace",flexShrink:0}}>{suffix}</span>}
+      </div>
+    </div>
+  );
+}
+
+function E6BResultBox(props) {
+  const { label, value, color="#00B4FF" } = props;
+  return (
+    <div style={{background:"rgba(0,0,0,0.35)",border:`1px solid ${color}44`,borderRadius:8,padding:"12px 14px",textAlign:"center",flex:1,minWidth:110}}>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#556677",letterSpacing:"0.1em",marginBottom:4}}>{label}</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:20,color,fontWeight:"bold"}}>{value}</div>
+    </div>
+  );
+}
+
+function E6BCard({ title, icon, children }) {
+  return (
+    <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"18px 20px",marginBottom:16}}>
+      <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold",marginBottom:14}}>{icon} {title}</div>
+      {children}
+    </div>
+  );
+}
+
+function WindTASCard() {
+  const [tc, setTc] = useState("360");
+  const [tas, setTas] = useState("110");
+  const [wd, setWd] = useState("270");
+  const [ws, setWs] = useState("15");
+
+  const tcN = parseFloat(tc), tasN = parseFloat(tas), wdN = parseFloat(wd), wsN = parseFloat(ws);
+  const valid = [tcN, tasN, wdN, wsN].every(n => !isNaN(n));
+  const result = valid ? calcWindTriangle(tcN, tasN, wdN, wsN) : null;
+
+  return (
+    <E6BCard title="WIND CORRECTION & GROUNDSPEED" icon="🧭">
+      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}>
+        <LabeledNumberInput label="TRUE COURSE" value={tc} onChange={setTc} suffix="°" />
+        <LabeledNumberInput label="TRUE AIRSPEED" value={tas} onChange={setTas} suffix="kt" />
+        <LabeledNumberInput label="WIND FROM" value={wd} onChange={setWd} suffix="°" />
+        <LabeledNumberInput label="WIND SPEED" value={ws} onChange={setWs} suffix="kt" />
+      </div>
+      {result ? (
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <E6BResultBox label="WIND CORR. ANGLE" value={`${result.wca>=0?"+":""}${result.wca.toFixed(1)}°`} />
+          <E6BResultBox label="TRUE HEADING" value={`${result.trueHeading.toFixed(0).padStart(3,"0")}°`} color="#00C896" />
+          <E6BResultBox label="GROUNDSPEED" value={`${result.groundspeed.toFixed(0)} kt`} color="#FFD700" />
+        </div>
+      ) : (
+        <div style={{fontSize:11,color:"#FF8C00",fontFamily:"'DM Mono',monospace"}}>
+          {valid ? "Wind speed exceeds what's resolvable at this airspeed/course — check your numbers." : "Enter all four values."}
+        </div>
+      )}
+      <div style={{fontSize:9,color:"#556677",marginTop:12,lineHeight:1.5}}>Wind FROM direction, standard wind-triangle trigonometric solution. True heading — apply magnetic variation separately for your compass heading.</div>
+    </E6BCard>
+  );
+}
+
+function TASCard() {
+  const [cas, setCas] = useState("120");
+  const [pa, setPa] = useState("5000");
+  const [oat, setOat] = useState("15");
+
+  const casN = parseFloat(cas), paN = parseFloat(pa), oatN = parseFloat(oat);
+  const valid = [casN, paN, oatN].every(n => !isNaN(n));
+  const tas = valid ? calcTAS(casN, paN, oatN) : null;
+
+  return (
+    <E6BCard title="TRUE AIRSPEED" icon="✈">
+      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}>
+        <LabeledNumberInput label="CALIBRATED AIRSPEED" value={cas} onChange={setCas} suffix="kt" />
+        <LabeledNumberInput label="PRESSURE ALTITUDE" value={pa} onChange={setPa} suffix="ft" />
+        <LabeledNumberInput label="OUTSIDE AIR TEMP" value={oat} onChange={setOat} suffix="°C" />
+      </div>
+      {tas !== null && (
+        <E6BResultBox label="TRUE AIRSPEED" value={`${tas.toFixed(0)} kt`} color="#00C896" />
+      )}
+      <div style={{fontSize:9,color:"#556677",marginTop:12,lineHeight:1.5}}>Uses the standard density-altitude approximation (≈2% per 1,000ft of density altitude) — the same method a mechanical E6B computes.</div>
+    </E6BCard>
+  );
+}
+
+function TimeSpeedDistanceCard() {
+  const [solveFor, setSolveFor] = useState("distance"); // "time" | "speed" | "distance"
+  const [time, setTime] = useState("30");    // minutes
+  const [speed, setSpeed] = useState("120"); // kt
+  const [distance, setDistance] = useState("60"); // nm
+
+  const timeN = parseFloat(time), speedN = parseFloat(speed), distN = parseFloat(distance);
+
+  let computed = null, label = "", unit = "";
+  if (solveFor === "distance" && !isNaN(timeN) && !isNaN(speedN)) {
+    computed = speedN * (timeN / 60); label = "DISTANCE"; unit = "nm";
+  } else if (solveFor === "speed" && !isNaN(timeN) && !isNaN(distN) && timeN > 0) {
+    computed = distN / (timeN / 60); label = "SPEED"; unit = "kt";
+  } else if (solveFor === "time" && !isNaN(speedN) && !isNaN(distN) && speedN > 0) {
+    computed = (distN / speedN) * 60; label = "TIME"; unit = "min";
+  }
+
+  return (
+    <E6BCard title="TIME · SPEED · DISTANCE" icon="⏱">
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {["time","speed","distance"].map(f=>(
+          <button key={f} onClick={()=>setSolveFor(f)} style={{flex:1,padding:"6px 8px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.06em",background:solveFor===f?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${solveFor===f?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:solveFor===f?"#00B4FF":"#8899AA"}}>SOLVE FOR {f.toUpperCase()}</button>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}>
+        {solveFor !== "time" && <LabeledNumberInput label="TIME" value={time} onChange={setTime} suffix="min" />}
+        {solveFor !== "speed" && <LabeledNumberInput label="SPEED" value={speed} onChange={setSpeed} suffix="kt" />}
+        {solveFor !== "distance" && <LabeledNumberInput label="DISTANCE" value={distance} onChange={setDistance} suffix="nm" />}
+      </div>
+      {computed !== null ? (
+        <E6BResultBox label={label} value={`${computed.toFixed(1)} ${unit}`} color="#FFD700" />
+      ) : (
+        <div style={{fontSize:11,color:"#FF8C00",fontFamily:"'DM Mono',monospace"}}>Enter the other two values.</div>
+      )}
+    </E6BCard>
+  );
+}
+
+function E6BScreen({ onClose }) {
+  return (
+    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}input[type=number]::-webkit-inner-spin-button{opacity:0.5;}`}</style>
+      <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
+        <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:14}}>← BACK</button>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"#FFFFFF",marginLeft:6}}>🧮 E6B FLIGHT COMPUTER</div>
+      </div>
+      <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
+        <div style={{fontSize:12,color:"#8899AA",marginBottom:20,lineHeight:1.6}}>Standard flight-planning calculations, worked the same way a mechanical E6B does. Results update as you type.</div>
+        <WindTASCard />
+        <TASCard />
+        <TimeSpeedDistanceCard />
+        <div style={{fontSize:9,color:"#334455",fontFamily:"'DM Mono',monospace",marginTop:20,lineHeight:1.6}}>Educational planning tool — always cross-check critical numbers against your POH/AFM and official flight-planning materials before flight.</div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const width = useWindowWidth();
   const isMobile = width<640;
@@ -1179,6 +1360,7 @@ export default function App() {
   const [selected,setSelected] = useState("KVRB");
   const [query,setQuery] = useState("KVRB");
   const [showWelcome,setShowWelcome] = useState(true);
+  const [showE6B,setShowE6B] = useState(false);
   const [suggestions,setSuggestions] = useState([]);
   const [phase,setPhase] = useState("all");
   const [expanded,setExpanded] = useState({});
@@ -1331,10 +1513,16 @@ export default function App() {
           ))}
         </div>
       </div>
+      <div style={{padding:"12px"}}>
+        <button onClick={()=>setShowE6B(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"linear-gradient(135deg,rgba(255,215,0,0.16),rgba(255,180,0,0.1))",border:"1px solid rgba(255,215,0,0.4)",borderRadius:8,padding:"12px 10px",color:"#FFD700",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:"bold",letterSpacing:"0.08em"}}>
+          🧮 E6B FLIGHT COMPUTER
+        </button>
+      </div>
     </div>
   );
 
   if (showWelcome) return <WelcomeScreen onSelect={chooseRegion}/>;
+  if (showE6B) return <E6BScreen onClose={()=>setShowE6B(false)}/>;
 
   return (
     <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8",display:"flex",flexDirection:"column"}}>
@@ -1351,7 +1539,7 @@ export default function App() {
         </div>
         <div style={{flex:1}}/>
         <button onClick={()=>setShowWelcome(true)} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 10px",color:"#8899AA",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",marginRight:6}}>⟲ CHANGE LOCATION</button>
-        <a href="https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_feedback_form.html" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:6,padding:"6px 10px",color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",textDecoration:"none",marginRight:10}}>✉ FEEDBACK</a>
+        <a href="https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_academy_feedback_form.html" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:6,padding:"6px 10px",color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",textDecoration:"none",marginRight:10}}>✉ FEEDBACK</a>
         <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:wxLoad?"#FFD700":"#00C896"}}>● {wxLoad?"LOADING":"LIVE"}</span>
       </div>
       <div style={{flex:1,display:"flex",overflow:"hidden",height:"calc(100vh - 56px)"}}>
