@@ -689,6 +689,130 @@ const AIRFIELDS = {
     atcNotes:"Stapleford Radio 122.8",
     cfiNotes:"Busy uncontrolled circuit — good for reinforcing lookout and radio discipline under load. Always confirm: have you checked NOTAMs before departure?",
   },
+
+  // ── TEXAS ────────────────────────────────────────────────────────────────
+  // NOTE: elevations, runways, and airspace class verified against public FAA
+  // data (Sep 2026). Where an exact current tower/ground/approach frequency
+  // could not be independently verified, atcNotes says so explicitly rather
+  // than presenting an invented number — always confirm the current frequency
+  // in the Chart Supplement / your EFB before flight.
+  KFTW:{ name:"Fort Worth Meacham International", city:"Fort Worth, TX", elevation:710, class:"Class D", type:"Towered", runways:["16/34 — 7,502ft","17/35 — 4,005ft"], region:"texas", weather_icao:"KFTW",
+    hazards:[
+      {id:"MILITARY",phase:["all"],sev:"critical",icon:"🛩",title:"NAS JRB Fort Worth (Carswell) — Adjacent Military Jet Traffic",why:"Active-duty fighter jets operate from a joint-reserve base a few miles away.",detail:"Naval Air Station Joint Reserve Base Fort Worth (Carswell Field) is close by and hosts F-16 fighter operations. Expect fast military traffic and be ready for TFRs or altitude restrictions during exercises. Monitor NOTAMs before flight."},
+      {id:"CLASS_B",phase:["departure","all"],sev:"high",icon:"📡",title:"DFW Class B Proximity",why:"Dallas-Fort Worth International's Class B shelf is close to the east.",detail:"Do not climb above your assigned altitude without an explicit Class B clearance from DFW Approach if routing east. Confirm the current Class B floor for your position before departure."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"North Texas Severe Thunderstorms",why:"North Texas sits in an active severe-weather corridor, including spring hail and tornado risk.",detail:"Spring and early summer bring fast-developing supercells with hail and damaging wind, not just rain. Check TAF and radar closely — this isn't simple afternoon convection, some of these storms are genuinely severe. Do not fly toward a developing cell."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"Summer Heat — Density Altitude",detail:"Texas summer heat at 710ft field elevation can push density altitude to 2,500–3,000ft+ on hot afternoons. Recalculate performance rather than assuming sea-level numbers."},
+    ],
+    atcNotes:"Class D — confirm current Tower/Ground frequencies in the Chart Supplement before flight.\nDFW Class B to the east — confirm floor before any eastbound climb.",
+    cfiNotes:"Meacham's proximity to Carswell military jet traffic and the DFW Class B shelf are the two defining briefs here — both need specific airspace awareness before solo.",
+  },
+  KFWS:{ name:"Fort Worth Spinks", city:"Fort Worth (Burleson), TX", elevation:700, class:"Class D", type:"Towered", runways:["18R/36L — 6,002ft","18L/36R — 3,660ft (turf)"], region:"texas", weather_icao:"KFWS",
+    hazards:[
+      {id:"MULTI",phase:["pattern","all"],sev:"high",icon:"📻",title:"High-Volume Multi-School Training Field",why:"Spinks hosts a major Part 141 training campus alongside other schools.",detail:"Spinks sees very high training volumes with multiple schools operating simultaneously. Announce every position clearly and never assume the pattern is clear."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"North Texas Severe Thunderstorms",detail:"Same North Texas severe-weather corridor as Meacham and Alliance — spring hail/supercell risk, not just routine afternoon showers. Check TAF and radar before every flight."},
+      {id:"TURF",phase:["takeoff","landing"],sev:"medium",icon:"🛬",title:"Turf Secondary Runway",detail:"18L/36R is turf, not paved. Confirm current surface condition before use, especially after rain."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"Summer Heat — Density Altitude",detail:"Texas summer heat at 700ft elevation can meaningfully reduce performance on hot afternoons. Recalculate, don't assume."},
+    ],
+    atcNotes:"Class D — confirm current Tower/Ground frequencies in the Chart Supplement before flight.",
+    cfiNotes:"Spinks is a high-volume training environment — radio discipline and lookout under load are the key brief, alongside standard North Texas storm awareness.",
+  },
+  KAFW:{ name:"Perot Field Fort Worth Alliance", city:"Fort Worth, TX", elevation:723, class:"Class C", type:"Towered", runways:["16L/34R — 11,000ft","16R/34L — 11,125ft"], region:"texas", weather_icao:"KAFW",
+    hazards:[
+      {id:"CLASS_C",phase:["all"],sev:"high",icon:"📡",title:"Class C Operations",detail:"Alliance is Class C. Establish two-way communication with Alliance Approach before entering — confirm ATC has used your callsign back to you, not just acknowledged traffic."},
+      {id:"CARGO",phase:["pattern","all"],sev:"high",icon:"✈",title:"Heavy Cargo Jet Traffic — Wake Turbulence",why:"Alliance is a major FedEx Express and Amazon Air hub.",detail:"Expect large freighter aircraft sharing the pattern and runways. Wake turbulence from a departing heavy jet can be dangerous to a light training aircraft — maintain spacing and be alert to ATC wake turbulence cautions."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"North Texas Severe Thunderstorms",detail:"Same severe-weather corridor as the rest of North Texas — check TAF/radar for supercell and hail risk, not just routine convection."},
+    ],
+    atcNotes:"Class C — confirm current Approach/Tower frequencies in the Chart Supplement before flight.",
+    cfiNotes:"Alliance is a genuinely unusual training environment — Class C procedures alongside heavy freighter wake turbulence. Not a first-solo field.",
+  },
+  KT67:{ name:"Hicks Airfield", city:"Fort Worth (Tarrant County), TX", elevation:855, class:"Uncontrolled", type:"Non-Towered", runways:["14/32 — 3,740ft"], region:"texas", weather_icao:"KAFW",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — Self-Announce Required",why:"No ATC — all separation is pilot responsibility.",detail:"Hicks has no control tower and no weather station of its own — the closest METAR is Alliance (KAFW), about 6nm away, so treat that reading as a nearby reference, not exact on-field conditions. Self-announce at every standard reporting point."},
+      {id:"AIRSPACE",phase:["all"],sev:"high",icon:"📡",title:"Every DFW Airspace Type Within 30 Minutes",why:"Hicks sits close to Class D, Class C, and Class B airspace in quick succession.",detail:"Meacham (Class D), Alliance (Class C), and DFW (Class B) are all within a short flight. This makes Hicks a popular training base, but it also means airspace discipline is critical from the first solo cross-country onward."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"North Texas Severe Thunderstorms",detail:"No tower means no one is watching the weather for you here. Self-brief carefully — spring hail/supercell risk is real in this area."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"Summer Heat — Density Altitude",detail:"At 855ft field elevation, Texas summer heat can push density altitude noticeably higher than sea-level POH numbers assume."},
+    ],
+    atcNotes:"No tower — self-announce on the local CTAF/A/G frequency; confirm the current frequency in the Chart Supplement.",
+    cfiNotes:"Hicks (FAA LID T67, not an assigned ICAO identifier) is an excellent low-traffic non-towered introduction, with fast access to every controlled-airspace type nearby for later lessons.",
+  },
+  KGTU:{ name:"Georgetown Municipal (Executive) Airport", city:"Georgetown, TX", elevation:790, class:"Class D", type:"Towered (part-time — reverts non-towered after hours)", runways:["11/29 — 4,100ft","18/36 — 5,004ft"], region:"texas", weather_icao:"KGTU",
+    hazards:[
+      {id:"MULTI",phase:["pattern","all"],sev:"high",icon:"📻",title:"Major Multi-School Training Hub",why:"Georgetown hosts several large accelerated flight-training programs.",detail:"Georgetown is one of the busiest training airports in central Texas, with multiple schools running high-volume operations simultaneously. Expect a very active pattern and announce every position precisely."},
+      {id:"PARTTIME",phase:["all"],sev:"medium",icon:"🗼",title:"Part-Time Tower — Confirm Operating Hours",why:"The tower does not operate 24 hours — the field reverts to non-towered procedures after hours.",detail:"Confirm current tower hours before flight. Outside those hours, Georgetown operates as an uncontrolled field — self-announce procedures apply and you must contact Austin Approach for IFR clearance delivery when the tower is closed."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Central Texas Severe Thunderstorms",why:"Central Texas sees intense, fast-developing convection, sometimes with damaging hail.",detail:"Check TAF and radar closely before and during flight — Hill Country convergence can develop storms quickly."},
+      {id:"WILDLIFE",phase:["all"],sev:"medium",icon:"🦌",title:"Deer On and Near the Airport",detail:"Deer activity has been documented on and around the airfield. Scan the runway environment carefully, especially at dawn/dusk."},
+    ],
+    atcNotes:"Ground (IFR clearance delivery when tower closed): 119.125. Confirm current Tower frequency in the Chart Supplement.",
+    cfiNotes:"Georgetown's training volume is the defining brief — reinforce precise, concise radio calls given how much traffic shares the pattern.",
+  },
+  KHYI:{ name:"San Marcos Regional Airport", city:"San Marcos, TX", elevation:594, class:"Class D", type:"Towered", runways:["08/26 — 6,330ft","13/31 — 5,601ft","17/35 — 5,214ft"], region:"texas", weather_icao:"KHYI",
+    hazards:[
+      {id:"BIRDS",phase:["takeoff","landing"],sev:"high",icon:"🦅",title:"Documented Bird and Wildlife Activity",why:"Bird and wildlife activity on and around the airport is noted in official airport remarks.",detail:"San Marcos has documented bird and wildlife activity on and near the airfield. Scan approach and departure paths carefully."},
+      {id:"MULTI",phase:["pattern","all"],sev:"high",icon:"📻",title:"Major Multi-School Training Hub",why:"San Marcos hosts several large training organisations.",detail:"Multiple flight schools operate here at high volume. Expect a busy pattern and non-standard spacing — announce clearly and look before every turn."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Central Texas Severe Thunderstorms",detail:"Same Hill Country convergence risk as Georgetown/Austin — check TAF and radar carefully, storms here can develop fast."},
+      {id:"SURFACE",phase:["takeoff","landing"],sev:"low",icon:"🛬",title:"Irregular Surface Noted",detail:"Official airport remarks note irregular surface areas. Standard precaution: taxi and roll at a sensible speed and report anything unusual to the FBO."},
+    ],
+    atcNotes:"Ground (IFR clearance delivery when tower closed): 120.125. Confirm current Tower frequency in the Chart Supplement.",
+    cfiNotes:"San Marcos combines high training traffic with documented bird activity — both need a specific brief before first solo here.",
+  },
+  KAUS:{ name:"Austin-Bergstrom International", city:"Austin, TX", elevation:541, class:"Class C", type:"Towered", runways:["18R/36L — 12,250ft","18L/36R — 9,000ft"], region:"texas", weather_icao:"KAUS",
+    hazards:[
+      {id:"CLASS_C",phase:["all"],sev:"high",icon:"📡",title:"Class C — Busy Commercial + GA Traffic",why:"Austin-Bergstrom is a full commercial airline airport with GA sharing the same airspace.",detail:"Establish two-way communication with Austin Approach before entering the Class C surface area. Expect sequencing behind airline traffic and precise ATC instructions."},
+      {id:"BIRDS",phase:["takeoff","landing"],sev:"high",icon:"🦅",title:"Documented Bird Activity",why:"Bird activity on and near the airport is noted in official airport remarks.",detail:"Scan approach and departure paths carefully — this is a documented, not hypothetical, hazard at this field."},
+      {id:"NOISE",phase:["departure"],sev:"medium",icon:"🔇",title:"Noise Abatement Departure Procedures",detail:"Noise abatement procedures are active. Departures are generally expected to climb as soon as practical to 4,000ft or above and follow assigned runway/heading instructions precisely."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Central Texas Severe Thunderstorms",detail:"Same central Texas convective risk as Georgetown/San Marcos — check TAF and radar, storms can develop quickly."},
+    ],
+    atcNotes:"Class C, busy commercial airport — confirm current Approach/Tower frequencies in the Chart Supplement before flight.",
+    cfiNotes:"Bergstrom is a good advanced-student introduction to Class C amid heavy commercial traffic — not a routine training field for early solo.",
+  },
+  KSGR:{ name:"Sugar Land Regional Airport", city:"Sugar Land (Houston), TX", elevation:81, class:"Class D", type:"Towered", runways:["17/35 — 8,000ft"], region:"texas", weather_icao:"KSGR",
+    hazards:[
+      {id:"MULTI",phase:["pattern","all"],sev:"high",icon:"📻",title:"Major Multi-School Training Hub",why:"Sugar Land hosts a large accelerated flight-training programme alongside corporate traffic.",detail:"Expect a high-volume pattern with training aircraft sharing the field with business jets and turboprops. Announce clearly and expect to be sequenced behind faster traffic."},
+      {id:"TRAFFIC",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Mixed Corporate Jet / Training Traffic",detail:"Corporate jets and turboprops share this single long runway with training aircraft — expect a wide range of approach speeds in the pattern."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Gulf Coast Thunderstorms and Humidity",why:"Houston's Gulf Coast humidity fuels fast-developing afternoon convection, and the region sees tropical-system remnants in season.",detail:"Check TAF and radar closely, particularly in summer/early autumn when tropical moisture can bring heavy rain and low ceilings with little warning."},
+      {id:"FOG",phase:["all"],sev:"medium",icon:"🌫",title:"Gulf Coast Morning Fog/Haze",detail:"Houston's humidity produces frequent early-morning fog and haze, especially in cooler months. Check the actual METAR trend before a dawn departure, not just the forecast."},
+    ],
+    atcNotes:"Class D — confirm current Tower/Ground frequencies in the Chart Supplement before flight.",
+    cfiNotes:"Sugar Land's mixed corporate/training traffic on a single runway is the key brief — reinforce pattern spacing awareness.",
+  },
+  KDWH:{ name:"David Wayne Hooks Memorial Airport", city:"Houston (Tomball), TX", elevation:152, class:"Class D", type:"Towered (part-time — reverts non-towered after hours)", runways:["17R/35L — 7,009ft","17L/35R — 3,447ft","17W/35W — 2,530ft (water)"], region:"texas", weather_icao:"KDWH",
+    hazards:[
+      {id:"BUSIEST",phase:["pattern","all"],sev:"critical",icon:"📻",title:"Busiest General Aviation Airport in Texas",why:"Hooks is one of the busiest GA airports in the entire United States.",detail:"Extremely high traffic volume — announce every position precisely and never assume the pattern or runway is clear, even when cleared."},
+      {id:"PARTTIME",phase:["all"],sev:"high",icon:"🗼",title:"Part-Time Tower — Confirm Operating Hours",why:"The tower does not operate 24 hours — the field reverts to non-towered procedures after hours.",detail:"Confirm current tower hours before flight. When the tower is closed, contact Houston Approach for IFR clearance delivery and use standard self-announce procedures."},
+      {id:"SEAPLANE",phase:["all"],sev:"medium",icon:"🌊",title:"Water Runway — Mixed Seaplane Operations",why:"Hooks has a dedicated water runway (17W/35W) alongside its paved runways.",detail:"Be aware seaplane operations may be sharing the traffic pattern with conventional fixed-wing aircraft. Confirm current activity before flight."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Gulf Coast Thunderstorms and Humidity",detail:"Same Gulf Coast convective risk as the rest of the Houston area — check TAF/radar closely, especially in summer and hurricane season."},
+    ],
+    atcNotes:"Class D (part-time tower) — confirm current Tower/Ground frequencies and hours in the Chart Supplement before flight.",
+    cfiNotes:"Hooks' sheer traffic volume plus the part-time tower and water-runway seaplane mix make this a genuinely advanced training environment — brief all three carefully.",
+  },
+  KLVJ:{ name:"Pearland Regional Airport", city:"Pearland (Houston), TX", elevation:44, class:"Uncontrolled", type:"Non-Towered", runways:["14/32 — 4,313ft"], region:"texas", weather_icao:"KLVJ",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — Self-Announce Required",why:"No ATC — all separation is pilot responsibility.",detail:"Pearland has no control tower. Self-announce at every standard reporting point on the local CTAF frequency."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Gulf Coast Thunderstorms and Humidity",detail:"No tower means no one is watching the weather for you here — self-brief carefully given Houston's fast-developing Gulf Coast convection."},
+      {id:"FOG",phase:["all"],sev:"medium",icon:"🌫",title:"Gulf Coast Morning Fog/Haze",detail:"Check the actual METAR trend before an early departure — Houston-area humidity produces frequent morning fog."},
+    ],
+    atcNotes:"No tower — self-announce on the local CTAF frequency; confirm the current frequency in the Chart Supplement.",
+    cfiNotes:"Good non-towered introduction south of Houston — reinforce self-briefing discipline given the lack of a tower to catch developing weather.",
+  },
+  KIWS:{ name:"West Houston Airport", city:"Houston (Katy), TX", elevation:111, class:"Uncontrolled", type:"Non-Towered", runways:["15/33 — 3,953ft"], region:"texas", weather_icao:"KIWS",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on the local CTAF frequency."},
+      {id:"HOURS",phase:["pattern","all"],sev:"low",icon:"🕐",title:"Touch-and-Go Curfew",detail:"Touch-and-go circuits are restricted between 2200 and 0600 local. Plan pattern work accordingly."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Gulf Coast Thunderstorms and Humidity",detail:"Same Houston-area convective risk as Sugar Land/Hooks/Pearland — self-brief carefully, no tower here to flag developing weather."},
+      {id:"FOG",phase:["all"],sev:"medium",icon:"🌫",title:"Gulf Coast Morning Fog/Haze",detail:"Check the actual METAR trend before an early departure, not just the forecast."},
+    ],
+    atcNotes:"No tower — self-announce on the local CTAF frequency; confirm the current frequency in the Chart Supplement.",
+    cfiNotes:"West Houston's touch-and-go curfew is a distinctive local rule worth pointing out early — easy for a student to overlook.",
+  },
+  KCFD:{ name:"Coulter Field", city:"Bryan (Bryan–College Station), TX", elevation:367, class:"Uncontrolled", type:"Non-Towered", runways:["15/33 — 4,000ft"], region:"texas", weather_icao:"KCFD",
+    hazards:[
+      {id:"JUMP",phase:["all"],sev:"high",icon:"🪂",title:"Documented Parachute Operations",why:"Coulter Field has a long-documented history of parachute jump activity dating to the 1950s.",detail:"Confirm current parachute operations and NOTAM status before flight — jumpers in freefall have no radio and may not be visible until close. Do not assume the field is jump-free without checking."},
+      {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on the local CTAF frequency."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Central Texas Severe Thunderstorms",detail:"Central Texas convective risk applies here too — self-brief carefully, no tower to flag developing weather."},
+    ],
+    atcNotes:"No tower — self-announce on the local CTAF frequency; confirm the current frequency in the Chart Supplement.",
+    cfiNotes:"Coulter's parachute history is the standout local brief — treat it as active until you've specifically confirmed otherwise via NOTAMs.",
+  },
 };
 
 const FIELD_COORDS = {
@@ -710,6 +834,11 @@ const FIELD_COORDS = {
   EGCC:[53.3537,-2.2750], EGCB:[53.4694,-2.3800], EGNJ:[53.5744,-0.3508], EGPF:[55.8719,-4.4331],
   EGPN:[56.4525,-3.0258], EGPK:[55.5094,-4.5867], EGNS:[54.0833,-4.6239], EGHQ:[50.4406,-4.9958],
   EGLM:[51.5083,-0.7794], EGSG:[51.6486,0.1544],
+  // Texas
+  KFTW:[32.819778,-97.362444], KFWS:[32.56528,-97.30806], KAFW:[32.99028,-97.31944], KT67:[32.91222,-97.40111],
+  KGTU:[30.678808,-97.679383], KHYI:[29.89278,-97.86306], KAUS:[30.1945,-97.66983],
+  KSGR:[29.62222,-95.65667], KDWH:[30.06194,-95.55278], KLVJ:[29.52139,-95.24222], KIWS:[29.81833,-95.67250],
+  KCFD:[30.71556,-96.33139],
 };
 
 const SEV = {
@@ -1014,6 +1143,7 @@ function WelcomeScreen({ onSelect }) {
   const options = [
     { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay." },
     { id:"phoenix", label:"PHOENIX / ARIZONA", icon:"☀", desc:"13 training airfields across the Phoenix area and Arizona — density altitude, haboobs, high terrain, military airspace." },
+    { id:"texas", label:"TEXAS", icon:"🤠", desc:"12 training airfields across Fort Worth, Austin, and Houston — Class B/C/D operations, severe thunderstorms, military jet traffic, Gulf Coast fog." },
     { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:"29 training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar." },
   ];
   return (
@@ -1077,7 +1207,7 @@ export default function App() {
     if (isMobile) setMenuOpen(false);
   }
 
-  const REGION_DEFAULT_AIRFIELD = { florida:"KVRB", phoenix:"KDVT", uk:"EGBP" };
+  const REGION_DEFAULT_AIRFIELD = { florida:"KVRB", phoenix:"KDVT", uk:"EGBP", texas:"KFTW" };
 
   function chooseRegion(r) {
     setRegion(r);
@@ -1114,10 +1244,12 @@ export default function App() {
   const floridaFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="florida");
   const phoenixFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="phoenix");
   const ukFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="uk");
+  const texasFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="texas");
 
   function fieldsForRegion(r) {
     if (r==="florida") return floridaFields;
     if (r==="phoenix") return phoenixFields;
+    if (r==="texas") return texasFields;
     return ukFields;
   }
 
@@ -1172,8 +1304,8 @@ export default function App() {
         )}
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.12em",marginBottom:6}}>QUICK ACCESS</div>
         <div style={{display:"flex",gap:6,marginBottom:8}}>
-          {["florida","phoenix","uk"].map(r=>(
-            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 4px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴 FL":r==="phoenix"?"☀ AZ":"🇬🇧 UK"}</button>
+          {["florida","phoenix","texas","uk"].map(r=>(
+            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 4px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴 FL":r==="phoenix"?"☀ AZ":r==="texas"?"🤠 TX":"🇬🇧 UK"}</button>
           ))}
         </div>
         <div style={{overflowY:"auto",maxHeight:220}}>
