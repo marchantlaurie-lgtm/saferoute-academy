@@ -813,6 +813,16 @@ const AIRFIELDS = {
     atcNotes:"No tower — self-announce on the local CTAF frequency; confirm the current frequency in the Chart Supplement.",
     cfiNotes:"Coulter's parachute history is the standout local brief — treat it as active until you've specifically confirmed otherwise via NOTAMs.",
   },
+  KCLL:{ name:"Easterwood Field", city:"College Station, TX", elevation:321, class:"Class D", type:"Towered (part-time — reverts Class E after hours)", runways:["17/35 — 7,000ft","11/29 — 5,158ft"], region:"texas", weather_icao:"KCLL",
+    hazards:[
+      {id:"PARTTIME",phase:["all"],sev:"medium",icon:"🗼",title:"Part-Time Tower — Confirm Operating Hours",why:"Airspace reverts from Class D to Class E when the tower is closed.",detail:"Confirm current tower hours before flight. Outside those hours, standard uncontrolled procedures apply — self-announce and expect no ATC service."},
+      {id:"MILITARY",phase:["all"],sev:"medium",icon:"🚁",title:"Military Helicopter Rapid-Refuel Operations",why:"Easterwood hosts scheduled military helicopter rapid-refuel activity on the south ramp.",detail:"Rapid-refuel helicopter operations run on the south ramp during published hours. Expect additional rotary traffic and follow any published procedures for proceeding to that ramp area."},
+      {id:"UNI",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Texas A&M University Flight Operations",why:"Easterwood serves Texas A&M's aviation program alongside general traffic.",detail:"Expect a mix of university training flights, GA traffic, and occasional scheduled/charter service. Maintain standard lookout discipline in the pattern."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Central Texas Severe Thunderstorms",detail:"Same Central Texas convective risk as Coulter Field nearby — check TAF and radar carefully, storms here can develop fast."},
+    ],
+    atcNotes:"Class D (part-time tower) — confirm current Tower/Ground frequencies and hours in the Chart Supplement before flight.",
+    cfiNotes:"Easterwood's part-time tower and the south-ramp military helicopter activity are the two things students most often miss on first visit — brief both before solo.",
+  },
 };
 
 const FIELD_COORDS = {
@@ -838,7 +848,7 @@ const FIELD_COORDS = {
   KFTW:[32.819778,-97.362444], KFWS:[32.56528,-97.30806], KAFW:[32.99028,-97.31944], KT67:[32.91222,-97.40111],
   KGTU:[30.678808,-97.679383], KHYI:[29.89278,-97.86306], KAUS:[30.1945,-97.66983],
   KSGR:[29.62222,-95.65667], KDWH:[30.06194,-95.55278], KLVJ:[29.52139,-95.24222], KIWS:[29.81833,-95.67250],
-  KCFD:[30.71556,-96.33139],
+  KCFD:[30.71556,-96.33139], KCLL:[30.58861,-96.36389],
 };
 
 const SEV = {
@@ -1172,7 +1182,7 @@ function WelcomeScreen({ onSelect }) {
   const options = [
     { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay." },
     { id:"phoenix", label:"PHOENIX / ARIZONA", icon:"☀", desc:"13 training airfields across the Phoenix area and Arizona — density altitude, haboobs, high terrain, military airspace." },
-    { id:"texas", label:"TEXAS", icon:"🤠", desc:"12 training airfields across Fort Worth, Austin, and Houston — Class B/C/D operations, severe thunderstorms, military jet traffic, Gulf Coast fog." },
+    { id:"texas", label:"TEXAS", icon:"🤠", desc:"13 training airfields across Fort Worth, Austin, and Houston — Class B/C/D operations, severe thunderstorms, military jet traffic, Gulf Coast fog." },
     { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:"29 training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar." },
   ];
   return (
