@@ -1407,6 +1407,40 @@ export default function App() {
     .filter(h=>phase==="all"||h.phase.includes(phase)||h.phase.includes("all"))
     .sort((a,b)=>({critical:4,high:3,medium:2,low:1}[b.sev]||0)-({critical:4,high:3,medium:2,low:1}[a.sev]||0));
 
+  // ── WANT briefing data — built from real, already-fetched app data rather
+  // than left entirely to the AI, so Weather/Aircraft/NOTAM-reminder/Threats
+  // are accurate and deterministic. The AI summary underneath ties it
+  // together in plain language but isn't the source of these facts.
+  const briefLiveTemp = liveWx ? parseMetarTemp(liveWx.metar) : null;
+  const briefLiveDew  = liveWx ? parseMetarDewpoint(liveWx.metar) : null;
+  const briefLiveAlt  = liveWx ? parseMetarAltimeter(liveWx.metar) : null;
+  const briefTafThreats = parseTAFThreats(liveWx?.tafs);
+
+  let aircraftPerf = null;
+  if (briefLiveTemp !== null) {
+    if (airfield.region === "uk") {
+      const dew = briefLiveDew ?? briefLiveTemp - 5;
+      const cbAmsl = calcCloudBase(briefLiveTemp, dew, airfield.elevation);
+      const cbAgl = Math.max(0, cbAmsl - airfield.elevation);
+      const freezingLevel = calcFreezingLevel(briefLiveTemp, airfield.elevation);
+      const icingRisk = briefLiveTemp<=0 ? "LIKELY" : (freezingLevel < cbAmsl+2000 ? "POSSIBLE" : "LOW");
+      aircraftPerf = { kind:"uk", cbAgl, cbAmsl, freezingLevel, icingRisk, hasDew: briefLiveDew !== null };
+    } else {
+      const da = calcDA(airfield.elevation, briefLiveTemp, briefLiveAlt ?? 29.92);
+      const daRisk = da>5000?"EXTREME":da>3500?"HIGH":da>2000?"MODERATE":"NORMAL";
+      aircraftPerf = { kind:"da", da, daRisk };
+    }
+  }
+
+  const briefTopHazards = [...airfield.hazards]
+    .filter(h=>h.sev==="critical"||h.sev==="high")
+    .sort((a,b)=>(a.sev==="critical"?0:1)-(b.sev==="critical"?0:1))
+    .slice(0,6);
+
+  const notamLink = airfield.region==="uk"
+    ? "https://www.nats.aero/ais"
+    : "https://notams.aim.faa.gov/notamSearch/";
+
   async function generateBriefing() {
     setBriefLoad(true);setBrief("");
     const liveTemp = liveWx?parseMetarTemp(liveWx.metar):null;
@@ -1569,12 +1603,12 @@ export default function App() {
           {airfield.region==="uk" ? <UkWeatherWidget airfield={airfield} liveWx={liveWx}/> : <DAWidget airfield={airfield} liveWx={liveWx}/>}
           <MapWidget airfield={airfield} icao={selected}/>
           <div style={{display:"flex",borderBottom:"2px solid rgba(255,255,255,0.06)",marginBottom:14,overflowX:"auto",gap:2}}>
-            {[["hazards",`HAZARDS (${filteredHazards.length})`],["atc","ATC & AIRSPACE"],["cfi","CFI NOTES"],["brief","AI BRIEF"]].map(([tid,label])=>(
+            {[["hazards",`THREATS (${filteredHazards.length})`],["atc","ATC & AIRSPACE"],["cfi","CFI NOTES"],["brief","W-A-N-T BRIEF"]].map(([tid,label])=>(
               <button key={tid} onClick={()=>setTab(tid)} style={{background:tab===tid?"rgba(0,180,255,0.08)":"none",border:"none",cursor:"pointer",padding:"10px 16px",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.08em",whiteSpace:"nowrap",color:tab===tid?"#00B4FF":"#FFFFFF",borderBottom:tab===tid?"2px solid #00B4FF":"2px solid transparent",transition:"all 0.15s",marginBottom:"-2px"}}>{label}</button>
             ))}
           </div>
           {tab==="hazards"&&<div>
-            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.15em",marginBottom:10}}>{filteredHazards.length} HAZARD{filteredHazards.length!==1?"S":""} FOR {selected} · TAP ANY CARD TO EXPAND</div>
+            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.15em",marginBottom:10}}>{filteredHazards.length} THREAT{filteredHazards.length!==1?"S":""} FOR {selected} · TAP ANY CARD TO EXPAND</div>
             {filteredHazards.map(h=><HazardCard key={h.id} h={h} expanded={!!expanded[h.id]} onToggle={()=>setExpanded(e=>({...e,[h.id]:!e[h.id]}))}/>)}
           </div>}
           {tab==="atc"&&<div style={{background:"rgba(0,20,45,0.8)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"18px 20px"}}>
@@ -1586,23 +1620,86 @@ export default function App() {
             <p style={{fontSize:13,color:"#C0D4E8",lineHeight:1.9}}>{airfield.cfiNotes}</p>
           </div>}
           {tab==="brief"&&<div>
-            {!briefing&&!briefLoad&&<div style={{textAlign:"center",padding:"40px 20px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10}}>
-              <div style={{fontSize:48,marginBottom:14}}>✈</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"#334455",marginBottom:6}}>STUDENT PRE-FLIGHT BRIEFING</div>
-              <div style={{fontSize:11,color:"#223344",marginBottom:20}}>AI-generated briefing for {airfield.name} using live weather + hazard data</div>
-              <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.18)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:8,padding:"13px 32px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,letterSpacing:"0.1em",fontWeight:"bold"}}>GENERATE BRIEFING →</button>
+            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.15em",marginBottom:12}}>PRE-FLIGHT BRIEFING · W-A-N-T · {selected}</div>
+
+            {/* W — WEATHER */}
+            <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:12}}>
+              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>🌦 W — WEATHER</div>
+              {wxLoad && <div style={{fontSize:11,color:"#556677"}}>Loading live weather…</div>}
+              {!wxLoad && !liveWx && <div style={{fontSize:11,color:"#556677"}}>No live weather data available for this field.</div>}
+              {!wxLoad && liveWx && <>
+                <div style={{fontSize:13,color:"#FFFFFF",lineHeight:1.6,marginBottom:8}}>{interpretMetarShort(liveWx.metar)}</div>
+                {briefTafThreats.length>0 ? (
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {briefTafThreats.map((t,i)=><div key={i} style={{fontSize:12,color:t.color,fontWeight:"500"}}>{t.icon} {t.text}</div>)}
+                  </div>
+                ) : <div style={{fontSize:11,color:"#556677"}}>No significant forecast hazards flagged in the current TAF.</div>}
+              </>}
+            </div>
+
+            {/* A — AIRCRAFT & PERFORMANCE */}
+            <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:12}}>
+              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>✈ A — AIRCRAFT & PERFORMANCE</div>
+              {!aircraftPerf && <div style={{fontSize:11,color:"#556677"}}>Live temperature not available — check the performance tools once weather loads.</div>}
+              {aircraftPerf?.kind==="da" && (
+                <div style={{fontSize:13,color:"#FFFFFF",lineHeight:1.7}}>
+                  Density altitude: <b style={{color:aircraftPerf.daRisk==="EXTREME"?"#FF3B3B":aircraftPerf.daRisk==="HIGH"?"#FF8C00":aircraftPerf.daRisk==="MODERATE"?"#FFD700":"#00C896"}}>{aircraftPerf.da.toLocaleString()}ft ({aircraftPerf.daRisk})</b>
+                  <div style={{fontSize:11,color:"#8899AA",marginTop:4}}>Recalculate takeoff/climb performance rather than assuming sea-level POH numbers — see the full calculator above.</div>
+                </div>
+              )}
+              {aircraftPerf?.kind==="uk" && (
+                <div style={{fontSize:13,color:"#FFFFFF",lineHeight:1.7}}>
+                  Estimated cloud base: <b>{aircraftPerf.cbAgl.toLocaleString()}ft AGL</b> · Icing risk: <b style={{color:aircraftPerf.icingRisk==="LIKELY"?"#FF3B3B":aircraftPerf.icingRisk==="POSSIBLE"?"#FFD700":"#00C896"}}>{aircraftPerf.icingRisk}</b>
+                  <div style={{fontSize:11,color:"#8899AA",marginTop:4}}>{aircraftPerf.hasDew?"":"Dewpoint estimated — not directly reported in this METAR. "}Estimate only — confirm against the actual TAF/METAR and F214/F215 charts.</div>
+                </div>
+              )}
+              <div style={{fontSize:11,color:"#8899AA",marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",lineHeight:1.6}}>Performance is only part of this section — before flight, also check <b style={{color:"#C0D4E8"}}>aircraft status</b>, the <b style={{color:"#C0D4E8"}}>tech log</b>, and any <b style={{color:"#C0D4E8"}}>MEL (Minimum Equipment List)</b> items with your instructor or dispatcher.</div>
+            </div>
+
+            {/* N — NOTAMS */}
+            <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:12}}>
+              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>📋 N — NOTAMS</div>
+              <div style={{fontSize:12,color:"#C0D4E8",lineHeight:1.6,marginBottom:10}}>This app doesn't pull live NOTAMs. Check current NOTAMs for {selected} — and any alternates — before every flight.</div>
+              <a href={notamLink} target="_blank" rel="noreferrer" style={{display:"inline-block",background:"rgba(0,180,255,0.15)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:6,padding:"7px 14px",color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:10,textDecoration:"none",fontWeight:"bold"}}>{airfield.region==="uk"?"OPEN NATS AIS →":"OPEN FAA NOTAM SEARCH →"}</a>
+            </div>
+
+            {/* T — THREATS */}
+            <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:16}}>
+              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>⚠ T — THREATS</div>
+              {briefTopHazards.length===0 && <div style={{fontSize:11,color:"#556677"}}>No critical/high hazards recorded for this field — see the HAZARDS tab for the full list.</div>}
+              {briefTopHazards.length>0 && (
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {briefTopHazards.map(h=>{
+                    const sc = SEV[h.sev];
+                    return (
+                      <div key={h.id} style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:sc.color,background:sc.bg,border:`1px solid ${sc.border}`,padding:"2px 6px",borderRadius:3,flexShrink:0,marginTop:2}}>{sc.label}</span>
+                        <div style={{fontSize:12,color:"#C0D4E8",lineHeight:1.5}}><b style={{color:"#FFFFFF"}}>{h.title}</b>{h.why?` — ${h.why}`:""}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {airfield.hazards.length > briefTopHazards.length && <div style={{fontSize:10,color:"#556677",marginTop:8}}>See the HAZARDS tab for the full list, including medium/low items.</div>}
+            </div>
+
+            {/* AI Summary */}
+            {!briefing&&!briefLoad&&<div style={{textAlign:"center",padding:"30px 20px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"#334455",marginBottom:6}}>AI SUMMARY</div>
+              <div style={{fontSize:11,color:"#223344",marginBottom:16}}>Generate a plain-language narrative pulling the above together</div>
+              <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.18)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:8,padding:"11px 26px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:"0.1em",fontWeight:"bold"}}>GENERATE AI SUMMARY →</button>
             </div>}
-            {briefLoad&&<div style={{textAlign:"center",padding:"40px",background:"rgba(0,20,40,0.6)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:10}}>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:"#00B4FF",marginBottom:8}}>Generating student briefing…</div>
-              <div style={{fontSize:11,color:"#334455"}}>Analysing hazards · live METAR · TAF forecast · airspace</div>
+            {briefLoad&&<div style={{textAlign:"center",padding:"30px",background:"rgba(0,20,40,0.6)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:10}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"#00B4FF",marginBottom:6}}>Generating summary…</div>
+              <div style={{fontSize:10,color:"#334455"}}>Analysing hazards · live METAR · TAF forecast · airspace</div>
             </div>}
-            {briefing&&<div style={{background:"rgba(0,15,35,0.8)",border:"1px solid rgba(0,180,255,0.18)",borderRadius:10,padding:"20px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>★ AI SAFETY BRIEFING — {selected}</div>
+            {briefing&&<div style={{background:"rgba(0,15,35,0.8)",border:"1px solid rgba(0,180,255,0.18)",borderRadius:10,padding:"18px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold"}}>★ AI SUMMARY</div>
                 <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:5,padding:"5px 12px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9}}>↻ REGENERATE</button>
               </div>
-              <pre style={{fontSize:12,color:"#C0D8F0",lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{briefing}</pre>
-              <div style={{marginTop:14,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.05)",fontSize:9,color:"#223344",fontFamily:"'DM Mono',monospace"}}>AI-GENERATED USING LIVE METAR/TAF DATA · FOR EDUCATIONAL PURPOSES ONLY · NOT A SUBSTITUTE FOR CFI INSTRUCTION</div>
+              <pre style={{fontSize:12,color:"#C0D8F0",lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{briefing}</pre>
+              <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.05)",fontSize:9,color:"#223344",fontFamily:"'DM Mono',monospace"}}>W-A-N-T ABOVE IS BUILT FROM LIVE APP DATA · THIS SUMMARY IS AI-GENERATED · FOR EDUCATIONAL PURPOSES ONLY · NOT A SUBSTITUTE FOR CFI INSTRUCTION</div>
             </div>}
           </div>}
         </div>
