@@ -837,6 +837,240 @@ const AIRFIELDS = {
     atcNotes:"Class D (part-time tower) — confirm current Tower/Ground frequencies and hours in the Chart Supplement before flight.",
     cfiNotes:"Easterwood's part-time tower and the south-ramp military helicopter activity are the two things students most often miss on first visit — brief both before solo.",
   },
+
+  // ── SOUTHERN CALIFORNIA / LA BASIN ───────────────────────────────────────
+  // Elevation/runway/class data verified against SkyVector (FAA NASR-sourced
+  // remarks) plus at least one additional non-Wikipedia aviation source per
+  // field. Region theme: extremely dense multi-airport Class B/C/D airspace
+  // stacking, marine layer fog, and terrain transitions — distinct from any
+  // existing Academy region.
+  KVNY:{ name:"Van Nuys Airport", city:"Van Nuys, CA", elevation:802, class:"Class D", type:"Towered", runways:["16R/34L — 8,001ft","16L/34R — 4,013ft"], region:"socal", weather_icao:"KVNY",
+    hazards:[
+      {id:"BUSIEST",phase:["pattern","all"],sev:"high",icon:"✈",title:"One of the Busiest GA Airports in the World",why:"Van Nuys' two parallel runways average very high annual movements.",detail:"Extremely high traffic density with parallel runway operations. Listen carefully, expect fast-paced ATC instructions, and never assume the pattern is clear."},
+      {id:"CLASSB",phase:["all"],sev:"high",icon:"📡",title:"Under LAX Class B Shelf",why:"Van Nuys sits within the dense LA Basin Class B/C airspace complex.",detail:"Confirm current Class B shelf altitudes before any climb — this is one of the most heavily stacked airspace environments in US general aviation."},
+      {id:"BIRD",phase:["all"],sev:"medium",icon:"🦅",title:"Bird Abatement Operations",detail:"Bird abatement activity may occur between the runways when the tower is open. Maintain vigilance for wildlife on and near the movement area."},
+    ],
+    atcNotes:"Van Nuys Tower 119.3 — self-announce on this frequency when tower closed.",
+    cfiNotes:"Van Nuys is an excellent introduction to high-density Class D operations under a Class B shelf — not a first-lesson field, but outstanding for radio discipline once basics are solid.",
+  },
+  KCNO:{ name:"Chino Airport", city:"Chino, CA", elevation:650, class:"Class D", type:"Towered", runways:["3/21 — 4,919ft","8L/26R — 4,858ft","8R/26L — 7,000ft"], region:"socal", weather_icao:"KCNO",
+    hazards:[
+      {id:"BIRD",phase:["all"],sev:"medium",icon:"🦅",title:"Documented Bird and Wildlife Activity",why:"Official airport remarks note birds and wildlife on and around the field.",detail:"Scan approach and departure paths carefully — this is a documented, not hypothetical, hazard at this field."},
+      {id:"MULTI",phase:["pattern","all"],sev:"medium",icon:"📻",title:"Non-Standard Traffic Patterns",why:"Chino uses right traffic on several runways, unusual for a field this size.",detail:"Confirm current pattern direction for your assigned runway before entering — right-hand patterns apply on 08R/26L, 26L, and 21."},
+      {id:"WARBIRD",phase:["pattern","all"],sev:"low",icon:"✈",title:"Warbird and Historic Aircraft Traffic",detail:"Chino is home to significant historic/warbird aircraft collections. Expect unusual aircraft types and speeds sharing the pattern."},
+    ],
+    atcNotes:"Chino Tower — confirm current frequency in the Chart Supplement. Clearance delivery when tower closed: SoCal Approach 800-448-3724.",
+    cfiNotes:"Chino's non-standard right-traffic runways are the standout local brief — easy for a student to default to left traffic out of habit.",
+  },
+  KEMT:{ name:"San Gabriel Valley Airport (El Monte)", city:"El Monte, CA", elevation:296, class:"Class D", type:"Towered", runways:["01/19 — 3,995ft"], region:"socal", weather_icao:"KEMT",
+    hazards:[
+      {id:"BIRD",phase:["all"],sev:"high",icon:"🦅",title:"Heavy Bird Activity Documented",why:"Official airport remarks specifically flag heavy bird activity on and around the field.",detail:"This is a documented heavy bird-activity field, not a generic caution — scan continuously on approach and departure."},
+      {id:"CHANNEL",phase:["departure","all"],sev:"medium",icon:"🛬",title:"Remain Over Paved Channel on Climb-Out",detail:"Published procedure requires remaining over the paved channel on climb-out to the south and north — confirm this before departure, it's not optional guidance."},
+      {id:"NOISE",phase:["departure"],sev:"low",icon:"🔇",title:"Noise Abatement Procedures",detail:"Active noise abatement procedures apply — contact the airport manager for current details before repeated pattern work."},
+    ],
+    atcNotes:"El Monte Tower — confirm current frequency in the Chart Supplement. SoCal Approach provides departure control on 125.5 during tower hours, 121.2 otherwise.",
+    cfiNotes:"El Monte's documented heavy bird activity and mandatory channel climb-out are the two things to brief specifically — don't let a student treat this as a routine Class D.",
+  },
+  KFUL:{ name:"Fullerton Municipal Airport", city:"Fullerton, CA", elevation:96, class:"Class D", type:"Towered", runways:["6/24 — 3,121ft"], region:"socal", weather_icao:"KFUL",
+    hazards:[
+      {id:"NOISE",phase:["departure"],sev:"medium",icon:"🔇",title:"Strict Noise Abatement Procedures",why:"Fullerton is surrounded by residential development with active noise enforcement.",detail:"R/W 06 is the preferred takeoff runway for noise reasons — follow the railroad tracks east with no turns below 1,000ft AGL. R/W 24 departures climb to 700ft AGL before turning."},
+      {id:"TOWER",phase:["all"],sev:"low",icon:"🗼",title:"Nearby Lighted Obstacle",detail:"A 750ft lighted tower sits 1.75 miles west of the airport on a 285° heading — relevant on westbound routings."},
+      {id:"VIS",phase:["taxi","all"],sev:"low",icon:"👁",title:"Limited Tower Visibility on Some Taxiways",detail:"Portions of Taxiway A are not visible from the tower — expect to be asked to report position in these areas."},
+    ],
+    atcNotes:"Fullerton Tower — confirm current frequency in the Chart Supplement. Clearance delivery when tower closed: SoCal Approach 800-448-3724.",
+    cfiNotes:"Fullerton's noise abatement procedures are specific and enforced — students need to know the exact departure profile, not just 'be quiet.'",
+  },
+  KRAL:{ name:"Riverside Municipal Airport", city:"Riverside, CA", elevation:818, class:"Class D", type:"Towered", runways:["9/27 — 5,401ft","16/34 — 2,850ft"], region:"socal", weather_icao:"KRAL",
+    hazards:[
+      {id:"POWERLINES",phase:["departure","all"],sev:"high",icon:"⚠",title:"Numerous Power Lines North of the Field",why:"Documented power lines 1,780-2,887ft north of R/W 16 threshold, at or below 80ft AGL.",detail:"Be specifically aware of low-hanging power line infrastructure north of the field — this is a documented, mapped hazard, not a generic caution."},
+      {id:"VIS",phase:["taxi","landing"],sev:"medium",icon:"👁",title:"Limited Tower Visibility on Some Surfaces",detail:"Departures on runways 09 and 27 are not visible to aircraft at the other end of the runway. Portions of taxiways and the south end of R/W 34 are not visible from the tower."},
+      {id:"NOISE",phase:["departure"],sev:"low",icon:"🔇",title:"Active Noise Management Procedures",detail:"R/W 27 departures turn right 10° after departure for noise management, assuming course after reaching 1,500ft MSL."},
+    ],
+    atcNotes:"Riverside Tower — confirm current frequency in the Chart Supplement. Clearance delivery when tower closed: SoCal Approach 800-448-3724.",
+    cfiNotes:"The documented power line hazard north of the field is the standout local brief — this is mapped and specific, not generic caution.",
+  },
+  KHHR:{ name:"Jack Northrop Field / Hawthorne Municipal Airport", city:"Hawthorne, CA", elevation:65, class:"Class D", type:"Towered", runways:["7/25 — 4,884ft"], region:"socal", weather_icao:"KHHR",
+    hazards:[
+      {id:"RESTRICT",phase:["pattern","all"],sev:"medium",icon:"🕐",title:"Restricted Touch-and-Go Hours",detail:"Touch-and-go, stop-and-go, and low approach operations (including helicopters) are limited to 1000-1700 local daily. No pattern operations or full-stop taxi-back Mon-Fri 2200-0800, or weekends 2200-1000."},
+      {id:"NOISE",phase:["all"],sev:"medium",icon:"🔇",title:"Active Noise Abatement — Muffler Required",detail:"All piston aircraft must be equipped with a muffler system. Formation takeoffs are not authorized."},
+      {id:"CLASSB",phase:["all"],sev:"high",icon:"📡",title:"Dense LA Basin Airspace",detail:"Sits within the complex, heavily stacked Los Angeles Class B/C airspace environment — confirm current shelf altitudes before any climb."},
+    ],
+    atcNotes:"Hawthorne Tower — confirm current frequency in the Chart Supplement. Clearance delivery when tower closed: SoCal Approach 800-448-3724.",
+    cfiNotes:"Hawthorne's restricted pattern-work hours are easy to overlook — confirm current times before planning a lesson block here.",
+  },
+  KTOA:{ name:"Zamperini Field (Torrance)", city:"Torrance, CA", elevation:103, class:"Class D", type:"Towered", runways:["11L/29R — 5,001ft","11R/29L — 3,000ft"], region:"socal", weather_icao:"KTOA",
+    hazards:[
+      {id:"LANDING_FEE",phase:["landing"],sev:"low",icon:"💰",title:"Per-Landing Fee Program",why:"Torrance operates a landing fee program intended to manage touch-and-go volume.",detail:"Landings are billed per flight based on aircraft weight, not per day — pattern work here is genuinely more expensive than at nearby fields. Confirm current fee structure before planning repeated circuits."},
+      {id:"NOGO",phase:["pattern","all"],sev:"medium",icon:"🚫",title:"No Touch-and-Go or Stop-and-Go Operations",detail:"Touch-and-go and stop-and-go operations are not permitted at Torrance. Plan full-stop landings only."},
+      {id:"BIRD",phase:["all"],sev:"medium",icon:"🦅",title:"Numerous Bird Flocks Documented",detail:"Official remarks note numerous flocks of birds on and around the airport — maintain a strong visual scan."},
+      {id:"CLOSED",phase:["departure"],sev:"low",icon:"🕐",title:"Closed to Departures Overnight",detail:"Airport closed to departures 2200-0700 weekdays and 2200-0800 weekends/holidays."},
+    ],
+    atcNotes:"Torrance Tower — confirm current frequency in the Chart Supplement. Clearance delivery when tower closed: SoCal Approach 800-448-3724.",
+    cfiNotes:"Torrance's landing-fee program and no-touch-and-go rule are unusual and worth specifically briefing before a lesson here — this isn't a typical training pattern field despite being Class D.",
+  },
+  KSMO:{ name:"Santa Monica Municipal Airport", city:"Santa Monica, CA", elevation:169, class:"Class D", type:"Towered", runways:["3/21 — 3,500ft"], region:"socal", weather_icao:"KSMO",
+    hazards:[
+      {id:"NOISE",phase:["all"],sev:"high",icon:"🔇",title:"Strict Noise Ordinance — Jets/Stage II Prohibited",why:"Santa Monica enforces one of the strictest noise ordinances of any US GA airport.",detail:"Pure jet and Stage II aircraft (with or without hushkits) are prohibited outright. No touch-and-go, stop-and-go, or low approach permitted on weekends/holidays, or weekdays before 0700."},
+      {id:"DEPROUTE",phase:["departure"],sev:"medium",icon:"🛫",title:"Mandatory Departure Routing",detail:"R/W 21 departures turn left 10° over the SMO VOR then right 225°. Northbound departures: no right turns before reaching the shoreline. R/W 03 departures: no turns prior to the 405 Freeway, 1 mile east."},
+      {id:"WEIGHT",phase:["all"],sev:"low",icon:"📋",title:"PPR Required for Heavier Aircraft",detail:"Prior permission required for aircraft over 60,000lbs certified max landing weight."},
+      {id:"CLOSURE",phase:["all"],sev:"medium",icon:"⚠",title:"Scheduled Airport Closure",why:"Santa Monica City Council has voted to close the airport.",detail:"Santa Monica Municipal Airport is scheduled to close permanently on December 31, 2028, under an agreement between the city and the FAA. Confirm current operational status before planning any flight here as that date approaches."},
+    ],
+    atcNotes:"Santa Monica Tower — confirm current frequency in the Chart Supplement.",
+    cfiNotes:"Santa Monica's noise ordinance is genuinely one of the strictest in US GA — an excellent real-world lesson in how a single airport's rules can differ sharply from its neighbors.",
+  },
+  KCRQ:{ name:"McClellan-Palomar Airport", city:"Carlsbad, CA", elevation:331, class:"Class D", type:"Towered", runways:["6/24 — 4,897ft"], region:"socal", weather_icao:"KCRQ",
+    hazards:[
+      {id:"CURFEW",phase:["all"],sev:"medium",icon:"🕐",title:"Voluntary Noise Curfew",detail:"Voluntary curfew: jets 2200-0700 local, propeller aircraft 0000-0600 local (emergency/lifeguard/law enforcement excepted)."},
+      {id:"MIXED",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Mixed Commercial and GA Traffic",why:"Carlsbad has limited scheduled airline service alongside heavy GA/charter use.",detail:"Expect to be sequenced with commercial arrivals/departures — this isn't a pure GA training field."},
+      {id:"MARINE",phase:["all"],sev:"medium",icon:"🌫",title:"Coastal Marine Layer",detail:"North San Diego County coastal marine layer can bring low ceilings and reduced visibility, especially in morning hours — check actual conditions, not just the forecast."},
+    ],
+    atcNotes:"Carlsbad Tower — confirm current frequency in the Chart Supplement.",
+    cfiNotes:"Carlsbad combines commercial-traffic sequencing with a real coastal marine layer pattern — a good bridge field before more complex coastal ops.",
+  },
+  KSDM:{ name:"Brown Field Municipal Airport", city:"San Diego, CA", elevation:526, class:"Class D", type:"Towered", runways:["8L/26R — 7,972ft","8R/26L — 3,180ft"], region:"socal", weather_icao:"KSDM",
+    hazards:[
+      {id:"BORDER",phase:["all"],sev:"high",icon:"🌐",title:"One Mile from the US-Mexico Border",why:"Brown Field's boundary sits approximately one mile north of the international border.",detail:"Maintain precise position awareness — this is genuinely close to an international border, with associated airspace and procedural considerations. Confirm current requirements before flight."},
+      {id:"PARACHUTE",phase:["all"],sev:"high",icon:"🪂",title:"Parachute Operations On and Near the Field",detail:"Parachute jumping occurs on the airport and up to 3 miles east. Jumpers in freefall have no radio."},
+      {id:"TERRAIN",phase:["departure","all"],sev:"medium",icon:"⛰",title:"Rising Terrain to the East",detail:"High terrain (3,566ft MSL) lies 6 miles east of the airport. Be especially alert departing R/W 08L at night due to rising terrain."},
+    ],
+    atcNotes:"Brown Field Tower — confirm current frequency in the Chart Supplement.",
+    cfiNotes:"Brown Field's border proximity and active parachute operations are both genuinely unique among Academy fields — brief both specifically before first visit.",
+  },
+  KPOC:{ name:"Brackett Field", city:"La Verne, CA", elevation:1013, class:"Class D", type:"Towered", runways:["8R/26L — 4,840ft"], region:"socal", weather_icao:"KPOC",
+    hazards:[
+      {id:"TERRAIN",phase:["departure","all"],sev:"medium",icon:"⛰",title:"Rapidly Rising Terrain to the Northwest",detail:"Documented rapidly rising terrain approximately 1 mile west-northwest of the airport — be specifically aware on departures in that direction."},
+      {id:"BIRD",phase:["all"],sev:"medium",icon:"🦅",title:"Birds and Wildlife in the Vicinity",detail:"Official remarks note birds and wildlife in the vicinity of the airport."},
+      {id:"NOISE",phase:["all"],sev:"low",icon:"🔇",title:"Active Noise Abatement Procedures",detail:"Noise abatement procedures are in effect — contact the airport manager for current details."},
+    ],
+    atcNotes:"Brackett Tower — confirm current frequency in the Chart Supplement. Clearance delivery when tower closed: SoCal Approach 800-448-3724.",
+    cfiNotes:"Brackett's terrain rising to the northwest is the standout local brief for this San Gabriel Valley field.",
+  },
+  L35:{ name:"Big Bear City Airport", city:"Big Bear City, CA", elevation:6752, class:"Class G", type:"Non-Towered", runways:["8/26 — 5,850ft"], region:"socal", weather_icao:"KL35",
+    hazards:[
+      {id:"DA",phase:["takeoff","departure"],sev:"critical",icon:"🌡",title:"Extreme Density Altitude at High Elevation",why:"Big Bear sits at 6,752ft field elevation, one of the highest public airports in California — density altitude here can exceed 9,000ft on a warm summer day.",detail:"Documented example: a summer METAR of 25°C at this field produces a density altitude of roughly 9,019ft — over 2,200ft above field elevation. Recalculate performance for actual conditions every time, never assume sea-level numbers apply."},
+      {id:"TERRAIN",phase:["all"],sev:"high",icon:"⛰",title:"Mountains in All Quadrants",detail:"Mountains surround the field in every direction, with peak hazard lights southeast, south, and northwest. Know your minimum safe altitudes for every direction of flight."},
+      {id:"NOISE",phase:["all"],sev:"medium",icon:"🔇",title:"Extreme Noise Sensitive Area",detail:"Avoid overflying the high school 1 mile east at all times. On takeoff, make a 10° left turn at the runway end to avoid housing to the east and the elementary school to the west."},
+      {id:"NONTOW",phase:["all"],sev:"medium",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on CTAF."},
+    ],
+    atcNotes:"No tower — self-announce on CTAF/UNICOM 122.725.",
+    cfiNotes:"Big Bear is the standout density-altitude teaching field for this region — genuinely more extreme than anything in the Phoenix region, with real documented performance numbers to work through with a student. Confirmed real training destination: DuBois Aviation (based at Chino, KCNO) runs a dedicated mountain-flying/high-DA proficiency course with a checkout here, and several other SoCal schools (including Van Nuys-based operators) fly training routes specifically to Big Bear for density-altitude instruction.",
+  },
+
+  // ── COLORADO / FRONT RANGE ────────────────────────────────────────────────
+  // Elevation/runway/class data verified against SkyVector (FAA NASR-sourced
+  // remarks) plus at least one additional non-Wikipedia aviation source per
+  // field. Region theme: genuine high-altitude performance planning and
+  // mountain-proximity awareness — every field here sits at 4,600ft+ MSL,
+  // materially higher baseline than any existing Academy region.
+  KAPA:{ name:"Centennial Airport", city:"Denver (Englewood), CO", elevation:5884, class:"Class D", type:"Towered", runways:["17L/35R — 10,000ft","17R/35L — 7,001ft","10/28 — 4,800ft"], region:"colorado", weather_icao:"KAPA",
+    hazards:[
+      {id:"DA",phase:["takeoff","departure"],sev:"high",icon:"🌡",title:"High-Elevation Density Altitude",why:"Centennial sits at 5,884ft field elevation — density altitude regularly exceeds 8,000ft on warm afternoons.",detail:"The airport itself displays density altitude readouts at several locations on the field. Recalculate performance for actual conditions every flight, especially in summer."},
+      {id:"PARALLEL",phase:["landing","takeoff"],sev:"high",icon:"⚠",title:"Close-Spaced Parallel Runways",detail:"Ensure proper runway alignment — 17L/35R and 17R/35L are close-spaced parallel runways, a documented source of confusion."},
+      {id:"BUSY",phase:["pattern","all"],sev:"medium",icon:"✈",title:"One of the Busiest GA Airports in the US",detail:"Centennial sees very high training and business-aviation volume. Expect fast-paced ATC and precise radio discipline requirements."},
+      {id:"POWERLINES",phase:["all"],sev:"medium",icon:"⚠",title:"Large Power Lines South of the Field",detail:"Multiple large power lines approximately 3nm south of runways 35R/35L — relevant to southbound departure/arrival planning."},
+    ],
+    atcNotes:"Centennial Tower — confirm current frequency in the Chart Supplement.",
+    cfiNotes:"Centennial is the natural flagship field for this region — genuinely high training volume combined with real density altitude planning from day one.",
+  },
+  KBJC:{ name:"Rocky Mountain Metropolitan Airport", city:"Denver (Broomfield), CO", elevation:5673, class:"Class D", type:"Towered", runways:["12L/30R — 9,000ft","12R/30L — 7,002ft","3/21 — 3,600ft"], region:"colorado", weather_icao:"KBJC",
+    hazards:[
+      {id:"MTNWAVE",phase:["all"],sev:"high",icon:"💨",title:"Spring Mountain Wave Winds",why:"Rocky Mountain Metro sits on a mesa exposed to Front Range mountain wave effects.",detail:"Spring conditions can produce significant mountain-wave-induced turbulence and gusty winds hammering the field. Check current conditions closely, not just the forecast."},
+      {id:"DA",phase:["takeoff","departure"],sev:"high",icon:"🌡",title:"High-Elevation Density Altitude",detail:"5,673ft field elevation — recalculate performance for actual conditions, especially on warm days."},
+      {id:"BIRD",phase:["all"],sev:"medium",icon:"🦅",title:"Wildlife and Standley Lake Avoidance Area",detail:"Birds and wildlife documented near the runways. An avoidance area exists over nearby Standley Lake below 8,000ft MSL — confirm current boundaries."},
+      {id:"STORM",phase:["all"],sev:"medium",icon:"⛈",title:"Summer Thunderstorm Activity",detail:"Front Range afternoon thunderstorms build quickly in summer — check TAF and radar closely, not just morning conditions."},
+    ],
+    atcNotes:"Rocky Mountain Metro Tower 118.6 — tower operates 0600-2200; outside those hours, use CTAF and published lighting procedures.",
+    cfiNotes:"Good alternative to Centennial for the same density-altitude teaching value with somewhat lower traffic complexity — the mountain wave brief is genuinely important here given the mesa location.",
+  },
+  KFNL:{ name:"Northern Colorado Regional Airport", city:"Fort Collins/Loveland, CO", elevation:5020, class:"Class D", type:"Towered (remote tower)", runways:["15/33 — 8,500ft","6/24 — 2,189ft"], region:"colorado", weather_icao:"KFNL",
+    hazards:[
+      {id:"REMOTE",phase:["all"],sev:"medium",icon:"🗼",title:"Remote/Mobile Tower — Visual Limitations",why:"FNL's tower setup does not have radar and relies on visual observation, with some positions not always in direct sight.",detail:"Controllers will likely ask you to report specific positions given the remote tower configuration. Do not assume the same visual coverage as a conventional tower."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"5,020ft field elevation — recalculate performance for actual conditions."},
+      {id:"RMNP",phase:["all"],sev:"low",icon:"⛰",title:"Rocky Mountain National Park Nearby",detail:"The field sits close to Rocky Mountain National Park terrain to the west — relevant for westbound scenic/cross-country routing awareness."},
+    ],
+    atcNotes:"NoCo Tower 118.4 · Ground 121.65 — confirm current status, this is a remote/mobile tower operation.",
+    cfiNotes:"FNL's remote-tower setup is a genuinely unusual and useful teaching point — students should understand this isn't a conventional staffed tower with full visual coverage.",
+  },
+  KCOS:{ name:"Colorado Springs Airport", city:"Colorado Springs, CO", elevation:6187, class:"Class C", type:"Towered", runways:["17L/35R — 13,500ft","17R/35L — 11,022ft","13/31 — 8,270ft"], region:"colorado", weather_icao:"KCOS",
+    hazards:[
+      {id:"MILITARY",phase:["all"],sev:"high",icon:"🛩",title:"Intensive USAF Student Training Nearby",why:"Colorado Springs shares its operational environment with intensive Air Force student training activity, extending toward Pueblo.",detail:"Expect military traffic including large transport aircraft (C-17/C-5 class). Portions of some taxiways and runway are blocked from tower view when military aircraft occupy certain surfaces — listen carefully."},
+      {id:"DA",phase:["takeoff","departure"],sev:"high",icon:"🌡",title:"High-Elevation Density Altitude",why:"6,187ft field elevation is genuinely high for a Class C airport.",detail:"Recalculate performance for actual conditions — this is significantly higher than most Class C fields most students will encounter."},
+      {id:"BIRD",phase:["all"],sev:"medium",icon:"🦅",title:"Waterfowl and Migratory Bird Activity",detail:"Documented waterfowl and migratory bird activity on and around the airport."},
+      {id:"CLASSC",phase:["all"],sev:"high",icon:"📡",title:"Class C — Two-Way Communication Required",detail:"Establish two-way communication with Colorado Springs Approach before entering the Class C surface area."},
+    ],
+    atcNotes:"Colorado Springs Approach/Tower — confirm current frequency in the Chart Supplement.",
+    cfiNotes:"Colorado Springs combines genuine Class C procedures with real military traffic and high-elevation performance — a strong advanced-student field, not a first Class C exposure.",
+  },
+  KBDU:{ name:"Boulder Municipal Airport", city:"Boulder, CO", elevation:5288, class:"Class G", type:"Non-Towered", runways:["8/26 — 4,100ft","8G/26G — 4,100ft (turf)"], region:"colorado", weather_icao:"KBDU",
+    hazards:[
+      {id:"GLIDER",phase:["pattern","all"],sev:"high",icon:"🪂",title:"Active Glider Operations — Yield Required",why:"Boulder hosts significant glider activity, with published rules requiring powered aircraft to yield.",detail:"Powered aircraft must yield to gliders on final approach or initiate a go-around for adequate spacing. Simultaneous approach/departure on runways 8/26 and 8G/26G is not authorized. Glider activity occurs daily sunrise-to-sunset southeast of the field between 6,300-9,000ft — recommend avoidance and extreme caution transiting this area."},
+      {id:"NONTOW",phase:["all"],sev:"medium",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on CTAF."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"5,288ft field elevation — recalculate performance for actual conditions."},
+      {id:"WATERFOWL",phase:["all"],sev:"low",icon:"🦆",title:"Waterfowl on and Near the Airport",detail:"Documented waterfowl activity, with Hayden Lake adjacent to the runway."},
+    ],
+    atcNotes:"No tower — self-announce on CTAF; confirm current frequency in the Chart Supplement. Clearance delivery: Denver Approach.",
+    cfiNotes:"Boulder's active glider operations are the standout local brief — a genuinely different traffic-mixing scenario from anything else in this region.",
+  },
+  KLXV:{ name:"Lake County Airport (Leadville)", city:"Leadville, CO", elevation:9933, class:"Class G", type:"Non-Towered", runways:["16/34 — 6,400ft"], region:"colorado", weather_icao:"KLXV",
+    hazards:[
+      {id:"DA_EXTREME",phase:["takeoff","departure"],sev:"critical",icon:"🌡",title:"One of the Highest Public Airports in North America",why:"Leadville sits at 9,933ft field elevation — genuinely one of the highest paved public-use airports on the continent.",detail:"Density altitude here can exceed 12,000-13,000ft on a warm summer afternoon. This is the single most extreme performance-planning environment in the entire Academy database — many light aircraft are operating at or near their absolute performance limits here. Do not attempt this field without a thorough weight-and-balance and performance review specific to actual conditions."},
+      {id:"TERRAIN",phase:["all"],sev:"high",icon:"⛰",title:"Surrounded by High Rockies Terrain",why:"Leadville sits in a mountain valley near Colorado's highest peaks (Mount Elbert and Mount Massive, both over 14,000ft).",detail:"Terrain awareness is critical in every direction. Mountain wave turbulence and rapidly changing conditions are genuine hazards, not textbook abstractions, at this field."},
+      {id:"NONTOW",phase:["all"],sev:"medium",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on CTAF."},
+      {id:"SURFACE",phase:["taxi","all"],sev:"low",icon:"🛬",title:"Surface Condition Cautions",detail:"Some taxiway/ramp areas have documented potholes and loose aggregate. Runway edges have soft shoulders — taxi and roll at sensible speed."},
+    ],
+    atcNotes:"No tower — self-announce on CTAF; confirm current frequency in the Chart Supplement. Clearance delivery: Denver ARTCC.",
+    cfiNotes:"Leadville is the standout extreme-altitude teaching field for the whole Academy platform — genuinely more demanding than Big Bear (SoCal) or anything in Phoenix. Advanced students only, with thorough pre-flight performance planning as the entire point of the lesson. Confirmed real training destination: a local Leadville Flying Club now offers on-field instruction, and Leadville is also a standard stop on mountain-flying courses run by multiple Denver-area schools (including Independence Aviation, American Flight Schools, and Arapahoe Flying Club).",
+  },
+  KEIK:{ name:"Erie Municipal Airport", city:"Erie, CO", elevation:5119, class:"Class G", type:"Non-Towered", runways:["16/34 — TBD"], region:"colorado", weather_icao:"KEIK",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"medium",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on CTAF."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"5,119ft field elevation — recalculate performance for actual conditions."},
+      {id:"DITCH",phase:["takeoff","landing"],sev:"low",icon:"⚠",title:"Documented Terrain Features Near Runway Ends",detail:"Documented ditches and a road within 1,350ft of the runway threshold on both sides — be aware on rejected takeoff or short landing scenarios."},
+    ],
+    atcNotes:"No tower — self-announce on CTAF; confirm current frequency in the Chart Supplement. Clearance delivery: Denver Approach.",
+    cfiNotes:"A straightforward non-towered Front Range field for reinforcing self-announce discipline alongside the region's standard density-altitude planning.",
+  },
+  KLMO:{ name:"Vance Brand Airport", city:"Longmont, CO", elevation:5055, class:"Class G", type:"Non-Towered", runways:["11/29 — confirm length in Chart Supplement"], region:"colorado", weather_icao:"KLMO",
+    hazards:[
+      {id:"PARACHUTE",phase:["all"],sev:"high",icon:"🪂",title:"Parachute Operations On and Near the Field",detail:"Parachute jumping occurs on and in the vicinity of the airport, primarily south of the runway. Avoid overflying mid-field."},
+      {id:"ULTRALIGHT",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Ultralight and Helicopter Activity",detail:"Documented ultralight and helicopter activity on and around the airport — expect a wider mix of aircraft types and speeds than a typical GA field."},
+      {id:"NONTOW",phase:["all"],sev:"medium",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on CTAF."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"5,055ft field elevation — recalculate performance for actual conditions."},
+    ],
+    atcNotes:"No tower — self-announce on CTAF; confirm current frequency in the Chart Supplement. Clearance delivery: Denver Approach.",
+    cfiNotes:"Longmont's active parachute operations combined with ultralight/helicopter mix make this a genuinely busy non-towered environment — good lookout-discipline reinforcement.",
+  },
+  KGXY:{ name:"Greeley-Weld County Airport", city:"Greeley, CO", elevation:4696, class:"Class D", type:"Towered", runways:["17/35 — confirm length in Chart Supplement","10/28 — confirm length in Chart Supplement"], region:"colorado", weather_icao:"KGXY",
+    hazards:[
+      {id:"OILRIGS",phase:["all"],sev:"medium",icon:"⚠",title:"Oil Drilling Rigs On and Near the Airport",why:"Greeley sits in an active oil/gas extraction area.",detail:"Documented drilling rigs up to 120ft tall on and in the vicinity of the airport — a genuinely unusual obstacle hazard for a training field. Confirm current rig locations via NOTAMs."},
+      {id:"CROSSWIND",phase:["landing","takeoff"],sev:"medium",icon:"💨",title:"Runway Selection Depends on Crosswind Component",detail:"Runway 17/35 is preferred when the crosswind component on 10/28 exceeds 12kt. Runway 35 is preferred when wind is below 5kt, and is the preferred runway for touch-and-go work."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"4,696ft field elevation — still meaningfully affects performance on warm days, recalculate rather than assume."},
+      {id:"BIRD",phase:["all"],sev:"low",icon:"🦅",title:"Wildlife and Bird Activity",detail:"Documented wildlife and bird activity on and around the airport."},
+    ],
+    atcNotes:"Greeley Tower — confirm current frequency in the Chart Supplement.",
+    cfiNotes:"Greeley's oil rig obstacles are a genuinely distinctive local hazard worth specifically briefing — not something students will have encountered at other Academy fields.",
+  },
+  KPUB:{ name:"Pueblo Memorial Airport", city:"Pueblo, CO", elevation:4729, class:"Class D", type:"Towered", runways:["8R/26L — confirm length in Chart Supplement","17/35 — confirm length in Chart Supplement","8L/26R — confirm length in Chart Supplement (smaller third runway)"], region:"colorado", weather_icao:"KPUB",
+    hazards:[
+      {id:"TRAINING",phase:["pattern","all"],sev:"medium",icon:"✈",title:"High-Volume Flight Training Traffic",why:"Pueblo hosts documented high-volume DA-20 training aircraft operations sunrise-to-sunset on weekdays.",detail:"Expect heavy, concentrated training traffic during daylight hours Monday-Friday. Listen carefully and maintain precise pattern discipline."},
+      {id:"CLOSEDRWY",phase:["landing","all"],sev:"medium",icon:"⚠",title:"Visible Closed Former Runway — Do Not Use",why:"A former runway (12/30) has been closed since at least the early 1990s but its asphalt remnant remains clearly visible from the air.",detail:"A diagonal band of old asphalt runs from near the end of R/W 17 toward 26L — this can be confused for an active runway from the air, especially by pilots unfamiliar with the field. It is not shown on current charts and must never be used."},
+      {id:"MILITARY",phase:["all"],sev:"medium",icon:"🛩",title:"USAF Student Training Corridor",detail:"Pueblo shares the same intensive USAF student training corridor as nearby Colorado Springs — expect military traffic awareness to matter here too."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"4,729ft field elevation — recalculate performance for actual conditions."},
+      {id:"RAPID",phase:["all"],sev:"low",icon:"⛽",title:"Rapid Refuel Operations",detail:"Rapid refuel operations are available during FBO hours with prior notice — relevant for cross-country planning."},
+    ],
+    atcNotes:"Pueblo Tower — confirm current frequency in the Chart Supplement. Clearance delivery when tower/approach closed: Denver ARTCC.",
+    cfiNotes:"Pueblo's genuinely documented high training volume (explicitly noted for DA-20 traffic) makes this an authentic, realistic busy-pattern training environment.",
+  },
+  KCFO:{ name:"Colorado Air and Space Port (formerly Front Range Airport)", city:"Denver (Watkins), CO", elevation:5515, class:"Class D", type:"Towered", runways:["8/26 — 8,002ft","17/35 — 8,000ft"], region:"colorado", weather_icao:"KCFO",
+    hazards:[
+      {id:"MILITARY",phase:["all"],sev:"medium",icon:"🛩",title:"USAF Training Activity Caution",detail:"Same regional caution as Colorado Springs/Pueblo applies — intensive USAF student training activity in the vicinity."},
+      {id:"NOISE",phase:["all"],sev:"low",icon:"🔇",title:"Noise Sensitive Areas",detail:"Noise sensitive areas exist southeast, south, and southwest of the airport — avoid flight below 1,000ft over populated areas."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"5,515ft field elevation — recalculate performance for actual conditions."},
+      {id:"RENAME",phase:["all"],sev:"low",icon:"ℹ",title:"Recently Renamed Airport",why:"This field was formerly known as Front Range Airport.",detail:"Charts, references, and older materials may still show 'Front Range Airport' — confirm you're looking at current information under the Colorado Air and Space Port name."},
+    ],
+    atcNotes:"Colorado Air and Space Port Tower — confirm current frequency in the Chart Supplement.",
+    cfiNotes:"Good long-runway option close to the Denver metro area with lower traffic complexity than Centennial — the recent renaming is worth flagging so students aren't confused by older references to 'Front Range.'",
+  },
 };
 
 const FIELD_COORDS = {
@@ -863,6 +1097,14 @@ const FIELD_COORDS = {
   KGTU:[30.678808,-97.679383], KHYI:[29.89278,-97.86306], KAUS:[30.1945,-97.66983],
   KSGR:[29.62222,-95.65667], KDWH:[30.06194,-95.55278], KLVJ:[29.52139,-95.24222], KIWS:[29.81833,-95.67250],
   KCFD:[30.71556,-96.33139], KCLL:[30.58861,-96.36389],
+  // SoCal
+  KVNY:[34.2098,-118.4900], KCNO:[33.9748,-117.6365], KEMT:[34.0860,-118.0348], KFUL:[33.8720,-117.9798],
+  KRAL:[33.9518,-117.4452], KHHR:[33.9228,-118.3350], KTOA:[33.8033,-118.3397], KSMO:[34.0158,-118.4513],
+  KCRQ:[33.1283,-117.2800], KSDM:[32.5723,-116.9802], KPOC:[34.0917,-117.7818], L35:[34.2638,-116.8560],
+  // Colorado / Front Range
+  KAPA:[39.5702,-104.8493], KBJC:[39.9088,-105.1172], KFNL:[40.4518,-105.0113], KCOS:[38.8058,-104.7008],
+  KBDU:[40.0393,-105.2262], KLXV:[39.2195,-106.3165], KEIK:[40.0102,-105.0480], KLMO:[40.1643,-105.1637],
+  KGXY:[40.4375,-104.6332], KPUB:[38.2900,-104.4980], KCFO:[39.7842,-104.5377],
 };
 
 const SEV = {
@@ -1197,6 +1439,8 @@ function WelcomeScreen({ onSelect }) {
     { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay." },
     { id:"phoenix", label:"PHOENIX / ARIZONA", icon:"☀", desc:"13 training airfields across the Phoenix area and Arizona — density altitude, haboobs, high terrain, military airspace." },
     { id:"texas", label:"TEXAS", icon:"🤠", desc:"13 training airfields across Fort Worth, Austin, and Houston — Class B/C/D operations, severe thunderstorms, military jet traffic, Gulf Coast fog." },
+    { id:"socal", label:"SOUTHERN CALIFORNIA", icon:"🏙", desc:"12 training airfields across the LA Basin and San Diego County — extremely dense multi-airport Class B/C/D stacking, marine layer fog, and terrain transitions from sea level to 6,752ft." },
+    { id:"colorado", label:"COLORADO / FRONT RANGE", icon:"⛰", desc:"11 training airfields along the Front Range corridor — genuine high-altitude performance planning, mountain wave turbulence, and terrain awareness, every field at 4,600ft+ MSL." },
     { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:"29 training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar." },
   ];
   return (
@@ -1413,7 +1657,7 @@ export default function App() {
     if (isMobile) setMenuOpen(false);
   }
 
-  const REGION_DEFAULT_AIRFIELD = { florida:"KVRB", phoenix:"KDVT", uk:"EGBP", texas:"KFTW" };
+  const REGION_DEFAULT_AIRFIELD = { florida:"KVRB", phoenix:"KDVT", uk:"EGBP", texas:"KFTW", socal:"KVNY", colorado:"KAPA" };
 
   function chooseRegion(r) {
     setRegion(r);
@@ -1485,11 +1729,15 @@ export default function App() {
   const phoenixFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="phoenix");
   const ukFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="uk");
   const texasFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="texas");
+  const socalFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="socal");
+  const coloradoFields = Object.entries(AIRFIELDS).filter(([,a])=>a.region==="colorado");
 
   function fieldsForRegion(r) {
     if (r==="florida") return floridaFields;
     if (r==="phoenix") return phoenixFields;
     if (r==="texas") return texasFields;
+    if (r==="socal") return socalFields;
+    if (r==="colorado") return coloradoFields;
     return ukFields;
   }
 
@@ -1544,8 +1792,8 @@ export default function App() {
         )}
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.12em",marginBottom:6}}>QUICK ACCESS</div>
         <div style={{display:"flex",gap:6,marginBottom:8}}>
-          {["florida","phoenix","texas","uk"].map(r=>(
-            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 4px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴 FL":r==="phoenix"?"☀ AZ":r==="texas"?"🤠 TX":"🇬🇧 UK"}</button>
+          {["florida","phoenix","texas","socal","colorado","uk"].map(r=>(
+            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 3px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:8,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴FL":r==="phoenix"?"☀AZ":r==="texas"?"🤠TX":r==="socal"?"🏙CA":r==="colorado"?"⛰CO":"🇬🇧UK"}</button>
           ))}
         </div>
         <div style={{overflowY:"auto",maxHeight:220}}>
