@@ -976,6 +976,16 @@ const AIRFIELDS = {
     atcNotes:"Montgomery Tower 119.2 · Ground 118.225 · ATIS 126.9 · Clearance 123.725 · SOCAL Approach 124.35 — confirm tower hours (0600-2100 local) before flight.",
     cfiNotes:"Montgomery-Gibbs' very first use was flight training and it remains a major training hub (Flex Air and Plus One Flyers both base substantial fleets here) — the extreme noise-sensitive area with monitored dB limits is a genuinely distinctive local brief worth covering before a student's first visit.",
   },
+  KCCB:{ name:"Cable Airport", city:"Upland, CA", elevation:1443, class:"Uncontrolled", type:"Non-Towered", runways:["06/24 — 3,863ft"], region:"socal", weather_icao:"KCCB",
+    hazards:[
+      {id:"NONTOW",phase:["all"],sev:"medium",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on CTAF/UNICOM. Contact SOCAL Approach for IFR clearance delivery."},
+      {id:"NARROW",phase:["landing"],sev:"high",icon:"⚠",title:"R/W 24 — Narrow Usable Approach Corridor",why:"Documented FAA remarks specifically restrict R/W 24's usable approach to a narrow corridor.",detail:"R/W 24 is unusable beyond 5° left or 2° right of centerline. A fence with red lights sits 50ft from the threshold, and the approach to the displaced threshold crosses a road. This is a genuinely tight, specific approach — not generic caution."},
+      {id:"CLASSC",phase:["all"],sev:"medium",icon:"📡",title:"Adjacent to Ontario's Class C Airspace",why:"Cable sits close to Ontario International's (KONT) Class C shelf, which is also in this Academy's SoCal region.",detail:"Be wary of ONT's Class C airspace when operating in the pattern or transiting the area — confirm current shelf altitudes."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"Density Altitude — Inland Empire Heat",why:"At 1,443ft field elevation in the Inland Empire, summer heat meaningfully affects performance.",detail:"Recalculate performance for actual conditions on warm days — pattern altitude here is 800ft AGL (2,243ft MSL), and reduced climb performance matters more than at coastal SoCal fields."},
+    ],
+    atcNotes:"CTAF/UNICOM 123.0 · SOCAL Approach 125.5/349.0 · Clearance delivery via SOCAL Approach 800-448-3724.",
+    cfiNotes:"Cable is a genuine, busy Inland Empire training hub — CableAir School of Flight, Foothill Flying Club, and Cable Air Flight School are all based here. The narrow R/W 24 approach corridor is the standout local brief, easy to fly outside of on a student's first visit if not specifically covered.",
+  },
 
   // ── COLORADO / FRONT RANGE ────────────────────────────────────────────────
   // Elevation/runway/class data verified against SkyVector (FAA NASR-sourced
@@ -1122,7 +1132,7 @@ const FIELD_COORDS = {
   KVNY:[34.2098,-118.4900], KCNO:[33.9748,-117.6365], KEMT:[34.0860,-118.0348], KFUL:[33.8720,-117.9798],
   KRAL:[33.9518,-117.4452], KHHR:[33.9228,-118.3350], KTOA:[33.8033,-118.3397], KSMO:[34.0158,-118.4513],
   KCRQ:[33.1283,-117.2800], KSDM:[32.5723,-116.9802], KPOC:[34.0917,-117.7818], L35:[34.2638,-116.8560],
-  KSEE:[32.8262,-116.9724], KMYF:[32.8157,-117.1396],
+  KSEE:[32.8262,-116.9724], KMYF:[32.8157,-117.1396], KCCB:[34.1117,-117.6875],
   // Colorado / Front Range
   KAPA:[39.5702,-104.8493], KBJC:[39.9088,-105.1172], KFNL:[40.4518,-105.0113], KCOS:[38.8058,-104.7008],
   KBDU:[40.0393,-105.2262], KLXV:[39.2195,-106.3165], KEIK:[40.0102,-105.0480], KLMO:[40.1643,-105.1637],
@@ -1369,7 +1379,7 @@ function TAFDisplay({ tafs }) {
   return (
     <div>
       {periods.map((p,i)=>{
-        const hasCB = /CB|TSRA|\+TS/.test(p.raw);
+        const hasCB = /\b(?:FEW|SCT|BKN|OVC)\d{3}CB\b|\bTSRA\b|(?:^|\s)\+TS\b/.test(p.raw);
         const color = periodColors[p.type] || "#8899AA";
         return (
           <div key={i} style={{display:"flex",gap:10,marginBottom:8,padding:"10px 12px",background:"rgba(0,0,0,0.3)",borderRadius:7,borderLeft:`3px solid ${hasCB?"#FF3B3B":color}`}}>
@@ -1394,7 +1404,7 @@ function WeatherStrip({ liveWx, wxLoad }) {
   if (wxLoad) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>Loading live weather…</div>;
   if (!liveWx) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>No live weather data available for this field.</div>;
   const tafThreats = parseTAFThreats(liveWx.tafs);
-  const hasCB = liveWx.metar && /TSRA|CB|\+TS/.test(liveWx.metar);
+  const hasCB = liveWx.metar && /\b(?:FEW|SCT|BKN|OVC)\d{3}CB\b|\bTSRA\b|(?:^|\s)\+TS\b/.test(liveWx.metar);
   return (
     <div style={{background:"#0A1828",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -1461,7 +1471,7 @@ function WelcomeScreen({ onSelect }) {
     { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay." },
     { id:"phoenix", label:"PHOENIX / ARIZONA", icon:"☀", desc:"13 training airfields across the Phoenix area and Arizona — density altitude, haboobs, high terrain, military airspace." },
     { id:"texas", label:"TEXAS", icon:"🤠", desc:"13 training airfields across Fort Worth, Austin, and Houston — Class B/C/D operations, severe thunderstorms, military jet traffic, Gulf Coast fog." },
-    { id:"socal", label:"SOUTHERN CALIFORNIA", icon:"🏙", desc:"14 training airfields across the LA Basin and San Diego County — extremely dense multi-airport Class B/C/D stacking, marine layer fog, and terrain transitions from sea level to 6,752ft." },
+    { id:"socal", label:"SOUTHERN CALIFORNIA", icon:"🏙", desc:"15 training airfields across the LA Basin and San Diego County — extremely dense multi-airport Class B/C/D stacking, marine layer fog, and terrain transitions from sea level to 6,752ft." },
     { id:"colorado", label:"COLORADO / FRONT RANGE", icon:"⛰", desc:"11 training airfields along the Front Range corridor — genuine high-altitude performance planning, mountain wave turbulence, and terrain awareness, every field at 4,600ft+ MSL." },
     { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:"29 training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar." },
   ];
