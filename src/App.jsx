@@ -955,6 +955,27 @@ const AIRFIELDS = {
     atcNotes:"No tower — self-announce on CTAF/UNICOM 122.725.",
     cfiNotes:"Big Bear is the standout density-altitude teaching field for this region — genuinely more extreme than anything in the Phoenix region, with real documented performance numbers to work through with a student. Confirmed real training destination: DuBois Aviation (based at Chino, KCNO) runs a dedicated mountain-flying/high-DA proficiency course with a checkout here, and several other SoCal schools (including Van Nuys-based operators) fly training routes specifically to Big Bear for density-altitude instruction.",
   },
+  KSEE:{ name:"Gillespie Field", city:"El Cajon, CA", elevation:387, class:"Class D", type:"Towered (part-time — reverts non-towered after hours)", runways:["09L/27R — 5,342ft","09R/27L — 2,738ft (closed sunset-sunrise)","17/35 — 4,145ft"], region:"socal", weather_icao:"KSEE",
+    hazards:[
+      {id:"PARTTIME",phase:["all"],sev:"medium",icon:"🗼",title:"Part-Time Tower — Confirm Operating Hours",why:"Tower operates 0700-2100 local — outside those hours the field reverts to non-towered self-announce procedures.",detail:"Confirm current tower hours before flight. When the tower is closed, aircraft must self-announce on CTAF prior to landing or departure — contact SOCAL Approach for IFR clearance delivery."},
+      {id:"TERRAIN",phase:["pattern","all"],sev:"high",icon:"⛰",title:"893ft Mountain Affects Traffic Pattern Altitude",why:"A documented 893ft AGL mountain sits 2.1nm ENE of the field, directly affecting published pattern altitudes on R/W 27R.",detail:"R/W 27R uses 1,588ft (1,200ft AGL) right traffic sunrise-sunset specifically due to this terrain, dropping to 1,388ft (1,000ft AGL) left traffic sunset-sunrise. R/W 27R's centerline is in close alignment with this terrain — use of the LOC/DME approach is highly recommended rather than a straight-in visual."},
+      {id:"WILDLIFE",phase:["all"],sev:"low",icon:"🐺",title:"Coyotes and Birds On and Near the Airport",detail:"Documented coyote and bird activity on and in the vicinity of the airfield — maintain a strong visual scan, particularly around dawn/dusk."},
+      {id:"NOISE",phase:["departure"],sev:"medium",icon:"🔇",title:"Noise Abatement — Jet/Turbine Departures Discouraged at Night",detail:"R/W 17 is the preferred noise-abatement departure runway when the tower is closed. Turbine and jet departures are strongly discouraged 2200-0700, and noise-sensitive areas surround the field on all sides."},
+    ],
+    atcNotes:"Gillespie Tower 120.7 · Ground 121.7 · ATIS 125.45 · Clearance 125.1 · SOCAL Approach/Departure 124.35 — confirm tower hours (0700-2100 local) before flight.",
+    cfiNotes:"Gillespie is San Diego County's primary GA training hub (SunState Academy of Aviation, Golden State Flying Club, and Plus One Flyers all base aircraft here) — the terrain-driven pattern altitude split on R/W 27R is the standout local brief, easy for a student to fly the wrong pattern altitude if not specifically taught.",
+  },
+  KMYF:{ name:"Montgomery-Gibbs Executive Airport", city:"San Diego, CA", elevation:427, class:"Class D", type:"Towered (part-time — reverts non-towered after hours)", runways:["10L/28R — 4,598ft","10R/28L — 3,401ft","05/23 — 3,400ft"], region:"socal", weather_icao:"KMYF",
+    hazards:[
+      {id:"PARTTIME",phase:["all"],sev:"medium",icon:"🗼",title:"Part-Time Tower — Confirm Operating Hours",why:"Tower operates 0600-2100 local — outside those hours the field reverts to non-towered self-announce procedures.",detail:"Confirm current tower hours before flight. Contact SOCAL Approach for IFR clearance delivery when the tower is closed."},
+      {id:"CLASSB",phase:["all"],sev:"high",icon:"📡",title:"Directly Under San Diego Class B Shelf",why:"Montgomery-Gibbs sits close to San Diego International's Class B airspace.",detail:"Confirm current Class B shelf altitudes before any climb — this is a genuinely complex, stacked airspace environment shared with nearby Gillespie Field's own Class D."},
+      {id:"MILITARY",phase:["all"],sev:"medium",icon:"🛩",title:"Military Jet Traffic Near Mission Bay VORTAC",detail:"Be alert to military jet aircraft in the vicinity of the airport and 4.7nm NW near the Mission Bay VORTAC — this is a documented, specific caution, not generic military awareness."},
+      {id:"NOISE",phase:["all"],sev:"high",icon:"🔇",title:"Extreme Noise-Sensitive Areas — Monitored dB Limits",why:"Areas west and south of the airport are documented as extreme noise-sensitive, with active noise monitoring.",detail:"Maximum noise limit is 70dB over residential areas 2330-0630, and 88dB 0630-2330. No jet touch-and-go operations are permitted. Aircraft with high noise levels are requested to use R/W 10L/28R."},
+      {id:"WILDLIFE",phase:["all"],sev:"low",icon:"🐺",title:"Birds and Coyotes On and Near the Airport",detail:"Documented bird activity on and in the vicinity of the airfield, with coyote activity specifically noted on runways and taxiways."},
+    ],
+    atcNotes:"Montgomery Tower 119.2 · Ground 118.225 · ATIS 126.9 · Clearance 123.725 · SOCAL Approach 124.35 — confirm tower hours (0600-2100 local) before flight.",
+    cfiNotes:"Montgomery-Gibbs' very first use was flight training and it remains a major training hub (Flex Air and Plus One Flyers both base substantial fleets here) — the extreme noise-sensitive area with monitored dB limits is a genuinely distinctive local brief worth covering before a student's first visit.",
+  },
 
   // ── COLORADO / FRONT RANGE ────────────────────────────────────────────────
   // Elevation/runway/class data verified against SkyVector (FAA NASR-sourced
@@ -1101,6 +1122,7 @@ const FIELD_COORDS = {
   KVNY:[34.2098,-118.4900], KCNO:[33.9748,-117.6365], KEMT:[34.0860,-118.0348], KFUL:[33.8720,-117.9798],
   KRAL:[33.9518,-117.4452], KHHR:[33.9228,-118.3350], KTOA:[33.8033,-118.3397], KSMO:[34.0158,-118.4513],
   KCRQ:[33.1283,-117.2800], KSDM:[32.5723,-116.9802], KPOC:[34.0917,-117.7818], L35:[34.2638,-116.8560],
+  KSEE:[32.8262,-116.9724], KMYF:[32.8157,-117.1396],
   // Colorado / Front Range
   KAPA:[39.5702,-104.8493], KBJC:[39.9088,-105.1172], KFNL:[40.4518,-105.0113], KCOS:[38.8058,-104.7008],
   KBDU:[40.0393,-105.2262], KLXV:[39.2195,-106.3165], KEIK:[40.0102,-105.0480], KLMO:[40.1643,-105.1637],
@@ -1439,7 +1461,7 @@ function WelcomeScreen({ onSelect }) {
     { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay." },
     { id:"phoenix", label:"PHOENIX / ARIZONA", icon:"☀", desc:"13 training airfields across the Phoenix area and Arizona — density altitude, haboobs, high terrain, military airspace." },
     { id:"texas", label:"TEXAS", icon:"🤠", desc:"13 training airfields across Fort Worth, Austin, and Houston — Class B/C/D operations, severe thunderstorms, military jet traffic, Gulf Coast fog." },
-    { id:"socal", label:"SOUTHERN CALIFORNIA", icon:"🏙", desc:"12 training airfields across the LA Basin and San Diego County — extremely dense multi-airport Class B/C/D stacking, marine layer fog, and terrain transitions from sea level to 6,752ft." },
+    { id:"socal", label:"SOUTHERN CALIFORNIA", icon:"🏙", desc:"14 training airfields across the LA Basin and San Diego County — extremely dense multi-airport Class B/C/D stacking, marine layer fog, and terrain transitions from sea level to 6,752ft." },
     { id:"colorado", label:"COLORADO / FRONT RANGE", icon:"⛰", desc:"11 training airfields along the Front Range corridor — genuine high-altitude performance planning, mountain wave turbulence, and terrain awareness, every field at 4,600ft+ MSL." },
     { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:"29 training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar." },
   ];
