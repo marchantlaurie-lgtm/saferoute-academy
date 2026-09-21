@@ -1646,6 +1646,32 @@ function FRATSection({ section, answers, onAnswer }) {
   );
 }
 
+function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score, reset }) {
+  return (
+    <div style={{background:risk?`${risk.color}15`:"rgba(255,255,255,0.03)",border:`1px solid ${risk?risk.color:"rgba(255,255,255,0.1)"}55`,borderRadius:10,padding:"16px 18px",marginBottom:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:allAnswered?10:0}}>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#8899AA",letterSpacing:"0.08em"}}>PROGRESS: {answeredCount}/{totalQuestions} ANSWERED</div>
+        {allAnswered && <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:risk.color,fontWeight:"bold"}}>SCORE {score}/{FRAT_MAX}</div>}
+      </div>
+      {!allAnswered && (
+        <div style={{height:6,background:"rgba(255,255,255,0.08)",borderRadius:3,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${(answeredCount/totalQuestions)*100}%`,background:"#00B4FF",borderRadius:3}}/>
+        </div>
+      )}
+      {allAnswered && (
+        <>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+            <div style={{width:14,height:14,borderRadius:"50%",background:risk.color,flexShrink:0}}/>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.08em",color:risk.color}}>{risk.level} — {risk.label}</div>
+          </div>
+          <div style={{fontSize:11.5,color:"#B0BCC8",lineHeight:1.6}}>{risk.detail}</div>
+          <button onClick={reset} style={{marginTop:12,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 12px",color:"#8899AA",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>↺ RESET</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function FRATScreen({ onClose }) {
   const [answers, setAnswers] = useState({});
   const totalQuestions = FRAT_SECTIONS.reduce((sum,s)=>sum+s.questions.length,0);
@@ -1671,32 +1697,14 @@ function FRATScreen({ onClose }) {
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
         <div style={{fontSize:12,color:"#8899AA",marginBottom:16,lineHeight:1.6}}>Structured around the FAA's PAVE checklist (Pilot, Aircraft, enVironment, External pressures) — the same framework behind the FAA Safety Team's own FRAT. Answer every question for a risk category; this doesn't make the go/no-go decision for you.</div>
 
-        {/* Sticky-feeling score summary */}
-        <div style={{background:risk?`${risk.color}15`:"rgba(255,255,255,0.03)",border:`1px solid ${risk?risk.color:"rgba(255,255,255,0.1)"}55`,borderRadius:10,padding:"16px 18px",marginBottom:20}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:allAnswered?10:0}}>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#8899AA",letterSpacing:"0.08em"}}>PROGRESS: {answeredCount}/{totalQuestions} ANSWERED</div>
-            {allAnswered && <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:risk.color,fontWeight:"bold"}}>SCORE {score}/{FRAT_MAX}</div>}
-          </div>
-          {!allAnswered && (
-            <div style={{height:6,background:"rgba(255,255,255,0.08)",borderRadius:3,overflow:"hidden"}}>
-              <div style={{height:"100%",width:`${(answeredCount/totalQuestions)*100}%`,background:"#00B4FF",borderRadius:3}}/>
-            </div>
-          )}
-          {allAnswered && (
-            <>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                <div style={{width:14,height:14,borderRadius:"50%",background:risk.color,flexShrink:0}}/>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.08em",color:risk.color}}>{risk.level} — {risk.label}</div>
-              </div>
-              <div style={{fontSize:11.5,color:"#B0BCC8",lineHeight:1.6}}>{risk.detail}</div>
-              <button onClick={reset} style={{marginTop:12,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 12px",color:"#8899AA",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>↺ RESET</button>
-            </>
-          )}
-        </div>
+        <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset} />
 
         {FRAT_SECTIONS.map(section=>(
           <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} />
         ))}
+
+        <div style={{fontSize:10,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:8,textAlign:"center"}}>YOUR RESULT</div>
+        <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset} />
 
         <div style={{fontSize:9,color:"#334455",fontFamily:"'DM Mono',monospace",marginTop:20,lineHeight:1.6}}>Educational risk-awareness tool, structured around the FAA's real PAVE framework — not a substitute for your own judgement, your instructor's assessment, or your operator's formal risk management process. See faa.gov/general/flight-risk-assessment-tool-frat-faa-safety-team for the FAA Safety Team's own tool.</div>
       </div>
