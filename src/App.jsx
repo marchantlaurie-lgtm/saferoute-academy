@@ -1701,7 +1701,7 @@ const FRAT_SECTIONS = [
       { q: "Known squawks / inoperative equipment", options: [
         ["None", 0], ["Minor, doesn't affect this flight", 1], ["Some, relevant to this flight", 2], ["Significant — affects safety margins", 3],
       ]},
-      { q: "Performance margin at departure/destination", options: [
+      { q: "Performance margin at departure/destination", link:{label:"→ Check current density altitude", action:"da"}, options: [
         ["Comfortable margin", 0], ["Adequate", 1], ["Tight", 2], ["Marginal or not yet checked", 3],
       ]},
       { q: "Fuel reserve planning", options: [
@@ -1760,12 +1760,15 @@ function fratRiskLevel(score) {
     detail: "This flight is carrying significant accumulated risk. Unless the highest-scoring items can be genuinely and specifically mitigated, the FAA's own guidance here is direct: strongly consider cancelling rather than letting external pressure make the decision for you." };
 }
 
-function FRATQuestion({ q, options, value, onChange, color, isPrefilled }) {
+function FRATQuestion({ q, options, value, onChange, color, isPrefilled, link, onLinkClick }) {
   return (
     <div style={{marginBottom:16}}>
-      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8,flexWrap:"wrap"}}>
         <div style={{fontSize:12,color:"#D0DCE8",lineHeight:1.4}}>{q}</div>
         {isPrefilled && <div style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#FFD700",background:"rgba(255,180,0,0.12)",border:"1px solid rgba(255,180,0,0.35)",borderRadius:4,padding:"2px 6px",flexShrink:0,letterSpacing:"0.04em"}}>🔗 OPS DATA</div>}
+        {link && (
+          <button onClick={()=>onLinkClick(link.action)} style={{background:"none",border:"none",padding:0,color:"#00B4FF",fontSize:10.5,fontFamily:"'DM Mono',monospace",cursor:"pointer",textDecoration:"underline",flexShrink:0}}>{link.label}</button>
+        )}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {options.map(([label,pts],i)=>(
@@ -1785,7 +1788,7 @@ function FRATQuestion({ q, options, value, onChange, color, isPrefilled }) {
   );
 }
 
-function FRATSection({ section, answers, onAnswer, prefillKeys }) {
+function FRATSection({ section, answers, onAnswer, prefillKeys, onLinkClick }) {
   return (
     <E6BCard title={section.title} icon={section.icon}>
       {section.questions.map((item,i)=>{
@@ -1793,6 +1796,7 @@ function FRATSection({ section, answers, onAnswer, prefillKeys }) {
         return (
           <FRATQuestion key={i} q={item.q} options={item.options} color={section.color}
             value={answers[key]} isPrefilled={!!prefillKeys?.[key]}
+            link={item.link} onLinkClick={onLinkClick}
             onChange={(pts)=>onAnswer(key, pts)} />
         );
       })}
@@ -1826,22 +1830,7 @@ function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score,
   );
 }
 
-function FRATScreen({ onClose, opsPrefill }) {
-  const initialAnswers = {};
-  const initialPrefillKeys = {};
-  if (opsPrefill?.person) {
-    initialAnswers["pilot_0"] = hrs90ToFratPoints(opsPrefill.person.hrs90);
-    initialPrefillKeys["pilot_0"] = true;
-  }
-  if (opsPrefill?.aircraft) {
-    initialAnswers["aircraft_0"] = 0; // assigned school aircraft — treated as familiar
-    initialPrefillKeys["aircraft_0"] = true;
-    initialAnswers["aircraft_1"] = opsPrefill.aircraft.squawk ? 2 : 0;
-    initialPrefillKeys["aircraft_1"] = true;
-  }
-
-  const [answers, setAnswers] = useState(initialAnswers);
-  const [prefillKeys, setPrefillKeys] = useState(initialPrefillKeys);
+function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefillKeys, setPrefillKeys }) {
   const totalQuestions = FRAT_SECTIONS.reduce((sum,s)=>sum+s.questions.length,0);
   const answeredCount = Object.keys(answers).length;
   const score = Object.values(answers).reduce((sum,v)=>sum+v,0);
@@ -1876,7 +1865,7 @@ function FRATScreen({ onClose, opsPrefill }) {
         <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset} />
 
         {FRAT_SECTIONS.map(section=>(
-          <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} prefillKeys={prefillKeys} />
+          <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} prefillKeys={prefillKeys} onLinkClick={(action)=>{ if(action==="da") onOpenDA?.(); }} />
         ))}
 
         <div style={{fontSize:10,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:8,textAlign:"center"}}>YOUR RESULT</div>
@@ -2055,6 +2044,8 @@ export default function App() {
   const [orgName,setOrgName] = useState("");
   const [opsPrefill,setOpsPrefill] = useState(null); // { person, aircraft } | null
   const [showOpsDashboard,setShowOpsDashboard] = useState(false);
+  const [fratAnswers,setFratAnswers] = useState({});
+  const [fratPrefillKeys,setFratPrefillKeys] = useState({});
   const [suggestions,setSuggestions] = useState([]);
   const [phase,setPhase] = useState("all");
   const [expanded,setExpanded] = useState({});
@@ -2259,12 +2250,27 @@ export default function App() {
   if (accountType === null) return <AccountTypeScreen onSelect={setAccountType}/>;
   if (accountType === "flightschool" && !opsLoggedIn) return <FlightSchoolLoginScreen onLogin={(org)=>{setOrgName(org);setOpsLoggedIn(true);setShowOpsDashboard(true);}} onBack={()=>setAccountType(null)}/>;
   if (accountType === "flightschool" && opsLoggedIn && showOpsDashboard) return <OpsDashboardScreen orgName={orgName}
-    onStartBriefing={(person,aircraft)=>{setOpsPrefill({person,aircraft});setShowOpsDashboard(false);setShowWelcome(false);setShowFRAT(true);}}
+    onStartBriefing={(person,aircraft)=>{
+      setOpsPrefill({person,aircraft});
+      const seedAnswers = {}, seedKeys = {};
+      if (person) { seedAnswers["pilot_0"] = hrs90ToFratPoints(person.hrs90); seedKeys["pilot_0"] = true; }
+      if (aircraft) {
+        seedAnswers["aircraft_0"] = 0; seedKeys["aircraft_0"] = true; // assigned school aircraft — treated as familiar
+        seedAnswers["aircraft_1"] = aircraft.squawk ? 2 : 0; seedKeys["aircraft_1"] = true;
+      }
+      setFratAnswers(seedAnswers); setFratPrefillKeys(seedKeys);
+      setShowOpsDashboard(false);setShowWelcome(false);setShowFRAT(true);
+    }}
     onContinueToApp={()=>setShowOpsDashboard(false)}
     onBack={()=>{setOpsLoggedIn(false);setShowOpsDashboard(false);}} />;
   if (showWelcome) return <WelcomeScreen onSelect={chooseRegion}/>;
   if (showE6B) return <E6BScreen onClose={()=>setShowE6B(false)}/>;
-  if (showFRAT) return <FRATScreen onClose={()=>{setShowFRAT(false);setOpsPrefill(null);}} opsPrefill={opsPrefill}/>;
+  if (showFRAT) return <FRATScreen
+    onClose={()=>{setShowFRAT(false);setOpsPrefill(null);}}
+    opsPrefill={opsPrefill}
+    answers={fratAnswers} setAnswers={setFratAnswers}
+    prefillKeys={fratPrefillKeys} setPrefillKeys={setFratPrefillKeys}
+    onOpenDA={()=>setShowFRAT(false)} />;
 
   return (
     <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8",display:"flex",flexDirection:"column"}}>
