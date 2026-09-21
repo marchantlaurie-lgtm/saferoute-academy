@@ -1538,10 +1538,6 @@ function AccountTypeScreen({ onSelect }) {
 }
 
 function FlightSchoolLoginScreen({ onLogin, onBack }) {
-  const [org, setOrg] = useState("");
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
-  const canSubmit = org.trim() && user.trim() && pass.trim();
   return (
     <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}`}</style>
@@ -1549,20 +1545,8 @@ function FlightSchoolLoginScreen({ onLogin, onBack }) {
         <button onClick={onBack} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:13,marginBottom:24}}>← BACK</button>
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.1em",color:"#FFFFFF",marginBottom:4}}>🏫 FLIGHT SCHOOL / CLUB LOGIN</div>
         <div style={{fontSize:11,color:"#8899AA",lineHeight:1.6,marginBottom:20}}>Sign in to your organisation's ops system.</div>
-        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:20}}>⚠ DEMO MODE — this is a simulated ops-system integration to illustrate a planned feature. No account is real; any organisation name, username, and password will work.</div>
-        <div style={{marginBottom:14}}>
-          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.08em"}}>ORGANISATION</div>
-          <input value={org} onChange={e=>setOrg(e.target.value)} placeholder="e.g. Riverside Flying Club" style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,outline:"none"}}/>
-        </div>
-        <div style={{marginBottom:14}}>
-          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.08em"}}>USERNAME</div>
-          <input value={user} onChange={e=>setUser(e.target.value)} placeholder="Any username" style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,outline:"none"}}/>
-        </div>
-        <div style={{marginBottom:20}}>
-          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.08em"}}>PASSWORD</div>
-          <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Any password" style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,outline:"none"}}/>
-        </div>
-        <button disabled={!canSubmit} onClick={()=>onLogin(org)} style={{width:"100%",background:canSubmit?"linear-gradient(135deg,#FFD700,#FFB800)":"rgba(255,255,255,0.06)",border:"none",borderRadius:8,padding:"12px",color:canSubmit?"#050D18":"#556677",fontWeight:"bold",fontSize:13,cursor:canSubmit?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>LOG IN</button>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:24}}>⚠ DEMO MODE — this is a simulated ops-system integration to illustrate a planned feature, not a live login.</div>
+        <button onClick={()=>onLogin("Demo Flight School")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"#050D18",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>LOG IN</button>
       </div>
     </div>
   );
