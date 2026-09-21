@@ -1477,6 +1477,154 @@ function HazardCard({ h, expanded, onToggle }) {
   );
 }
 
+// ── Flight School / Club Ops System — SIMULATED DEMO ONLY ────────────────
+// There is no real backend or API behind this. It exists purely to
+// demonstrate a planned integration: a flight school's own ops system
+// (student/instructor currency, aircraft airworthiness and squawks) feeding
+// directly into the pre-flight risk-assessment process. Every value below
+// is fabricated example data, clearly labelled as such everywhere it
+// appears — never presented as if it were a real live feed.
+
+const MOCK_OPS_PEOPLE = [
+  { id:"p1", name:"Jordan Reyes", role:"Student — PPL", hrs90:14.2, currency:"Medical current (Class 3, exp. 8mo)" },
+  { id:"p2", name:"Alicia Chen", role:"Student — Instrument", hrs90:6.5, currency:"Medical current (Class 3, exp. 5mo)" },
+  { id:"p3", name:"Marcus Webb", role:"CFI", hrs90:42.0, currency:"Flight review & medical current" },
+  { id:"p4", name:"Sarah Kim", role:"Student — Solo", hrs90:3.1, currency:"Medical current (Class 3, exp. 11mo)" },
+];
+
+const MOCK_OPS_AIRCRAFT = [
+  { id:"a1", tail:"N172SR", type:"Cessna 172S", status:"airworthy", squawk:null, last100:"12 days ago" },
+  { id:"a2", tail:"N44TR", type:"Cessna 172N", status:"airworthy", squawk:"Right nav light intermittent — deferred (minor)", last100:"45 days ago" },
+  { id:"a3", tail:"N9DA", type:"Piper PA-28-181", status:"grounded", squawk:"Engine oil analysis pending — DO NOT FLY", last100:"6 days ago" },
+  { id:"a4", tail:"N721CT", type:"Cessna 152", status:"airworthy", squawk:null, last100:"3 days ago" },
+];
+
+function hrs90ToFratPoints(hrs) {
+  if (hrs > 20) return 0;
+  if (hrs >= 10) return 1;
+  if (hrs >= 3) return 2;
+  return 3;
+}
+
+function AccountTypeScreen({ onSelect }) {
+  return (
+    <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}`}</style>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+        <div style={{width:34,height:34,background:"linear-gradient(135deg,#0055DD,#00B4FF)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>✈</div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.15em",color:"#FFFFFF"}}>SAFEROUTE <span style={{color:"#00B4FF"}}>ACADEMY</span></div>
+      </div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#556677",letterSpacing:"0.15em",marginBottom:40}}>STUDENT PILOT SAFETY INTELLIGENCE</div>
+      <div style={{fontSize:12,fontFamily:"'DM Mono',monospace",color:"#8899AA",letterSpacing:"0.12em",marginBottom:18}}>HOW ARE YOU USING SAFEROUTE ACADEMY?</div>
+      <div style={{display:"flex",gap:18,flexWrap:"wrap",justifyContent:"center",maxWidth:700}}>
+        <button onClick={()=>onSelect("personal")} style={{width:280,textAlign:"left",background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:12,padding:"24px 22px",cursor:"pointer"}}
+          onMouseEnter={e=>{e.currentTarget.style.background="rgba(0,180,255,0.14)";e.currentTarget.style.borderColor="rgba(0,180,255,0.5)";}}
+          onMouseLeave={e=>{e.currentTarget.style.background="rgba(0,180,255,0.06)";e.currentTarget.style.borderColor="rgba(0,180,255,0.25)";}}>
+          <div style={{fontSize:30,marginBottom:12}}>🧑‍✈️</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#00B4FF",fontWeight:"bold",letterSpacing:"0.08em",marginBottom:8}}>PERSONAL</div>
+          <div style={{fontSize:12,color:"#8899AA",lineHeight:1.6}}>Use SafeRoute Academy on your own — airfield intel, live weather, the E6B, and the FRAT tool, exactly as it works today.</div>
+        </button>
+        <button onClick={()=>onSelect("flightschool")} style={{width:280,textAlign:"left",background:"rgba(255,180,0,0.06)",border:"1px solid rgba(255,180,0,0.25)",borderRadius:12,padding:"24px 22px",cursor:"pointer"}}
+          onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,180,0,0.14)";e.currentTarget.style.borderColor="rgba(255,180,0,0.5)";}}
+          onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,180,0,0.06)";e.currentTarget.style.borderColor="rgba(255,180,0,0.25)";}}>
+          <div style={{fontSize:30,marginBottom:12}}>🏫</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#FFD700",fontWeight:"bold",letterSpacing:"0.08em",marginBottom:8}}>FLIGHT SCHOOL / CLUB</div>
+          <div style={{fontSize:12,color:"#8899AA",lineHeight:1.6}}>Preview a planned integration — an ops system feeding student/instructor currency and aircraft status directly into the FRAT.</div>
+          <div style={{marginTop:10,fontSize:9,fontFamily:"'DM Mono',monospace",color:"#FFD700",letterSpacing:"0.06em"}}>⚠ DEMO — NOT A LIVE SYSTEM</div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FlightSchoolLoginScreen({ onLogin, onBack }) {
+  const [org, setOrg] = useState("");
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const canSubmit = org.trim() && user.trim() && pass.trim();
+  return (
+    <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}`}</style>
+      <div style={{width:"100%",maxWidth:360}}>
+        <button onClick={onBack} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:13,marginBottom:24}}>← BACK</button>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.1em",color:"#FFFFFF",marginBottom:4}}>🏫 FLIGHT SCHOOL / CLUB LOGIN</div>
+        <div style={{fontSize:11,color:"#8899AA",lineHeight:1.6,marginBottom:20}}>Sign in to your organisation's ops system.</div>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:20}}>⚠ DEMO MODE — this is a simulated ops-system integration to illustrate a planned feature. No account is real; any organisation name, username, and password will work.</div>
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.08em"}}>ORGANISATION</div>
+          <input value={org} onChange={e=>setOrg(e.target.value)} placeholder="e.g. Riverside Flying Club" style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,outline:"none"}}/>
+        </div>
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.08em"}}>USERNAME</div>
+          <input value={user} onChange={e=>setUser(e.target.value)} placeholder="Any username" style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,outline:"none"}}/>
+        </div>
+        <div style={{marginBottom:20}}>
+          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.08em"}}>PASSWORD</div>
+          <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Any password" style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,outline:"none"}}/>
+        </div>
+        <button disabled={!canSubmit} onClick={()=>onLogin(org)} style={{width:"100%",background:canSubmit?"linear-gradient(135deg,#FFD700,#FFB800)":"rgba(255,255,255,0.06)",border:"none",borderRadius:8,padding:"12px",color:canSubmit?"#050D18":"#556677",fontWeight:"bold",fontSize:13,cursor:canSubmit?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>LOG IN</button>
+      </div>
+    </div>
+  );
+}
+
+function OpsPersonCard({ person, selected, onSelect }) {
+  return (
+    <button onClick={()=>onSelect(person)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:selected?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.03)",border:`1px solid ${selected?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"11px 14px",cursor:"pointer",marginBottom:8}}>
+      <div>
+        <div style={{fontSize:13,color:"#FFFFFF",fontWeight:600}}>{person.name}</div>
+        <div style={{fontSize:10,color:"#8899AA",marginTop:2}}>{person.role} · {person.hrs90}hrs/90d · {person.currency}</div>
+      </div>
+      {selected && <div style={{color:"#00B4FF",fontSize:16}}>✓</div>}
+    </button>
+  );
+}
+
+function OpsAircraftCard({ ac, selected, onSelect }) {
+  const grounded = ac.status === "grounded";
+  return (
+    <button disabled={grounded} onClick={()=>!grounded && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:grounded?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.03)",border:`1px solid ${grounded?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"11px 14px",cursor:grounded?"not-allowed":"pointer",marginBottom:8,opacity:grounded?0.75:1}}>
+      <div>
+        <div style={{fontSize:13,color:"#FFFFFF",fontWeight:600}}>{ac.tail} <span style={{color:"#8899AA",fontWeight:400}}>· {ac.type}</span></div>
+        <div style={{fontSize:10,color:grounded?"#FF6B6B":ac.squawk?"#FFD700":"#00C896",marginTop:2}}>
+          {grounded ? "🔴 GROUNDED — " : ac.squawk ? "🟡 " : "🟢 Airworthy, no open squawks — "}{ac.squawk||""} · Last 100hr: {ac.last100}
+        </div>
+      </div>
+      {selected && !grounded && <div style={{color:"#00B4FF",fontSize:16}}>✓</div>}
+    </button>
+  );
+}
+
+function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack }) {
+  const [person, setPerson] = useState(null);
+  const [aircraft, setAircraft] = useState(null);
+  return (
+    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
+      <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(255,180,0,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
+        <button onClick={onBack} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:14}}>← BACK</button>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"#FFFFFF",marginLeft:6}}>🏫 {orgName || "OPS SYSTEM"} — DEMO</div>
+      </div>
+      <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:22}}>⚠ SIMULATED DATA — this roster and fleet are fabricated examples illustrating a planned integration. No real student, instructor, or aircraft records are connected.</div>
+
+        <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",marginBottom:10}}>SELECT PILOT</div>
+        {MOCK_OPS_PEOPLE.map(p=><OpsPersonCard key={p.id} person={p} selected={person?.id===p.id} onSelect={setPerson}/>)}
+
+        <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",margin:"22px 0 10px"}}>SELECT AIRCRAFT</div>
+        {MOCK_OPS_AIRCRAFT.map(a=><OpsAircraftCard key={a.id} ac={a} selected={aircraft?.id===a.id} onSelect={setAircraft}/>)}
+
+        <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:24}}>
+          <button disabled={!person||!aircraft} onClick={()=>onStartBriefing(person,aircraft)} style={{width:"100%",background:(person&&aircraft)?"linear-gradient(135deg,#00B4FF,#0090DD)":"rgba(255,255,255,0.06)",border:"none",borderRadius:8,padding:"13px",color:(person&&aircraft)?"#050D18":"#556677",fontWeight:"bold",fontSize:13,cursor:(person&&aircraft)?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>
+            🛡 START PRE-FLIGHT RISK ASSESSMENT {person&&aircraft?`— ${person.name.split(" ")[0]} / ${aircraft.tail}`:"(select pilot & aircraft)"}
+          </button>
+          <button onClick={onContinueToApp} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,padding:"11px",color:"#8899AA",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>Continue to SafeRoute Academy →</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WelcomeScreen({ onSelect }) {
   const options = [
     { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay." },
@@ -1612,10 +1760,13 @@ function fratRiskLevel(score) {
     detail: "This flight is carrying significant accumulated risk. Unless the highest-scoring items can be genuinely and specifically mitigated, the FAA's own guidance here is direct: strongly consider cancelling rather than letting external pressure make the decision for you." };
 }
 
-function FRATQuestion({ q, options, value, onChange, color }) {
+function FRATQuestion({ q, options, value, onChange, color, isPrefilled }) {
   return (
     <div style={{marginBottom:16}}>
-      <div style={{fontSize:12,color:"#D0DCE8",marginBottom:8,lineHeight:1.4}}>{q}</div>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
+        <div style={{fontSize:12,color:"#D0DCE8",lineHeight:1.4}}>{q}</div>
+        {isPrefilled && <div style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#FFD700",background:"rgba(255,180,0,0.12)",border:"1px solid rgba(255,180,0,0.35)",borderRadius:4,padding:"2px 6px",flexShrink:0,letterSpacing:"0.04em"}}>🔗 OPS DATA</div>}
+      </div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {options.map(([label,pts],i)=>(
           <button key={i} onClick={()=>onChange(pts)} style={{
@@ -1634,14 +1785,17 @@ function FRATQuestion({ q, options, value, onChange, color }) {
   );
 }
 
-function FRATSection({ section, answers, onAnswer }) {
+function FRATSection({ section, answers, onAnswer, prefillKeys }) {
   return (
     <E6BCard title={section.title} icon={section.icon}>
-      {section.questions.map((item,i)=>(
-        <FRATQuestion key={i} q={item.q} options={item.options} color={section.color}
-          value={answers[`${section.id}_${i}`]}
-          onChange={(pts)=>onAnswer(`${section.id}_${i}`, pts)} />
-      ))}
+      {section.questions.map((item,i)=>{
+        const key = `${section.id}_${i}`;
+        return (
+          <FRATQuestion key={i} q={item.q} options={item.options} color={section.color}
+            value={answers[key]} isPrefilled={!!prefillKeys?.[key]}
+            onChange={(pts)=>onAnswer(key, pts)} />
+        );
+      })}
     </E6BCard>
   );
 }
@@ -1672,8 +1826,22 @@ function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score,
   );
 }
 
-function FRATScreen({ onClose }) {
-  const [answers, setAnswers] = useState({});
+function FRATScreen({ onClose, opsPrefill }) {
+  const initialAnswers = {};
+  const initialPrefillKeys = {};
+  if (opsPrefill?.person) {
+    initialAnswers["pilot_0"] = hrs90ToFratPoints(opsPrefill.person.hrs90);
+    initialPrefillKeys["pilot_0"] = true;
+  }
+  if (opsPrefill?.aircraft) {
+    initialAnswers["aircraft_0"] = 0; // assigned school aircraft — treated as familiar
+    initialPrefillKeys["aircraft_0"] = true;
+    initialAnswers["aircraft_1"] = opsPrefill.aircraft.squawk ? 2 : 0;
+    initialPrefillKeys["aircraft_1"] = true;
+  }
+
+  const [answers, setAnswers] = useState(initialAnswers);
+  const [prefillKeys, setPrefillKeys] = useState(initialPrefillKeys);
   const totalQuestions = FRAT_SECTIONS.reduce((sum,s)=>sum+s.questions.length,0);
   const answeredCount = Object.keys(answers).length;
   const score = Object.values(answers).reduce((sum,v)=>sum+v,0);
@@ -1682,9 +1850,11 @@ function FRATScreen({ onClose }) {
 
   function onAnswer(key, pts) {
     setAnswers(prev => ({ ...prev, [key]: pts }));
+    setPrefillKeys(prev => { const next = {...prev}; delete next[key]; return next; }); // user override clears the auto-fill tag
   }
   function reset() {
     setAnswers({});
+    setPrefillKeys({});
   }
 
   return (
@@ -1697,10 +1867,16 @@ function FRATScreen({ onClose }) {
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
         <div style={{fontSize:12,color:"#8899AA",marginBottom:16,lineHeight:1.6}}>Structured around the FAA's PAVE checklist (Pilot, Aircraft, enVironment, External pressures) — the same framework behind the FAA Safety Team's own FRAT. Answer every question for a risk category; this doesn't make the go/no-go decision for you.</div>
 
+        {opsPrefill && (opsPrefill.person || opsPrefill.aircraft) && (
+          <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"11px 13px",fontSize:11,color:"#FFD700",lineHeight:1.6,marginBottom:16}}>
+            🔗 <b>{opsPrefill.person?.name}{opsPrefill.person && opsPrefill.aircraft ? " / " : ""}{opsPrefill.aircraft?.tail}</b> — {Object.keys(prefillKeys).length} answer{Object.keys(prefillKeys).length===1?"":"s"} below auto-filled from the (simulated) ops system. Anything you change yourself overrides it.
+          </div>
+        )}
+
         <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset} />
 
         {FRAT_SECTIONS.map(section=>(
-          <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} />
+          <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} prefillKeys={prefillKeys} />
         ))}
 
         <div style={{fontSize:10,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:8,textAlign:"center"}}>YOUR RESULT</div>
@@ -1874,6 +2050,11 @@ export default function App() {
   const [showWelcome,setShowWelcome] = useState(true);
   const [showE6B,setShowE6B] = useState(false);
   const [showFRAT,setShowFRAT] = useState(false);
+  const [accountType,setAccountType] = useState(null); // null | "personal" | "flightschool"
+  const [opsLoggedIn,setOpsLoggedIn] = useState(false);
+  const [orgName,setOrgName] = useState("");
+  const [opsPrefill,setOpsPrefill] = useState(null); // { person, aircraft } | null
+  const [showOpsDashboard,setShowOpsDashboard] = useState(false);
   const [suggestions,setSuggestions] = useState([]);
   const [phase,setPhase] = useState("all");
   const [expanded,setExpanded] = useState({});
@@ -2075,9 +2256,15 @@ export default function App() {
     </div>
   );
 
+  if (accountType === null) return <AccountTypeScreen onSelect={setAccountType}/>;
+  if (accountType === "flightschool" && !opsLoggedIn) return <FlightSchoolLoginScreen onLogin={(org)=>{setOrgName(org);setOpsLoggedIn(true);setShowOpsDashboard(true);}} onBack={()=>setAccountType(null)}/>;
+  if (accountType === "flightschool" && opsLoggedIn && showOpsDashboard) return <OpsDashboardScreen orgName={orgName}
+    onStartBriefing={(person,aircraft)=>{setOpsPrefill({person,aircraft});setShowOpsDashboard(false);setShowWelcome(false);setShowFRAT(true);}}
+    onContinueToApp={()=>setShowOpsDashboard(false)}
+    onBack={()=>{setOpsLoggedIn(false);setShowOpsDashboard(false);}} />;
   if (showWelcome) return <WelcomeScreen onSelect={chooseRegion}/>;
   if (showE6B) return <E6BScreen onClose={()=>setShowE6B(false)}/>;
-  if (showFRAT) return <FRATScreen onClose={()=>setShowFRAT(false)}/>;
+  if (showFRAT) return <FRATScreen onClose={()=>{setShowFRAT(false);setOpsPrefill(null);}} opsPrefill={opsPrefill}/>;
 
   return (
     <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8",display:"flex",flexDirection:"column"}}>
