@@ -986,6 +986,17 @@ const AIRFIELDS = {
     atcNotes:"CTAF/UNICOM 123.0 · SOCAL Approach 125.5/349.0 · Clearance delivery via SOCAL Approach 800-448-3724.",
     cfiNotes:"Cable is a genuine, busy Inland Empire training hub — CableAir School of Flight, Foothill Flying Club, and Cable Air Flight School are all based here. The narrow R/W 24 approach corridor is the standout local brief, easy to fly outside of on a student's first visit if not specifically covered.",
   },
+  KSNA:{ name:"John Wayne Airport (Orange County)", city:"Santa Ana, CA", elevation:56, class:"Class C", type:"Towered (part-time secondary runway)", runways:["02L/20R — 5,700ft","02R/20L — 2,886ft (unavailable when tower closed)"], region:"socal", weather_icao:"KSNA",
+    hazards:[
+      {id:"CLASSC",phase:["all"],sev:"high",icon:"📡",title:"Class C Under the LAX Class B Shelf",why:"John Wayne's Class C airspace partially underlies Los Angeles' Class B — a genuinely layered, complex environment.",detail:"Establish two-way communication with SOCAL Approach before entering the Class C surface area. Confirm current Class B shelf altitudes for any climb — this is one of the busiest, most complex airspace stacks in the country."},
+      {id:"BUSY",phase:["pattern","all"],sev:"high",icon:"✈",title:"Very High Commercial Traffic Volume",why:"John Wayne handles over 300,000 annual operations and 11M+ passengers — genuinely airline-level traffic density.",detail:"Expect to be sequenced behind and alongside airline traffic on every approach and departure. This is not a routine GA pattern — precise, prompt radio work is essential."},
+      {id:"PARTTIME_RWY",phase:["all"],sev:"medium",icon:"🗼",title:"Secondary Runway Unavailable When Tower Closed",why:"Tower operates 0615-2300 local — R/W 02R/20L is not available outside those hours.",detail:"Confirm current tower hours before planning a late arrival or early departure. Only R/W 02L/20R remains usable when the tower is closed."},
+      {id:"NOISE",phase:["departure"],sev:"medium",icon:"🔇",title:"Strict Noise Abatement — Specific Departure/Arrival Angles",detail:"Published departure and arrival angles reduce overflight of the parallel runway and surrounding noise-sensitive communities. Brief these specific procedures before taxi — this is a genuinely strict, actively-enforced noise environment."},
+      {id:"PATTERN_ALT",phase:["pattern"],sev:"low",icon:"📏",title:"Pattern Altitude Varies by Runway and Aircraft Type",detail:"R/W 02L/20R: 1,000ft AGL for small aircraft, 1,500ft AGL for turbine aircraft over 12,500lbs. R/W 02R/20L: 800ft AGL for small singles, 1,000ft AGL for twins. Confirm the correct altitude for your aircraft and assigned runway."},
+    ],
+    atcNotes:"John Wayne Tower 119.9 · SOCAL Approach/Departure handles Class C — confirm current frequencies in the Chart Supplement. Tower hours 0615-2300 local.",
+    cfiNotes:"John Wayne is a genuinely advanced training environment, not a first Class C exposure — Orange County Flight Center was founded here in 1981 specifically to train students 'right there with the airliners,' and Royal Aviation has operated here since 1976. The noise abatement procedures and layered Class C/B airspace are the standout local briefs.",
+  },
 
   // ── COLORADO / FRONT RANGE ────────────────────────────────────────────────
   // Elevation/runway/class data verified against SkyVector (FAA NASR-sourced
@@ -1132,7 +1143,7 @@ const FIELD_COORDS = {
   KVNY:[34.2098,-118.4900], KCNO:[33.9748,-117.6365], KEMT:[34.0860,-118.0348], KFUL:[33.8720,-117.9798],
   KRAL:[33.9518,-117.4452], KHHR:[33.9228,-118.3350], KTOA:[33.8033,-118.3397], KSMO:[34.0158,-118.4513],
   KCRQ:[33.1283,-117.2800], KSDM:[32.5723,-116.9802], KPOC:[34.0917,-117.7818], L35:[34.2638,-116.8560],
-  KSEE:[32.8262,-116.9724], KMYF:[32.8157,-117.1396], KCCB:[34.1117,-117.6875],
+  KSEE:[32.8262,-116.9724], KMYF:[32.8157,-117.1396], KCCB:[34.1117,-117.6875], KSNA:[33.6756,-117.8683],
   // Colorado / Front Range
   KAPA:[39.5702,-104.8493], KBJC:[39.9088,-105.1172], KFNL:[40.4518,-105.0113], KCOS:[38.8058,-104.7008],
   KBDU:[40.0393,-105.2262], KLXV:[39.2195,-106.3165], KEIK:[40.0102,-105.0480], KLMO:[40.1643,-105.1637],
@@ -1471,7 +1482,7 @@ function WelcomeScreen({ onSelect }) {
     { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay." },
     { id:"phoenix", label:"PHOENIX / ARIZONA", icon:"☀", desc:"13 training airfields across the Phoenix area and Arizona — density altitude, haboobs, high terrain, military airspace." },
     { id:"texas", label:"TEXAS", icon:"🤠", desc:"13 training airfields across Fort Worth, Austin, and Houston — Class B/C/D operations, severe thunderstorms, military jet traffic, Gulf Coast fog." },
-    { id:"socal", label:"SOUTHERN CALIFORNIA", icon:"🏙", desc:"15 training airfields across the LA Basin and San Diego County — extremely dense multi-airport Class B/C/D stacking, marine layer fog, and terrain transitions from sea level to 6,752ft." },
+    { id:"socal", label:"SOUTHERN CALIFORNIA", icon:"🏙", desc:"16 training airfields across the LA Basin and San Diego County — extremely dense multi-airport Class B/C/D stacking, marine layer fog, and terrain transitions from sea level to 6,752ft." },
     { id:"colorado", label:"COLORADO / FRONT RANGE", icon:"⛰", desc:"11 training airfields along the Front Range corridor — genuine high-altitude performance planning, mountain wave turbulence, and terrain awareness, every field at 4,600ft+ MSL." },
     { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:"29 training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar." },
   ];
@@ -1496,6 +1507,199 @@ function WelcomeScreen({ onSelect }) {
         ))}
       </div>
       <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#334455",marginTop:36,letterSpacing:"0.1em"}}>YOU CAN SWITCH LOCATIONS ANY TIME FROM THE APP</div>
+    </div>
+  );
+}
+
+// ── Flight Risk Assessment Tool (FRAT) ───────────────────────────────────
+// Structured around the FAA Safety Team's PAVE checklist (Pilot, Aircraft,
+// enVironment, External pressures) — the same framework the FAA's own FRAT
+// follows (faa.gov/general/flight-risk-assessment-tool-frat-faa-safety-team;
+// FAA-H-8083-2 Risk Management Handbook). The FAA's own tool is an
+// interactive worksheet without a published fixed point scale, so the
+// specific questions and scoring below are the Academy's own — built using
+// widely-recognized, standard risk factors within the real PAVE structure,
+// not a reproduction of any single official worksheet. CFIs/students should
+// treat the thresholds as a starting point, adjustable to their own or their
+// instructor's standard.
+
+const FRAT_SECTIONS = [
+  {
+    id: "pilot", title: "PILOT", icon: "🧑‍✈️", color: "#00B4FF",
+    questions: [
+      { q: "Flight time in the last 90 days", options: [
+        ["More than 20 hours", 0], ["10–20 hours", 1], ["3–10 hours", 2], ["Less than 3 hours", 3],
+      ]},
+      { q: "Hours of sleep last night", options: [
+        ["8+ hours", 0], ["6–8 hours", 1], ["4–6 hours", 2], ["Less than 4 hours", 3],
+      ]},
+      { q: "Time since your last flight", options: [
+        ["Within 7 days", 0], ["7–14 days", 1], ["15–30 days", 2], ["More than 30 days", 3],
+      ]},
+      { q: "Honest IMSAFE self-check", options: [
+        ["Fit and well", 0], ["Minor stress or tiredness", 1], ["Notable stress, illness, or medication", 2], ["Would not fly if fully honest with myself", 3],
+      ]},
+      { q: "Flight review / dual instruction currency", options: [
+        ["Current, recent dual within 90 days", 0], ["Current, no recent dual", 1], ["Approaching currency limits", 2], ["Lapsed or unsure", 3],
+      ]},
+    ],
+  },
+  {
+    id: "aircraft", title: "AIRCRAFT", icon: "✈", color: "#00C896",
+    questions: [
+      { q: "Familiarity with this specific aircraft", options: [
+        ["Very familiar, fly it regularly", 0], ["Familiar", 1], ["Limited recent experience", 2], ["New to me or rarely flown", 3],
+      ]},
+      { q: "Known squawks / inoperative equipment", options: [
+        ["None", 0], ["Minor, doesn't affect this flight", 1], ["Some, relevant to this flight", 2], ["Significant — affects safety margins", 3],
+      ]},
+      { q: "Performance margin at departure/destination", options: [
+        ["Comfortable margin", 0], ["Adequate", 1], ["Tight", 2], ["Marginal or not yet checked", 3],
+      ]},
+      { q: "Fuel reserve planning", options: [
+        ["Beyond legal minimums", 0], ["Standard reserves", 1], ["Minimum legal reserves", 2], ["Tight, little margin", 3],
+      ]},
+    ],
+  },
+  {
+    id: "environment", title: "ENVIRONMENT", icon: "🌦", color: "#FFD700",
+    questions: [
+      { q: "Weather relative to your personal minimums", options: [
+        ["Well above", 0], ["Above", 1], ["Close to minimums", 2], ["At or below", 3],
+      ]},
+      { q: "Forecast crosswind component", options: [
+        ["Well within comfort", 0], ["Within limits", 1], ["Near personal limit", 2], ["At or near aircraft limit", 3],
+      ]},
+      { q: "Airport familiarity", options: [
+        ["Home base / very familiar", 0], ["Visited before", 1], ["New, but towered/well-served", 2], ["New, non-towered or complex", 3],
+      ]},
+      { q: "Terrain and airspace complexity", options: [
+        ["Simple, flat, familiar", 0], ["Some complexity", 1], ["Significant terrain or airspace", 2], ["High terrain and complex/unfamiliar airspace", 3],
+      ]},
+      { q: "Timing", options: [
+        ["Day, VMC throughout", 0], ["Some night or marginal VMC", 1], ["Night or IMC portions", 2], ["Night and weather concerns combined", 3],
+      ]},
+    ],
+  },
+  {
+    id: "external", title: "EXTERNAL PRESSURES", icon: "⏳", color: "#FF8C42",
+    questions: [
+      { q: "Schedule flexibility", options: [
+        ["Fully flexible — can delay or cancel freely", 0], ["Some flexibility", 1], ["Limited flexibility", 2], ["Must complete as planned", 3],
+      ]},
+      { q: "Passengers or others expecting this flight", options: [
+        ["None, or very understanding", 0], ["Some expectation", 1], ["Firm expectation", 2], ["High-stakes event (wedding, work, etc.)", 3],
+      ]},
+      { q: "Financial pressure (rental cost, deposits, etc.)", options: [
+        ["None", 0], ["Minor", 1], ["Moderate", 2], ["Significant", 3],
+      ]},
+      { q: "Alternative transportation if you don't fly", options: [
+        ["Yes, easy", 0], ["Yes, with some effort", 1], ["Difficult", 2], ["None", 3],
+      ]},
+    ],
+  },
+];
+
+const FRAT_MAX = FRAT_SECTIONS.reduce((sum, s) => sum + s.questions.length * 3, 0);
+
+function fratRiskLevel(score) {
+  const pct = score / FRAT_MAX;
+  if (pct <= 0.33) return { level: "GREEN", color: "#00C896", label: "Cleared for lift-off",
+    detail: "Comfortably in the low-risk range. A FRAT doesn't make the go/no-go decision for you — identify whatever scored highest and consider whether it still needs mitigating, especially near the top of this range." };
+  if (pct <= 0.59) return { level: "YELLOW", color: "#FFD700", label: "Mitigate before deciding",
+    detail: "Work through the highest-scoring items specifically — delaying for weather, choosing a more familiar aircraft, or talking it through with a CFI or FAASTeam rep are all legitimate ways to bring this down before committing to go." };
+  return { level: "RED", color: "#FF3B3B", label: "Seriously consider no-go",
+    detail: "This flight is carrying significant accumulated risk. Unless the highest-scoring items can be genuinely and specifically mitigated, the FAA's own guidance here is direct: strongly consider cancelling rather than letting external pressure make the decision for you." };
+}
+
+function FRATQuestion({ q, options, value, onChange, color }) {
+  return (
+    <div style={{marginBottom:16}}>
+      <div style={{fontSize:12,color:"#D0DCE8",marginBottom:8,lineHeight:1.4}}>{q}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {options.map(([label,pts],i)=>(
+          <button key={i} onClick={()=>onChange(pts)} style={{
+            display:"flex",alignItems:"center",justifyContent:"space-between",textAlign:"left",
+            background:value===pts?`${color}22`:"rgba(255,255,255,0.03)",
+            border:`1px solid ${value===pts?color:"rgba(255,255,255,0.08)"}`,
+            borderRadius:7,padding:"9px 12px",cursor:"pointer",
+            color:value===pts?"#FFFFFF":"#8899AA",fontSize:11.5,
+          }}>
+            <span>{label}</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:value===pts?color:"#445566",marginLeft:10,flexShrink:0}}>+{pts}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FRATSection({ section, answers, onAnswer }) {
+  return (
+    <E6BCard title={section.title} icon={section.icon}>
+      {section.questions.map((item,i)=>(
+        <FRATQuestion key={i} q={item.q} options={item.options} color={section.color}
+          value={answers[`${section.id}_${i}`]}
+          onChange={(pts)=>onAnswer(`${section.id}_${i}`, pts)} />
+      ))}
+    </E6BCard>
+  );
+}
+
+function FRATScreen({ onClose }) {
+  const [answers, setAnswers] = useState({});
+  const totalQuestions = FRAT_SECTIONS.reduce((sum,s)=>sum+s.questions.length,0);
+  const answeredCount = Object.keys(answers).length;
+  const score = Object.values(answers).reduce((sum,v)=>sum+v,0);
+  const allAnswered = answeredCount === totalQuestions;
+  const risk = allAnswered ? fratRiskLevel(score) : null;
+
+  function onAnswer(key, pts) {
+    setAnswers(prev => ({ ...prev, [key]: pts }));
+  }
+  function reset() {
+    setAnswers({});
+  }
+
+  return (
+    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
+      <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
+        <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:14}}>← BACK</button>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"#FFFFFF",marginLeft:6}}>🛡 FLIGHT RISK ASSESSMENT</div>
+      </div>
+      <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
+        <div style={{fontSize:12,color:"#8899AA",marginBottom:16,lineHeight:1.6}}>Structured around the FAA's PAVE checklist (Pilot, Aircraft, enVironment, External pressures) — the same framework behind the FAA Safety Team's own FRAT. Answer every question for a risk category; this doesn't make the go/no-go decision for you.</div>
+
+        {/* Sticky-feeling score summary */}
+        <div style={{background:risk?`${risk.color}15`:"rgba(255,255,255,0.03)",border:`1px solid ${risk?risk.color:"rgba(255,255,255,0.1)"}55`,borderRadius:10,padding:"16px 18px",marginBottom:20}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:allAnswered?10:0}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#8899AA",letterSpacing:"0.08em"}}>PROGRESS: {answeredCount}/{totalQuestions} ANSWERED</div>
+            {allAnswered && <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:risk.color,fontWeight:"bold"}}>SCORE {score}/{FRAT_MAX}</div>}
+          </div>
+          {!allAnswered && (
+            <div style={{height:6,background:"rgba(255,255,255,0.08)",borderRadius:3,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${(answeredCount/totalQuestions)*100}%`,background:"#00B4FF",borderRadius:3}}/>
+            </div>
+          )}
+          {allAnswered && (
+            <>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                <div style={{width:14,height:14,borderRadius:"50%",background:risk.color,flexShrink:0}}/>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.08em",color:risk.color}}>{risk.level} — {risk.label}</div>
+              </div>
+              <div style={{fontSize:11.5,color:"#B0BCC8",lineHeight:1.6}}>{risk.detail}</div>
+              <button onClick={reset} style={{marginTop:12,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 12px",color:"#8899AA",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>↺ RESET</button>
+            </>
+          )}
+        </div>
+
+        {FRAT_SECTIONS.map(section=>(
+          <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} />
+        ))}
+
+        <div style={{fontSize:9,color:"#334455",fontFamily:"'DM Mono',monospace",marginTop:20,lineHeight:1.6}}>Educational risk-awareness tool, structured around the FAA's real PAVE framework — not a substitute for your own judgement, your instructor's assessment, or your operator's formal risk management process. See faa.gov/general/flight-risk-assessment-tool-frat-faa-safety-team for the FAA Safety Team's own tool.</div>
+      </div>
     </div>
   );
 }
@@ -1661,6 +1865,7 @@ export default function App() {
   const [query,setQuery] = useState("KVRB");
   const [showWelcome,setShowWelcome] = useState(true);
   const [showE6B,setShowE6B] = useState(false);
+  const [showFRAT,setShowFRAT] = useState(false);
   const [suggestions,setSuggestions] = useState([]);
   const [phase,setPhase] = useState("all");
   const [expanded,setExpanded] = useState({});
@@ -1855,12 +2060,16 @@ export default function App() {
         <button onClick={()=>setShowE6B(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"linear-gradient(135deg,rgba(255,215,0,0.16),rgba(255,180,0,0.1))",border:"1px solid rgba(255,215,0,0.4)",borderRadius:8,padding:"12px 10px",color:"#FFD700",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:"bold",letterSpacing:"0.08em"}}>
           🧮 E6B FLIGHT COMPUTER
         </button>
+        <button onClick={()=>setShowFRAT(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"linear-gradient(135deg,rgba(0,180,255,0.16),rgba(0,150,255,0.1))",border:"1px solid rgba(0,180,255,0.4)",borderRadius:8,padding:"12px 10px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:"bold",letterSpacing:"0.08em",marginTop:8}}>
+          🛡 FLIGHT RISK ASSESSMENT
+        </button>
       </div>
     </div>
   );
 
   if (showWelcome) return <WelcomeScreen onSelect={chooseRegion}/>;
   if (showE6B) return <E6BScreen onClose={()=>setShowE6B(false)}/>;
+  if (showFRAT) return <FRATScreen onClose={()=>setShowFRAT(false)}/>;
 
   return (
     <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8",display:"flex",flexDirection:"column"}}>
