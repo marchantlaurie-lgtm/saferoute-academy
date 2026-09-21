@@ -1331,7 +1331,7 @@ function MapWidget({ airfield, icao }) {
     const map = L.map(mapContainerRef.current, { center:coords, zoom:7, minZoom:4, maxZoom:12, scrollWheelZoom:false, doubleClickZoom:true, touchZoom:true, zoomControl:true });
     map.on('click', () => map.scrollWheelZoom.enable());
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> | Radar: <a href="https://www.rainviewer.com/">RainViewer</a>', maxZoom:12 }).addTo(map);
-    L.marker(coords).addTo(map).bindPopup(`${airfield.name} (${icao})`).openPopup();
+    L.marker(coords).addTo(map).bindPopup(`${airfield.name} (${icao})`);
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; };
   }, [icao]);
@@ -2264,13 +2264,13 @@ export default function App() {
     onContinueToApp={()=>setShowOpsDashboard(false)}
     onBack={()=>{setOpsLoggedIn(false);setShowOpsDashboard(false);}} />;
   if (showWelcome) return <WelcomeScreen onSelect={chooseRegion}/>;
-  if (showE6B) return <E6BScreen onClose={()=>setShowE6B(false)}/>;
+  if (showE6B) return <E6BScreen onClose={()=>{setShowE6B(false);setMenuOpen(false);}}/>;
   if (showFRAT) return <FRATScreen
-    onClose={()=>{setShowFRAT(false);setOpsPrefill(null);}}
+    onClose={()=>{setShowFRAT(false);setOpsPrefill(null);setMenuOpen(false);}}
     opsPrefill={opsPrefill}
     answers={fratAnswers} setAnswers={setFratAnswers}
     prefillKeys={fratPrefillKeys} setPrefillKeys={setFratPrefillKeys}
-    onOpenDA={()=>setShowFRAT(false)} />;
+    onOpenDA={()=>{setShowFRAT(false);setMenuOpen(false);}} />;
 
   return (
     <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8",display:"flex",flexDirection:"column"}}>
