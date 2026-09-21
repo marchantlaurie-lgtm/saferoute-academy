@@ -1506,6 +1506,22 @@ function hrs90ToFratPoints(hrs) {
   return 3;
 }
 
+function buildOpsFratSeed(opsPrefill) {
+  const answers = {};
+  const keys = {};
+  if (opsPrefill?.person) {
+    answers["pilot_0"] = hrs90ToFratPoints(opsPrefill.person.hrs90);
+    keys["pilot_0"] = true;
+  }
+  if (opsPrefill?.aircraft) {
+    answers["aircraft_0"] = 0;
+    answers["aircraft_1"] = opsPrefill.aircraft.squawk ? 2 : 0;
+    keys["aircraft_0"] = true;
+    keys["aircraft_1"] = true;
+  }
+  return { answers, keys };
+}
+
 function AccountTypeScreen({ onSelect }) {
   return (
     <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
@@ -1661,19 +1677,19 @@ const FRAT_SECTIONS = [
     questions: [
       { q: "Flight time in the last 90 days", options: [
         ["More than 20 hours", 0], ["10–20 hours", 1], ["3–10 hours", 2], ["Less than 3 hours", 3],
-      ]},
+      ], mitigations: ["Fly with a CFI or suitably qualified instructor", "Complete a dual proficiency flight before the planned flight", "Simplify the route, conditions, or mission to match current experience"]},
       { q: "Hours of sleep last night", options: [
         ["8+ hours", 0], ["6–8 hours", 1], ["4–6 hours", 2], ["Less than 4 hours", 3],
-      ]},
+      ], mitigations: ["Delay departure and obtain adequate rest", "Reschedule or cancel the flight", "Remove the deadline and reassess fitness later"]},
       { q: "Time since your last flight", options: [
         ["Within 7 days", 0], ["7–14 days", 1], ["15–30 days", 2], ["More than 30 days", 3],
-      ]},
+      ], mitigations: ["Complete a proficiency flight with a CFI", "Conduct refresher training and pattern practice first", "Use a simpler aircraft, route, or set of conditions"]},
       { q: "Honest IMSAFE self-check", options: [
         ["Fit and well", 0], ["Minor stress or tiredness", 1], ["Notable stress, illness, or medication", 2], ["Would not fly if fully honest with myself", 3],
-      ]},
+      ], mitigations: ["Delay or cancel until genuinely fit to fly", "Seek appropriate aeromedical advice about illness or medication", "Remove the external pressure and reassess fitness honestly"]},
       { q: "Flight review / dual instruction currency", options: [
         ["Current, recent dual within 90 days", 0], ["Current, no recent dual", 1], ["Approaching currency limits", 2], ["Lapsed or unsure", 3],
-      ]},
+      ], mitigations: ["Confirm records and applicable currency requirements", "Complete the required review or dual instruction", "Fly with a CFI only under appropriate and lawful conditions"]},
     ],
   },
   {
@@ -1681,16 +1697,16 @@ const FRAT_SECTIONS = [
     questions: [
       { q: "Familiarity with this specific aircraft", options: [
         ["Very familiar, fly it regularly", 0], ["Familiar", 1], ["Limited recent experience", 2], ["New to me or rarely flown", 3],
-      ]},
+      ], mitigations: ["Choose an aircraft you know well", "Complete an aircraft checkout or dual familiarisation", "Simplify the flight while building type familiarity"]},
       { q: "Known squawks / inoperative equipment", options: [
         ["None", 0], ["Minor, doesn't affect this flight", 1], ["Some, relevant to this flight", 2], ["Significant — affects safety margins", 3],
-      ]},
+      ], mitigations: ["Have the defect corrected and the aircraft returned to service", "Select a different airworthy aircraft", "Confirm any deferral and operational effect with authorised maintenance or the operator"], nonReducingMitigations: ["Confirm any deferral and operational effect with authorised maintenance or the operator"]},
       { q: "Performance margin at departure/destination", link:{label:"→ Check current density altitude", action:"da"}, options: [
         ["Comfortable margin", 0], ["Adequate", 1], ["Tight", 2], ["Marginal or not yet checked", 3],
-      ]},
+      ], mitigations: ["Reduce weight or load within legal and safe limits", "Depart in cooler conditions", "Use a longer runway or more suitable airport", "Recalculate using the current POH/AFM data before deciding"]},
       { q: "Fuel reserve planning", options: [
         ["Beyond legal minimums", 0], ["Standard reserves", 1], ["Minimum legal reserves", 2], ["Tight, little margin", 3],
-      ]},
+      ], mitigations: ["Add fuel or plan an earlier fuel stop", "Shorten or change the route", "Delay until adequate fuel and reserves are assured"]},
     ],
   },
   {
@@ -1698,19 +1714,19 @@ const FRAT_SECTIONS = [
     questions: [
       { q: "Weather relative to your personal minimums", options: [
         ["Well above", 0], ["Above", 1], ["Close to minimums", 2], ["At or below", 3],
-      ]},
+      ], mitigations: ["Delay for forecast improvement", "Change the route or destination", "Cancel rather than exceed personal minimums", "Review the plan with a CFI or appropriately qualified pilot"], nonReducingMitigations: ["Review the plan with a CFI or appropriately qualified pilot"]},
       { q: "Forecast crosswind component", options: [
         ["Well within comfort", 0], ["Within limits", 1], ["Near personal limit", 2], ["At or near aircraft limit", 3],
-      ]},
+      ], mitigations: ["Use a more favourable runway or alternate airport", "Delay for lower wind", "Take dual instruction within safe and applicable limits"]},
       { q: "Airport familiarity", options: [
         ["Home base / very familiar", 0], ["Visited before", 1], ["New, but towered/well-served", 2], ["New, non-towered or complex", 3],
-      ]},
+      ], mitigations: ["Complete a detailed briefing using current airport information", "Fly with an instructor or pilot familiar with the airport", "Choose a simpler or familiar alternate airport"]},
       { q: "Terrain and airspace complexity", options: [
         ["Simple, flat, familiar", 0], ["Some complexity", 1], ["Significant terrain or airspace", 2], ["High terrain and complex/unfamiliar airspace", 3],
-      ]},
+      ], mitigations: ["Reroute to avoid the most complex terrain or airspace", "Operate in daylight and improved conditions", "Brief with a CFI or pilot with relevant local experience", "Choose a more suitable airport or route"], nonReducingMitigations: ["Brief with a CFI or pilot with relevant local experience"]},
       { q: "Timing", options: [
         ["Day, VMC throughout", 0], ["Some night or marginal VMC", 1], ["Night or IMC portions", 2], ["Night and weather concerns combined", 3],
-      ]},
+      ], mitigations: ["Delay for daylight or better weather", "Reroute to avoid combined night and weather exposure", "Review or conduct the flight with an appropriately qualified instructor"], nonReducingMitigations: ["Review or conduct the flight with an appropriately qualified instructor"]},
     ],
   },
   {
@@ -1718,30 +1734,79 @@ const FRAT_SECTIONS = [
     questions: [
       { q: "Schedule flexibility", options: [
         ["Fully flexible — can delay or cancel freely", 0], ["Some flexibility", 1], ["Limited flexibility", 2], ["Must complete as planned", 3],
-      ]},
+      ], mitigations: ["Set firm delay and cancellation criteria before departure", "Remove or reschedule the deadline", "Use alternative transportation"]},
       { q: "Passengers or others expecting this flight", options: [
         ["None, or very understanding", 0], ["Some expectation", 1], ["Firm expectation", 2], ["High-stakes event (wedding, work, etc.)", 3],
-      ]},
+      ], mitigations: ["Explain the no-go criteria and set expectations now", "Arrange alternative transportation", "Remove the passenger or event pressure from the flight decision"]},
       { q: "Financial pressure (rental cost, deposits, etc.)", options: [
         ["None", 0], ["Minor", 1], ["Moderate", 2], ["Significant", 3],
-      ]},
+      ], mitigations: ["Treat fees or deposits as a sunk cost", "Confirm cancellation or rebooking options", "Set aside a contingency so cost cannot drive the decision"]},
       { q: "Alternative transportation if you don't fly", options: [
         ["Yes, easy", 0], ["Yes, with some effort", 1], ["Difficult", 2], ["None", 3],
-      ]},
+      ], mitigations: ["Arrange ground or commercial transportation", "Arrange lodging and reschedule", "Create a realistic non-flying fallback before departure"]},
     ],
   },
 ];
 
 const FRAT_MAX = FRAT_SECTIONS.reduce((sum, s) => sum + s.questions.length * 3, 0);
+const FRAT_MATERIAL_SCORE = 2;
+const FRAT_RETAIN_CONTROL = "No effective control identified — retain the current risk and seek further review";
+const FRAT_QUESTION_ENTRIES = FRAT_SECTIONS.flatMap(section =>
+  section.questions.map((question, index) => ({
+    key: `${section.id}_${index}`,
+    section,
+    question,
+  }))
+);
 
 function fratRiskLevel(score) {
   const pct = score / FRAT_MAX;
-  if (pct <= 0.33) return { level: "GREEN", color: "#00C896", label: "Cleared for lift-off",
-    detail: "Comfortably in the low-risk range. A FRAT doesn't make the go/no-go decision for you — identify whatever scored highest and consider whether it still needs mitigating, especially near the top of this range." };
-  if (pct <= 0.59) return { level: "YELLOW", color: "#FFD700", label: "Mitigate before deciding",
-    detail: "Work through the highest-scoring items specifically — delaying for weather, choosing a more familiar aircraft, or talking it through with a CFI or FAASTeam rep are all legitimate ways to bring this down before committing to go." };
-  return { level: "RED", color: "#FF3B3B", label: "Seriously consider no-go",
-    detail: "This flight is carrying significant accumulated risk. Unless the highest-scoring items can be genuinely and specifically mitigated, the FAA's own guidance here is direct: strongly consider cancelling rather than letting external pressure make the decision for you." };
+  if (pct <= 0.33) return { level: "GREEN", color: "#00C896", label: "Lower accumulated risk",
+    review: "Complete the normal PIC / CFI review",
+    detail: "The combined score is in the lower range, but it is not a clearance to fly. Review the highest individual factors, current conditions, and any limits that a simple score cannot capture." };
+  if (pct <= 0.59) return { level: "YELLOW", color: "#FFD700", label: "Further review recommended",
+    review: "Resolve or review the remaining material factors",
+    detail: "Material risk remains. Work through the highest-scoring factors, apply specific controls where they genuinely change the situation, and involve a CFI or operator when appropriate before making the flight decision." };
+  return { level: "RED", color: "#FF3B3B", label: "Further review strongly recommended",
+    review: "Do not let schedule or cost pressure drive the decision",
+    detail: "The assessment still contains substantial accumulated risk. Delay, cancel, or obtain appropriate CFI / operator review unless effective controls genuinely change the conditions; the score itself never authorises the flight." };
+}
+
+function fratAnswerLabel(question, value) {
+  return question.options.find(([, points]) => points === value)?.[0] || "Not answered";
+}
+
+function hasRecordedControl(control) {
+  return !!control && (control.actions?.length > 0 || control.note?.trim());
+}
+
+function canControlReduce(question, control) {
+  return !!control?.note?.trim() || !!control?.actions?.some(action =>
+    action !== FRAT_RETAIN_CONTROL && !question.nonReducingMitigations?.includes(action)
+  );
+}
+
+function FRATFlow({ stage }) {
+  const steps = [
+    ["assessment", "1", "INITIAL RISK"],
+    ["controls", "2", "RISK CONTROLS"],
+    ["review", "3", "RESIDUAL RISK"],
+  ];
+  const activeIndex = steps.findIndex(([id]) => id === stage);
+  return (
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:7,marginBottom:18}}>
+      {steps.map(([id, number, label], index) => {
+        const active = id === stage;
+        const complete = index < activeIndex;
+        return (
+          <div key={id} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 9px",borderRadius:7,background:active?"rgba(0,180,255,0.13)":complete?"rgba(0,200,150,0.08)":"rgba(255,255,255,0.03)",border:`1px solid ${active?"rgba(0,180,255,0.45)":complete?"rgba(0,200,150,0.25)":"rgba(255,255,255,0.08)"}`}}>
+            <span style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",color:active?"#050D18":complete?"#00C896":"#667788",background:active?"#00B4FF":complete?"rgba(0,200,150,0.12)":"rgba(255,255,255,0.05)"}}>{complete?"✓":number}</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:"0.06em",color:active?"#FFFFFF":complete?"#00C896":"#667788"}}>{label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function FRATQuestion({ q, options, value, onChange, color, isPrefilled, link, onLinkClick }) {
@@ -1788,9 +1853,10 @@ function FRATSection({ section, answers, onAnswer, prefillKeys, onLinkClick }) {
   );
 }
 
-function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score, reset }) {
+function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score, reset, title="ASSESSMENT STATUS", onContinue }) {
   return (
     <div style={{background:risk?`${risk.color}15`:"rgba(255,255,255,0.03)",border:`1px solid ${risk?risk.color:"rgba(255,255,255,0.1)"}55`,borderRadius:10,padding:"16px 18px",marginBottom:20}}>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:risk?.color||"#556677",letterSpacing:"0.12em",marginBottom:9}}>{title}</div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:allAnswered?10:0}}>
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#8899AA",letterSpacing:"0.08em"}}>PROGRESS: {answeredCount}/{totalQuestions} ANSWERED</div>
         {allAnswered && <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:risk.color,fontWeight:"bold"}}>SCORE {score}/{FRAT_MAX}</div>}
@@ -1807,27 +1873,211 @@ function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score,
             <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.08em",color:risk.color}}>{risk.level} — {risk.label}</div>
           </div>
           <div style={{fontSize:11.5,color:"#B0BCC8",lineHeight:1.6}}>{risk.detail}</div>
-          <button onClick={reset} style={{marginTop:12,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 12px",color:"#8899AA",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>↺ RESET</button>
+          {onContinue && <button onClick={onContinue} style={{width:"100%",marginTop:14,background:"linear-gradient(135deg,#00B4FF,#008FE0)",border:"none",borderRadius:7,padding:"11px 14px",color:"#04101C",cursor:"pointer",fontSize:11,fontWeight:"bold",fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em"}}>CONTINUE TO RISK CONTROLS →</button>}
         </>
       )}
+      {reset && <button onClick={reset} style={{marginTop:12,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 12px",color:"#8899AA",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>↺ START OVER</button>}
     </div>
   );
 }
 
-function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefillKeys, setPrefillKeys }) {
+function MitigationCard({ factor, initialPoints, control, residualValue, onToggleAction, onNoteChange, onResidualChange }) {
+  const { section, question } = factor;
+  const actions = control?.actions || [];
+  const note = control?.note || "";
+  const recorded = hasRecordedControl(control);
+  const canReduce = canControlReduce(question, control);
+  const choices = [...question.mitigations, FRAT_RETAIN_CONTROL];
+  return (
+    <div style={{background:"rgba(255,255,255,0.025)",border:`1px solid ${section.color}33`,borderRadius:10,padding:"17px 18px",marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",marginBottom:12}}>
+        <div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:section.color,letterSpacing:"0.12em",marginBottom:5}}>{section.icon} {section.title}</div>
+          <div style={{fontSize:13,color:"#FFFFFF",fontWeight:600,lineHeight:1.4}}>{question.q}</div>
+          <div style={{fontSize:10.5,color:"#8899AA",marginTop:4,lineHeight:1.5}}>Initial: {fratAnswerLabel(question, initialPoints)}</div>
+        </div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:initialPoints===3?"#FF6B6B":"#FFD700",border:`1px solid ${initialPoints===3?"rgba(255,59,59,0.35)":"rgba(255,215,0,0.3)"}`,background:initialPoints===3?"rgba(255,59,59,0.09)":"rgba(255,215,0,0.07)",borderRadius:5,padding:"4px 7px",flexShrink:0}}>+{initialPoints}</div>
+      </div>
+
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#AAB8C6",letterSpacing:"0.08em",marginBottom:8}}>SELECT ONE OR MORE REAL CONTROLS</div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {choices.map(action => {
+          const selected = actions.includes(action);
+          const retain = action === FRAT_RETAIN_CONTROL;
+          return (
+            <button key={action} onClick={()=>onToggleAction(action)} style={{display:"flex",alignItems:"flex-start",gap:9,textAlign:"left",background:selected?(retain?"rgba(255,215,0,0.09)":`${section.color}18`):"rgba(255,255,255,0.025)",border:`1px solid ${selected?(retain?"rgba(255,215,0,0.35)":section.color):"rgba(255,255,255,0.08)"}`,borderRadius:7,padding:"9px 11px",color:selected?"#FFFFFF":"#8899AA",fontSize:11,cursor:"pointer",lineHeight:1.45}}>
+              <span style={{width:15,height:15,borderRadius:3,border:`1px solid ${selected?(retain?"#FFD700":section.color):"#556677"}`,background:selected?(retain?"#FFD700":section.color):"transparent",color:"#05101A",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:"bold",flexShrink:0,marginTop:1}}>{selected?"✓":""}</span>
+              <span>{action}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <label style={{display:"block",fontFamily:"'DM Mono',monospace",fontSize:9,color:"#AAB8C6",letterSpacing:"0.08em",margin:"13px 0 6px"}}>CONTROL NOTES / CUSTOM MITIGATION</label>
+      <textarea value={note} onChange={event=>onNoteChange(event.target.value)} placeholder="Record what will actually change before the flight…" rows={3} style={{width:"100%",resize:"vertical",background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"9px 10px",color:"#FFFFFF",fontFamily:"'Inter',sans-serif",fontSize:11.5,lineHeight:1.5,outline:"none"}}/>
+
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#AAB8C6",letterSpacing:"0.08em",margin:"14px 0 4px"}}>REASSESS AFTER THE CONTROL IS ACTUALLY APPLIED</div>
+      <div style={{fontSize:10,color:"#667788",lineHeight:1.5,marginBottom:8}}>Choose the condition that will genuinely exist after mitigation. Selecting a control does not automatically reduce the score.</div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {question.options.map(([label, points]) => {
+          const reductionBlocked = points < initialPoints && !canReduce;
+          const disabled = !recorded || reductionBlocked;
+          return (
+            <button key={points} disabled={disabled} onClick={()=>onResidualChange(points)} style={{display:"flex",justifyContent:"space-between",gap:10,textAlign:"left",background:residualValue===points?`${section.color}20`:"rgba(255,255,255,0.025)",border:`1px solid ${residualValue===points?section.color:"rgba(255,255,255,0.08)"}`,borderRadius:7,padding:"8px 10px",color:disabled?"#3F4D5A":residualValue===points?"#FFFFFF":"#8899AA",fontSize:11,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.65:1}}>
+              <span>{label}</span><span style={{fontFamily:"'DM Mono',monospace",fontSize:9,flexShrink:0}}>+{points}</span>
+            </button>
+          );
+        })}
+      </div>
+      {!recorded && <div style={{fontSize:10,color:"#FFD700",marginTop:8,lineHeight:1.5}}>Record a control (or state that none is effective) before entering the residual assessment.</div>}
+      {recorded && !canReduce && <div style={{fontSize:10,color:"#FFD700",marginTop:8,lineHeight:1.5}}>This selection supports review but does not change the underlying factor on its own, so it cannot reduce this factor's residual score.</div>}
+    </div>
+  );
+}
+
+function FRATComparison({ initialScore, residualScore, initialRisk, residualRisk }) {
+  const delta = residualScore - initialScore;
+  const resultCards = [
+    ["INITIAL RISK", initialScore, initialRisk],
+    ["RESIDUAL RISK", residualScore, residualRisk],
+  ];
+  return (
+    <div style={{marginBottom:18}}>
+      <div style={{display:"flex",alignItems:"stretch",gap:9,flexWrap:"wrap"}}>
+        {resultCards.map(([title, score, risk], index) => (
+          <div key={title} style={{flex:"1 1 210px",background:`${risk.color}12`,border:`1px solid ${risk.color}55`,borderRadius:9,padding:"14px 15px"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#8899AA",letterSpacing:"0.12em",marginBottom:7}}>{title}</div>
+            <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",gap:8}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:23,color:risk.color,letterSpacing:"0.08em"}}>{risk.level}</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:risk.color}}>{score}/{FRAT_MAX}</div>
+            </div>
+            <div style={{fontSize:10.5,color:"#B0BCC8",marginTop:3}}>{risk.label}</div>
+            {index===1 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:delta<0?"#00C896":delta>0?"#FF6B6B":"#8899AA",marginTop:8}}>{delta<0?`−${Math.abs(delta)} points after controls`:delta>0?`+${delta} points after reassessment`:"No score change"}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FRATFinalReview({ materialFactors, initialAnswers, controls, residualAnswers, initialScore, residualScore, onBackToControls, onEditInitial, onReset }) {
+  const initialRisk = fratRiskLevel(initialScore);
+  const residualRisk = fratRiskLevel(residualScore);
+  return (
+    <>
+      <div style={{background:`${residualRisk.color}10`,border:`1px solid ${residualRisk.color}55`,borderRadius:10,padding:"17px 18px",marginBottom:16}}>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:residualRisk.color,letterSpacing:"0.12em",marginBottom:7}}>FINAL RISK REVIEW</div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,letterSpacing:"0.08em",color:residualRisk.color,marginBottom:5}}>{residualRisk.label}</div>
+        <div style={{fontSize:12,color:"#D0DCE8",lineHeight:1.65}}>{residualRisk.detail}</div>
+        <div style={{fontSize:10.5,color:residualRisk.color,fontWeight:600,marginTop:9}}>{residualRisk.review}</div>
+      </div>
+      <FRATComparison initialScore={initialScore} residualScore={residualScore} initialRisk={initialRisk} residualRisk={residualRisk}/>
+
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#8899AA",letterSpacing:"0.1em",margin:"20px 0 9px"}}>CONTROL RECORD</div>
+      {materialFactors.length===0 && <div style={{background:"rgba(0,200,150,0.06)",border:"1px solid rgba(0,200,150,0.2)",borderRadius:8,padding:"12px 13px",fontSize:11,color:"#A9C8BE",lineHeight:1.6,marginBottom:14}}>No individual factor scored 2 or 3, so no material-factor control was generated. The residual score remains the same; normal pre-flight review still applies.</div>}
+      {materialFactors.map(factor => {
+        const initialValue = initialAnswers[factor.key];
+        const residualValue = residualAnswers[factor.key] ?? initialValue;
+        const control = controls[factor.key] || { actions: [], note: "" };
+        return (
+          <div key={factor.key} style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"13px 14px",marginBottom:9}}>
+            <div style={{fontSize:12,color:"#FFFFFF",fontWeight:600,marginBottom:7}}>{factor.question.q}</div>
+            <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto minmax(0,1fr)",gap:8,alignItems:"center",fontSize:10.5}}>
+              <div style={{color:"#8899AA"}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#556677"}}>INITIAL</span><br/>{fratAnswerLabel(factor.question, initialValue)} <span style={{color:"#FFD700"}}>+{initialValue}</span></div>
+              <div style={{color:"#556677"}}>→</div>
+              <div style={{color:"#D0DCE8"}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#556677"}}>RESIDUAL</span><br/>{fratAnswerLabel(factor.question, residualValue)} <span style={{color:residualValue<initialValue?"#00C896":residualValue>initialValue?"#FF6B6B":"#FFD700"}}>+{residualValue}</span></div>
+            </div>
+            <div style={{marginTop:9,paddingTop:8,borderTop:"1px solid rgba(255,255,255,0.06)",fontSize:10.5,color:"#8FA1B2",lineHeight:1.55}}>
+              <b style={{color:"#B9C7D4"}}>Controls:</b> {control.actions.join("; ") || "Custom control recorded"}{control.note?.trim() && <><br/><b style={{color:"#B9C7D4"}}>Notes:</b> {control.note.trim()}</>}
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:18}}>
+        <button onClick={onBackToControls} style={{flex:"1 1 170px",background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,padding:"10px 12px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>← EDIT CONTROLS</button>
+        <button onClick={onEditInitial} style={{flex:"1 1 170px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"#AAB8C6",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>EDIT INITIAL ASSESSMENT</button>
+        <button onClick={onReset} style={{flex:"1 1 120px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"10px 12px",color:"#778899",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>↺ START OVER</button>
+      </div>
+    </>
+  );
+}
+
+function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefillKeys, setPrefillKeys, initialAnswers, setInitialAnswers, controls, setControls, residualAnswers, setResidualAnswers, reviewComplete, setReviewComplete }) {
   const totalQuestions = FRAT_SECTIONS.reduce((sum,s)=>sum+s.questions.length,0);
   const answeredCount = Object.keys(answers).length;
   const score = Object.values(answers).reduce((sum,v)=>sum+v,0);
   const allAnswered = answeredCount === totalQuestions;
   const risk = allAnswered ? fratRiskLevel(score) : null;
+  const stage = initialAnswers ? (reviewComplete ? "review" : "controls") : "assessment";
+  const initialScore = initialAnswers ? Object.values(initialAnswers).reduce((sum,value)=>sum+value,0) : 0;
+  const materialFactors = initialAnswers ? FRAT_QUESTION_ENTRIES.filter(({key}) => initialAnswers[key] >= FRAT_MATERIAL_SCORE) : [];
+  const residualScore = initialAnswers ? FRAT_QUESTION_ENTRIES.reduce((sum,{key}) => sum + (residualAnswers[key] ?? initialAnswers[key]), 0) : 0;
+  const completedControls = materialFactors.filter(({key}) => hasRecordedControl(controls[key]) && Object.prototype.hasOwnProperty.call(residualAnswers,key)).length;
+  const allControlsComplete = !!initialAnswers && completedControls === materialFactors.length;
 
   function onAnswer(key, pts) {
     setAnswers(prev => ({ ...prev, [key]: pts }));
     setPrefillKeys(prev => { const next = {...prev}; delete next[key]; return next; }); // user override clears the auto-fill tag
   }
   function reset() {
-    setAnswers({});
-    setPrefillKeys({});
+    const seed = buildOpsFratSeed(opsPrefill);
+    setAnswers(seed.answers);
+    setPrefillKeys(seed.keys);
+    setInitialAnswers(null);
+    setControls({});
+    setResidualAnswers({});
+    setReviewComplete(false);
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function beginControls() {
+    if (!allAnswered) return;
+    setInitialAnswers({...answers});
+    setControls({});
+    setResidualAnswers({});
+    setReviewComplete(false);
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function editInitial() {
+    setInitialAnswers(null);
+    setControls({});
+    setResidualAnswers({});
+    setReviewComplete(false);
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function toggleAction(key, action) {
+    const current = controls[key] || { actions: [], note: "" };
+    let nextActions;
+    if (action === FRAT_RETAIN_CONTROL) {
+      nextActions = current.actions.includes(action) ? [] : [FRAT_RETAIN_CONTROL];
+    } else {
+      const withoutRetain = current.actions.filter(item => item !== FRAT_RETAIN_CONTROL);
+      nextActions = withoutRetain.includes(action) ? withoutRetain.filter(item => item !== action) : [...withoutRetain, action];
+    }
+    const nextControl = {...current,actions:nextActions};
+    const question = FRAT_QUESTION_ENTRIES.find(entry => entry.key===key)?.question;
+    setControls(prev => ({...prev,[key]:nextControl}));
+    if (!hasRecordedControl(nextControl)) {
+      setResidualAnswers(prev => { const next = {...prev}; delete next[key]; return next; });
+    } else if (question && !canControlReduce(question,nextControl)) {
+      setResidualAnswers(prev => ({...prev,[key]:initialAnswers[key]}));
+    }
+    setReviewComplete(false);
+  }
+  function setControlNote(key, note) {
+    const nextControl = {actions:controls[key]?.actions||[],note};
+    const question = FRAT_QUESTION_ENTRIES.find(entry => entry.key===key)?.question;
+    setControls(prev => ({...prev,[key]:nextControl}));
+    if (!hasRecordedControl(nextControl)) {
+      setResidualAnswers(prev => { const next = {...prev}; delete next[key]; return next; });
+    } else if (question && !canControlReduce(question,nextControl)) {
+      setResidualAnswers(prev => ({...prev,[key]:initialAnswers[key]}));
+    }
+    setReviewComplete(false);
+  }
+  function setResidualAnswer(key, value) {
+    setResidualAnswers(prev => ({...prev,[key]:value}));
+    setReviewComplete(false);
   }
 
   return (
@@ -1838,24 +2088,43 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"#FFFFFF",marginLeft:6}}>🛡 FLIGHT RISK ASSESSMENT</div>
       </div>
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <div style={{fontSize:12,color:"#8899AA",marginBottom:16,lineHeight:1.6}}>Structured around the FAA's PAVE checklist (Pilot, Aircraft, enVironment, External pressures) — the same framework behind the FAA Safety Team's own FRAT. Answer every question for a risk category; this doesn't make the go/no-go decision for you.</div>
+        <FRATFlow stage={stage}/>
+        <div style={{fontSize:12,color:"#8899AA",marginBottom:16,lineHeight:1.6}}>Structured around the FAA's PAVE checklist (Pilot, Aircraft, enVironment, External pressures). The workflow records initial risk, specific controls, and residual risk; it supports the PIC / CFI decision and never makes the go/no-go decision.</div>
 
-        {opsPrefill && (opsPrefill.person || opsPrefill.aircraft) && (
+        {stage==="assessment" && opsPrefill && (opsPrefill.person || opsPrefill.aircraft) && (
           <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"11px 13px",fontSize:11,color:"#FFD700",lineHeight:1.6,marginBottom:16}}>
             🔗 <b>{opsPrefill.person?.name}{opsPrefill.person && opsPrefill.aircraft ? " / " : ""}{opsPrefill.aircraft?.tail}</b> — {Object.keys(prefillKeys).length} answer{Object.keys(prefillKeys).length===1?"":"s"} below auto-filled from the (simulated) ops system. Anything you change yourself overrides it.
           </div>
         )}
 
-        <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset} />
+        {stage==="assessment" && <>
+          <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset}/>
+          {FRAT_SECTIONS.map(section=>(
+            <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} prefillKeys={prefillKeys} onLinkClick={(action)=>{ if(action==="da") onOpenDA?.(); }} />
+          ))}
+          <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset} title="INITIAL RISK RESULT" onContinue={allAnswered?beginControls:null}/>
+        </>}
 
-        {FRAT_SECTIONS.map(section=>(
-          <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} prefillKeys={prefillKeys} onLinkClick={(action)=>{ if(action==="da") onOpenDA?.(); }} />
-        ))}
+        {stage==="controls" && <>
+          <FRATScoreBox answeredCount={totalQuestions} totalQuestions={totalQuestions} allAnswered risk={fratRiskLevel(initialScore)} score={initialScore} title="INITIAL ASSESSMENT — LOCKED"/>
+          <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"12px 13px",fontSize:11,color:"#9DB2C5",lineHeight:1.6,marginBottom:16}}>
+            <b style={{color:"#D0E2F2"}}>{materialFactors.length} material factor{materialFactors.length===1?"":"s"}</b> scored 2 or 3. Record a real control and then reassess the condition that will exist after that control is applied. Initial answers stay locked for comparison.
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#8899AA",letterSpacing:"0.1em"}}>CONTROL PROGRESS {completedControls}/{materialFactors.length}</div>
+            <button onClick={editInitial} style={{background:"none",border:"none",padding:0,color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:9,cursor:"pointer",textDecoration:"underline"}}>EDIT INITIAL ANSWERS</button>
+          </div>
+          {materialFactors.length===0 && <div style={{background:"rgba(0,200,150,0.06)",border:"1px solid rgba(0,200,150,0.2)",borderRadius:8,padding:"13px",fontSize:11,color:"#A9C8BE",lineHeight:1.6,marginBottom:14}}>No individual answer scored 2 or 3. There are no generated material-factor controls, but the final review will still preserve the initial and residual result.</div>}
+          {materialFactors.map(factor=><MitigationCard key={factor.key} factor={factor} initialPoints={initialAnswers[factor.key]} control={controls[factor.key]} residualValue={residualAnswers[factor.key]} onToggleAction={action=>toggleAction(factor.key,action)} onNoteChange={note=>setControlNote(factor.key,note)} onResidualChange={value=>setResidualAnswer(factor.key,value)}/>)}
+          <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,padding:"14px 15px",marginTop:18}}>
+            <div style={{fontSize:10.5,color:"#8899AA",lineHeight:1.55,marginBottom:10}}>{allControlsComplete?"Every material factor has a recorded control and residual assessment.":`Complete ${materialFactors.length-completedControls} remaining factor${materialFactors.length-completedControls===1?"":"s"} to produce the final comparison.`}</div>
+            <button disabled={!allControlsComplete} onClick={()=>{setReviewComplete(true);window.scrollTo({top:0,behavior:"smooth"});}} style={{width:"100%",background:allControlsComplete?"linear-gradient(135deg,#00C896,#00A879)":"rgba(255,255,255,0.06)",border:"none",borderRadius:7,padding:"11px 14px",color:allControlsComplete?"#04120E":"#556677",cursor:allControlsComplete?"pointer":"not-allowed",fontSize:11,fontWeight:"bold",fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em"}}>VIEW INITIAL → RESIDUAL SUMMARY →</button>
+          </div>
+        </>}
 
-        <div style={{fontSize:10,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:8,textAlign:"center"}}>YOUR RESULT</div>
-        <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset} />
+        {stage==="review" && <FRATFinalReview materialFactors={materialFactors} initialAnswers={initialAnswers} controls={controls} residualAnswers={residualAnswers} initialScore={initialScore} residualScore={residualScore} onBackToControls={()=>{setReviewComplete(false);window.scrollTo({top:0,behavior:"smooth"});}} onEditInitial={editInitial} onReset={reset}/>}
 
-        <div style={{fontSize:9,color:"#334455",fontFamily:"'DM Mono',monospace",marginTop:20,lineHeight:1.6}}>Educational risk-awareness tool, structured around the FAA's real PAVE framework — not a substitute for your own judgement, your instructor's assessment, or your operator's formal risk management process. See faa.gov/general/flight-risk-assessment-tool-frat-faa-safety-team for the FAA Safety Team's own tool.</div>
+        <div style={{fontSize:9,color:"#46596A",fontFamily:"'DM Mono',monospace",marginTop:22,lineHeight:1.65}}>Educational risk-awareness and decision-support tool — not an FAA-approved SMS, not a determination of airworthiness, and not a substitute for the PIC's judgement, a CFI's assessment, official weather and flight-planning information, or an operator's formal risk-management process. <a href="https://www.faa.gov/general/flight-risk-assessment-tool-frat-faa-safety-team" target="_blank" rel="noreferrer" style={{color:"#5D829E"}}>FAA Safety Team FRAT guidance</a>.</div>
       </div>
     </div>
   );
@@ -2030,6 +2299,10 @@ export default function App() {
   const [showOpsDashboard,setShowOpsDashboard] = useState(false);
   const [fratAnswers,setFratAnswers] = useState({});
   const [fratPrefillKeys,setFratPrefillKeys] = useState({});
+  const [fratInitialAnswers,setFratInitialAnswers] = useState(null);
+  const [fratControls,setFratControls] = useState({});
+  const [fratResidualAnswers,setFratResidualAnswers] = useState({});
+  const [fratReviewComplete,setFratReviewComplete] = useState(false);
   const [suggestions,setSuggestions] = useState([]);
   const [phase,setPhase] = useState("all");
   const [expanded,setExpanded] = useState({});
@@ -2236,13 +2509,9 @@ export default function App() {
   if (accountType === "flightschool" && opsLoggedIn && showOpsDashboard) return <OpsDashboardScreen orgName={orgName}
     onStartBriefing={(person,aircraft)=>{
       setOpsPrefill({person,aircraft});
-      const seedAnswers = {}, seedKeys = {};
-      if (person) { seedAnswers["pilot_0"] = hrs90ToFratPoints(person.hrs90); seedKeys["pilot_0"] = true; }
-      if (aircraft) {
-        seedAnswers["aircraft_0"] = 0; seedKeys["aircraft_0"] = true; // assigned school aircraft — treated as familiar
-        seedAnswers["aircraft_1"] = aircraft.squawk ? 2 : 0; seedKeys["aircraft_1"] = true;
-      }
-      setFratAnswers(seedAnswers); setFratPrefillKeys(seedKeys);
+      const seed = buildOpsFratSeed({person,aircraft});
+      setFratAnswers(seed.answers); setFratPrefillKeys(seed.keys);
+      setFratInitialAnswers(null); setFratControls({}); setFratResidualAnswers({}); setFratReviewComplete(false);
       setShowOpsDashboard(false);setShowWelcome(false);setShowFRAT(true);
     }}
     onContinueToApp={()=>setShowOpsDashboard(false)}
@@ -2254,6 +2523,10 @@ export default function App() {
     opsPrefill={opsPrefill}
     answers={fratAnswers} setAnswers={setFratAnswers}
     prefillKeys={fratPrefillKeys} setPrefillKeys={setFratPrefillKeys}
+    initialAnswers={fratInitialAnswers} setInitialAnswers={setFratInitialAnswers}
+    controls={fratControls} setControls={setFratControls}
+    residualAnswers={fratResidualAnswers} setResidualAnswers={setFratResidualAnswers}
+    reviewComplete={fratReviewComplete} setReviewComplete={setFratReviewComplete}
     onOpenDA={()=>{setShowFRAT(false);setMenuOpen(false);}} />;
 
   return (
