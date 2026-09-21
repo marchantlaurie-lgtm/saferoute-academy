@@ -1362,7 +1362,7 @@ function MapWidget({ airfield, icao }) {
         <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>🗺 WEATHER MAP</div>
         {currentFrameTime && <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#8899AA"}}>{currentFrameTime}</span>}
       </div>
-      <div ref={mapContainerRef} style={{height:280,width:"100%",borderRadius:8,overflow:"hidden",position:"relative"}}/>
+      <div ref={mapContainerRef} style={{height:280,width:"100%",borderRadius:8,overflow:"hidden",position:"relative",zIndex:0}}/>
       <div style={{fontSize:9,color:"#556677",marginTop:6}}>Click the map to enable scroll-wheel zoom. Capped at zoom 12 (RainViewer radar tile limit).</div>
       {loadError && <div style={{fontSize:10,color:"#FF8C00",marginTop:8}}>{loadError}</div>}
       {!loadError && frames.length>0 && (
@@ -2549,9 +2549,9 @@ export default function App() {
       </div>
       <div style={{flex:1,display:"flex",overflow:"hidden",height:"calc(100vh - 56px)"}}>
         {isDesktop?<div style={{width:270,flexShrink:0,overflow:"auto",borderRight:"1px solid rgba(255,255,255,0.06)"}}>{sidebar}</div>:menuOpen&&(
-          <div style={{position:"fixed",inset:0,zIndex:200,display:"flex"}}>
-            <div onClick={()=>setMenuOpen(false)} style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)"}}/>
-            <div style={{position:"relative",width:280,height:"100%",overflow:"auto",borderRight:"1px solid rgba(0,180,255,0.2)"}}>{sidebar}</div>
+          <div style={{position:"fixed",inset:0,zIndex:3000,display:"flex",isolation:"isolate"}}>
+            <div onClick={()=>setMenuOpen(false)} style={{position:"absolute",inset:0,zIndex:0,background:"rgba(0,0,0,0.7)"}}/>
+            <div style={{position:"relative",zIndex:1,width:280,height:"100%",overflow:"auto",background:"#06101C",borderRight:"1px solid rgba(0,180,255,0.2)",boxShadow:"12px 0 30px rgba(0,0,0,0.55)"}}>{sidebar}</div>
           </div>
         )}
         <div style={{flex:1,overflow:"auto",padding:isMobile?"12px 12px 80px":"18px 22px"}}>

@@ -126,7 +126,7 @@ export function UkWeatherMap({ centerLat, centerLon, zoom = 7, airfieldLabel }) 
 
   return (
     <div className="uk-weather-map">
-      <div ref={mapContainerRef} style={{ height: 320, width: '100%', borderRadius: 8 }} />
+      <div ref={mapContainerRef} style={{ height: 320, width: '100%', borderRadius: 8, overflow: 'hidden', position: 'relative', zIndex: 0 }} />
 
       {loadError && (
         <p className="uk-weather-map__error">{loadError}</p>
