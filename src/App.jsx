@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import {
+  interpretMetarShort,
+  parseMetarAltimeter,
+  parseMetarDewpoint,
+  parseMetarTemp,
+  parsePeriodSummary,
+  parseTAFPeriods,
+} from "./lib/aviation-weather.js";
+import { canControlReduce, FRAT_RETAIN_CONTROL, hasRecordedControl } from "./lib/frat-controls.js";
 
 const BACKEND = "https://saferoute-backend-production.up.railway.app";
 
@@ -12,31 +20,6 @@ async function fetchLiveWeather(icao) {
   } catch { return null; }
 }
 
-function parseMetarTemp(metar) {
-  if (!metar) return null;
-  const m = metar.match(/\s(M?\d{2})\/(M?\d{2})\s/);
-  if (!m) return null;
-  const t = m[1];
-  return t.startsWith("M") ? -parseInt(t.slice(1)) : parseInt(t);
-}
-function parseMetarAltimeter(metar) {
-  if (!metar) return 29.92;
-  const m = metar.match(/A(\d{4})/);
-  return m ? parseInt(m[1]) / 100 : 29.92;
-}
-function parseMetarDewpoint(metar) {
-  if (!metar) return null;
-  const m = metar.match(/\s(M?\d{2})\/(M?\d{2})\s/);
-  if (!m) return null;
-  const d = m[2];
-  return d.startsWith("M") ? -parseInt(d.slice(1)) : parseInt(d);
-}
-function parseMetarWind(metar) {
-  if (!metar) return null;
-  const m = metar.match(/(\d{3}|VRB)(\d{2,3})(G(\d{2,3}))?KT/);
-  if (!m) return null;
-  return { dir:m[1], spd:parseInt(m[2]), gust:m[4]?parseInt(m[4]):null };
-}
 function parseTAFThreats(tafs) {
   if (!tafs || !tafs.length) return [];
   const taf = tafs[0] || "";
@@ -49,81 +32,18 @@ function parseTAFThreats(tafs) {
   return threats;
 }
 
-// ── TAF parser ────────────────────────────────────────────────────────────
-function parseTAFPeriods(tafRaw) {
-  if (!tafRaw) return [];
-  const lines = tafRaw.replace(/\n/g," ").replace(/\s+/g," ").trim();
-  // Split on period-type keywords
-  const periodRegex = /(BECMG|TEMPO|PROB\d+\s*TEMPO|PROB\d+|FM\d{6}|FROM\s+\d)/g;
-  const parts = lines.split(periodRegex).filter(Boolean);
-  const periods = [];
-  let i = 0;
-  // First chunk is the base forecast
-  const base = parts[0];
-  if (base) periods.push({ type:"BASE", raw: base.trim() });
-  i = 1;
-  while (i < parts.length) {
-    const keyword = parts[i]?.trim();
-    const body = parts[i+1]?.trim() || "";
-    if (keyword) {
-      const type = keyword.startsWith("BECMG") ? "BECMG"
-        : keyword.startsWith("TEMPO") ? "TEMPO"
-        : keyword.startsWith("PROB") && keyword.includes("TEMPO") ? "PROB TEMPO"
-        : keyword.startsWith("PROB") ? "PROB"
-        : keyword.startsWith("FM") || keyword.startsWith("FROM") ? "FROM"
-        : "PERIOD";
-      periods.push({ type, keyword, raw: body });
-    }
-    i += 2;
-  }
-  return periods;
-}
-
-function parsePeriodSummary(raw) {
-  if (!raw) return "—";
-  const parts = [];
-  const wind = raw.match(/(\d{3}|VRB)(\d{2,3})(G(\d{2,3}))?KT/);
-  if (wind) parts.push(`Wind ${wind[1]==="VRB"?"VRB":wind[1]+"°"} ${wind[2]}kt${wind[4]?" G"+wind[4]+"kt":""}`);
-  if (/CAVOK/.test(raw)) parts.push("CAVOK");
-  else {
-    if (/\bTS\b|\bTSRA\b/.test(raw)) parts.push("⛈ Thunderstorm");
-    if (/\bRA\b/.test(raw)) parts.push("Rain");
-    if (/\bSN\b/.test(raw)) parts.push("Snow");
-    if (/\bFG\b/.test(raw)) parts.push("Fog");
-    if (/\bBR\b/.test(raw)) parts.push("Mist");
-    const clouds = [...raw.matchAll(/(FEW|SCT|BKN|OVC)(\d{3})/g)];
-    if (clouds.length) parts.push(clouds.map(c=>`${c[1]} ${parseInt(c[2])*100}ft`).join(", "));
-    const vis = raw.match(/\b(\d{4})\b/);
-    if (vis && parseInt(vis[1]) < 9999) parts.push(`Vis ${vis[1]}m`);
-  }
-  if (raw.match(/\bCB\b/)) parts.push("⚠ CB");
-  return parts.join(" · ") || raw.slice(0,60);
-}
-
-function interpretMetarShort(metar) {
-  if (!metar) return "No data";
-  const out = [];
-  const wind = parseMetarWind(metar);
-  if (wind) out.push(`${wind.dir==="VRB"?"VRB":wind.dir+"°"} ${wind.spd}kt${wind.gust?` G${wind.gust}kt`:""}`);
-  if (metar.includes("CAVOK")) out.push("CAVOK");
-  else {
-    if (/TSRA|\+TS/.test(metar)) out.push("THUNDERSTORM");
-    else if (/\bTS\b/.test(metar)) out.push("TS");
-    if (/\bRA\b/.test(metar)) out.push("Rain");
-    if (/\bFG\b/.test(metar)) out.push("Fog");
-    if (/\bBR\b/.test(metar)) out.push("Mist");
-    const clouds = [...metar.matchAll(/(FEW|SCT|BKN|OVC)(\d{3})/g)];
-    if (clouds.length) out.push(clouds.map(c=>`${c[1]} ${parseInt(c[2])*100}ft`).join(" "));
-  }
-  const temp = parseMetarTemp(metar);
-  if (temp !== null) out.push(`${temp}°C`);
-  return out.join(" · ") || metar.slice(0,60);
-}
-function calcDensityAltitude(elevFt, tempC, altimInHg=29.92) {
-  const pressureAlt = elevFt + (29.92-altimInHg)*1000;
-  const isaTemp = 15-(elevFt/1000)*1.98;
-  return Math.round(pressureAlt+120*(tempC-isaTemp));
-}
+const FAA_SE_CURRENT = {
+  label: "FAA Chart Supplement Southeast",
+  cycle: "3 Sep–29 Oct 2026",
+  url: "https://aeronav.faa.gov/Upload_313-d/supplements/CS_SE_20260903.pdf",
+};
+const FAA_SW_CURRENT = {
+  label: "FAA Chart Supplement Southwest",
+  cycle: "3 Sep–29 Oct 2026",
+  url: "https://aeronav.faa.gov/Upload_313-d/supplements/CS_SW_20260903.pdf",
+};
+const FAA_CHART_SUPPLEMENT_SEARCH = "https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/dafd/search/";
+const UK_AIP = "https://nats-uk.ead-it.com/cms-nats/opencms/en/Publications/AIP/";
 
 const AIRFIELDS = {
   // ── FLORIDA ──────────────────────────────────────────────────────────────
@@ -137,15 +57,15 @@ const AIRFIELDS = {
     atcNotes:"Approach 124.0 · Tower 126.0 · Ground 121.9\nClass C — mandatory contact before entering airspace.",
     cfiNotes:"KDAB is excellent for Class C introduction. Focus on communication requirements and traffic awareness in the ERAU environment. Always confirm: have you checked NOTAMs before departure?",
   },
-  KVRB:{ name:"Vero Beach Regional Airport", city:"Vero Beach, FL", elevation:24, class:"Class D", type:"Towered", runways:["12R/30L — 7,314ft","12L/30R — confirm length in Chart Supplement","04/22 — confirm length in Chart Supplement"], region:"florida", weather_icao:"KVRB",
+  KVRB:{ name:"Vero Beach Regional Airport", city:"Vero Beach, FL", elevation:24, class:"Class D", type:"Towered (part-time)", runways:["12R/30L — 7,314ft","12L/30R — 3,505ft","04/22 — 4,974ft"], region:"florida", weather_icao:"KVRB", source:FAA_SE_CURRENT,
     hazards:[
       {id:"BIRDS",phase:["takeoff","landing","pattern"],sev:"critical",icon:"🦅",title:"Severe Bird Strike Risk — Atlantic Flyway",why:"Multiple documented strikes per year at this field.",detail:"Vero Beach sits on the Atlantic Flyway — a major migratory bird corridor. Vultures, pelicans, egrets, and osprey are common on and around the field. Scan final approach and departure paths carefully. Report all bird activity to tower. Bird strikes have caused engine failures here."},
       {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Afternoon Thunderstorms — Rapid Development",why:"Florida CB activity is some of the fastest-developing in the world.",detail:"The Florida pattern in summer: clear mornings, cumulus building by 11:00, storms by 13:00-14:00. Storms can go from clear sky to lightning in 20 minutes. Check the TAF before every departure. If TSRA is forecast within your planned flight window, delay or cancel."},
-      {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Short Training Runways",detail:"Runway 11R/29L is 3,301ft — very short for student training. Know your aircraft's demonstrated distances and add a 50% safety factor."},
+      {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Short Training Runway",detail:"Runway 12L/30R is 3,505ft. Calculate takeoff and landing performance for the actual conditions and apply the margins required by your POH/AFM, operator, and instructor."},
       {id:"CROSSING",phase:["pattern","all"],sev:"medium",icon:"📻",title:"Multi-School Pattern / Crossing Operations",detail:"Multiple flight schools operate at VRB including Skyborne. With aircraft at different skill levels sharing the pattern, expect non-standard spacing. Announce clearly, look before every turn."},
     ],
-    atcNotes:"Tower 119.4 · Ground 121.9 · CTAF 119.4 (when tower closed)",
-    cfiNotes:"Bird strike risk at VRB is genuinely serious. The 13:00 rule for summer afternoon flights should be non-negotiable. Brief the MOA status check before every cross-country departure. Always confirm: have you checked NOTAMs before departure?",
+    atcNotes:"CTAF/Tower 126.3 · Ground 127.45 · ATIS 120.575 · Clearance 134.975\nClass D during published tower hours; Class E when the tower is closed. Confirm current hours, frequencies, and NOTAMs.",
+    cfiNotes:"Bird activity and fast-developing summer convection deserve explicit pre-flight review. Set weather decision points from current official observations, forecasts, radar, personal minimums, and school policy rather than a fixed clock rule. Confirm current NOTAMs and nearby special-use airspace status.",
   },
   KFXE:{ name:"Fort Lauderdale Executive Airport", city:"Fort Lauderdale, FL", elevation:13, class:"Class D", type:"Towered", runways:["09/27 — 4,000ft","13/31 — 6,001ft"], region:"florida", weather_icao:"KFXE",
     hazards:[
@@ -157,14 +77,14 @@ const AIRFIELDS = {
     atcNotes:"Tower 128.025 · Ground 121.9 · Miami Approach 124.15\nDo NOT climb above 1,200ft without explicit Class B clearance.",
     cfiNotes:"Class B altitude discipline is the defining brief at FXE — say it explicitly every flight: 'We do not climb above 1,200ft without a clearance.' Always confirm: have you checked NOTAMs before departure?",
   },
-  KPMP:{ name:"Pompano Beach Airpark", city:"Pompano Beach, FL", elevation:19, class:"Class D", type:"Towered", runways:["15/33 — 3,600ft","06/24 — 2,800ft","10/28 — confirm length in Chart Supplement"], region:"florida", weather_icao:"KPMP",
+  KPMP:{ name:"Pompano Beach Airpark", city:"Pompano Beach, FL", elevation:19, class:"Class D", type:"Towered (part-time)", runways:["15/33 — 4,918ft","06/24 — 4,001ft","10/28 — 3,687ft"], region:"florida", weather_icao:"KPMP", source:FAA_SE_CURRENT,
     hazards:[
       {id:"CLASS_B",phase:["all"],sev:"critical",icon:"📡",title:"FLL Class B — Floor as Low as 1,000ft",why:"KPMP sits directly under the tightest part of FLL's Class B.",detail:"The FLL Class B floor at KPMP can be as low as 1,000ft MSL. Know the exact Class B floor in your departure direction before taxiing. Students have received enforcement actions here."},
-      {id:"SHORT",phase:["takeoff","landing"],sev:"critical",icon:"🛬",title:"2,800ft Runway — Extremely Short",why:"One of the shortest in regular commercial training use.",detail:"Runway 06/24 is 2,800ft — marginal even in a Cessna 172 with standard technique. Calculate your numbers. If the runway is wet, add 15%. If you are fast over the threshold, go around."},
+      {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Runway Length and Weight Restrictions",why:"The three runways have different published dimensions and operating limitations.",detail:"Runways 15/33, 06/24, and 10/28 are 4,918ft, 4,001ft, and 3,687ft respectively. Calculate performance for the assigned runway and check current Chart Supplement limitations and NOTAMs."},
       {id:"PATTERN",phase:["pattern"],sev:"high",icon:"✈",title:"Non-Standard Pattern Geometry",detail:"KPMP's pattern is constrained by the Class B floor and runway layout. Study the airport diagram and receive a thorough CFI brief before first solo here."},
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Afternoon Thunderstorms",detail:"South Florida CB — plan morning flights, ground by 13:00 in summer. Check TAF."},
     ],
-    atcNotes:"Tower 134.95 · Ground 121.9 · Miami Approach 124.15\nClass B floor varies by sector — confirm before every departure.",
+    atcNotes:"CTAF/Tower 125.4 · Ground 121.9 · ATIS 120.55 · Miami Approach 119.7 (4,000ft and below)\nClass D during published tower hours; Class G when closed. Confirm the Class B floor by sector.",
     cfiNotes:"Pompano is known as one of Florida's 'gotcha' fields. Short runway, Class B floor, non-standard pattern — all need specific briefing. Always confirm: have you checked NOTAMs before departure?",
   },
   KFPR:{ name:"Treasure Coast International", city:"Fort Pierce, FL", elevation:25, class:"Class D", type:"Towered", runways:["14/32 — 4,000ft","09/27 — 6,492ft"], region:"florida", weather_icao:"KFPR",
@@ -206,15 +126,15 @@ const AIRFIELDS = {
     atcNotes:"Tower 119.4 · Ground 121.9 · Fort Myers Approach 124.0\nRSW Class C to the north — confirm clearance before climbing northbound.",
     cfiNotes:"KFMY has intersecting runways — reinforce runway crossing discipline. Gulf/Atlantic convergence makes afternoon weather particularly fast-developing. Always confirm: have you checked NOTAMs before departure?",
   },
-  KGNV:{ name:"Gainesville Regional Airport", city:"Gainesville, FL", elevation:152, class:"Class C", type:"Towered", runways:["11/29 — 7,503ft","07/25 — 3,002ft"], region:"florida", weather_icao:"KGNV",
+  KGNV:{ name:"Gainesville Regional Airport", city:"Gainesville, FL", elevation:151, class:"Class D", type:"Towered (part-time)", runways:["11/29 — 7,504ft","07/25 — 4,158ft"], region:"florida", weather_icao:"KGNV", source:FAA_SE_CURRENT,
     hazards:[
-      {id:"CLASS_C",phase:["all"],sev:"high",icon:"📡",title:"Class C Operations",detail:"KGNV is Class C. Establish two-way communication with Gainesville Approach before entering."},
-      {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Short Runway 07/25 — 3,002ft",detail:"Runway 07/25 is 3,002ft — very short. Know your demonstrated distances before accepting this runway. Runway 10/28 at 7,503ft is the primary training runway."},
+      {id:"CLASS_D",phase:["all"],sev:"high",icon:"📡",title:"Part-Time Class D Operations",detail:"KGNV is Class D during published tower hours and Class E when the tower is closed. Confirm the current operating status and use the published procedures for the time of flight."},
+      {id:"SHORT",phase:["takeoff","landing"],sev:"medium",icon:"🛬",title:"Shorter Runway 07/25 — 4,158ft",detail:"Runway 07/25 is 4,158ft versus 7,504ft for 11/29. Calculate performance for the actual runway and conditions before accepting an assignment."},
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"North Florida Thunderstorms",detail:"Gainesville sees both Gulf and Atlantic weather. Afternoon CB activity June-September. Check TAF."},
       {id:"BIRDS",phase:["takeoff","landing"],sev:"medium",icon:"🦅",title:"Paynes Prairie Wildlife Corridor",detail:"Paynes Prairie wildlife preserve is adjacent. Sandhill cranes, wading birds and raptors are common."},
     ],
-    atcNotes:"Approach 124.15 · Tower 118.5 · Ground 121.9",
-    cfiNotes:"KGNV is a good Class C introduction field. Short runway 07/25 needs specific briefing. Always confirm: have you checked NOTAMs before departure?",
+    atcNotes:"CTAF/Tower 119.55 · Ground 121.7 · ATIS 127.15 · Jacksonville Approach 118.175 (10,000ft and below)\nClass D during published tower hours; Class E when closed.",
+    cfiNotes:"KGNV is useful for part-time Class D training. Brief the change to Class E when the tower closes and compare performance for 4,158ft runway 07/25 with the longer 11/29. Confirm current NOTAMs.",
   },
   KVNC:{ name:"Venice Municipal Airport", city:"Venice, FL", elevation:18, class:"Class D", type:"Towered", runways:["05/23 — 5,000ft","13/31 — 5,640ft"], region:"florida", weather_icao:"KVNC",
     hazards:[
@@ -225,14 +145,14 @@ const AIRFIELDS = {
     atcNotes:"Tower 119.05 · Ground 121.9\nIntersecting runways — confirm all crossing clearances.",
     cfiNotes:"Venice has a high bird strike record. Intersecting runways need specific crossing discipline briefing. Always confirm: have you checked NOTAMs before departure?",
   },
-  KBOW:{ name:"Bartow Executive Airport", city:"Bartow, FL", elevation:125, class:"Class D", type:"Towered", runways:["09L/27R — 5,000ft","05/23 — confirm length in Chart Supplement"], region:"florida", weather_icao:"KBOW",
+  KBOW:{ name:"Bartow Executive Airport", city:"Bartow, FL", elevation:125, class:"Class D", type:"Towered (part-time)", runways:["05/23 — 5,001ft","09L/27R — 5,000ft","09R/27L — 4,416ft"], region:"florida", weather_icao:"KBOW", source:FAA_SE_CURRENT,
     hazards:[
-      {id:"PARALLEL",phase:["takeoff","landing"],sev:"critical",icon:"⚠",title:"Parallel Runway Confusion — Equal Length",why:"Both runways nearly identical — wrong runway acceptance is documented.",detail:"KBOW has parallel runways of almost equal length. Students frequently confuse 09L/27R and 09R/27L. Read the runway number on the pavement before every lineup. Confirm with CFI."},
+      {id:"PARALLEL",phase:["takeoff","landing"],sev:"critical",icon:"⚠",title:"Parallel Runway Identification",why:"The parallel designators require an explicit runway check before lineup and landing.",detail:"KBOW has parallel runways 09L/27R (5,000ft) and 09R/27L (4,416ft), plus 05/23. Read back the complete designator and verify the pavement marking and airport diagram before lineup or landing."},
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Central Florida Afternoon Thunderstorms",detail:"Central Florida inland heat convection — storms develop rapidly. Morning flights preferred in summer."},
       {id:"MULTI",phase:["pattern","all"],sev:"high",icon:"📻",title:"High Volume Multi-School Operations",why:"Bartow is a major training hub.",detail:"KBOW hosts very high training volumes — multiple schools operate simultaneously on parallel runways. Radio discipline and visual lookout are critical."},
     ],
-    atcNotes:"Tower 123.8 · Ground 121.9\nParallel runway ops — confirm assigned runway before every lineup.",
-    cfiNotes:"Bartow's equal-length parallel runways are a known student confusion point. Reinforce runway readback discipline every flight. Always confirm: have you checked NOTAMs before departure?",
+    atcNotes:"CTAF/Tower 121.2 · Ground 121.9 · AWOS 123.775 · Tampa Approach 120.65 / 119.9\nClass D during published tower hours; Class G when closed. Confirm the full runway designator.",
+    cfiNotes:"Bartow's parallel runways require disciplined readbacks and visual runway verification. Include the shorter 09R/27L and the intersecting 05/23 in the airport-diagram brief. Confirm current NOTAMs.",
   },
   KLAL:{ name:"Lakeland Linder Regional", city:"Lakeland, FL", elevation:142, class:"Class D", type:"Towered", runways:["09/27 — 8,500ft","05/23 — 5,001ft","18/36 — 3,700ft"], region:"florida", weather_icao:"KLAL",
     hazards:[
@@ -258,37 +178,37 @@ const AIRFIELDS = {
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Thunderstorm Convergence",detail:"Tampa Bay is a known thunderstorm convergence zone. Ground by 12:30 in summer."},
     ],
     atcNotes:"Tower 124.1 · Ground 121.9 · Tampa Approach 119.9\nClass B begins at 1,200ft — do not climb without clearance.",
-    cfiNotes:"Albert Whitted is challenging — Class B overhead, short runways, water surroundings. Not suitable for early solo without thorough briefing on all three hazards. Always confirm: have you checked NOTAMs before departure?",
+    cfiNotes:"Albert Whitted combines nearby Class B airspace, short runways, and water surroundings. Assess solo suitability under the applicable instructor/operator policy and brief all three hazards. Confirm current NOTAMs before departure.",
   },
   // ── TAMPA BAY ADDITIONS ───────────────────────────────────────────────────
-  KPIE:{ name:"St Pete-Clearwater International Airport", city:"Clearwater, FL", elevation:11, class:"Class C", type:"Towered", runways:["18/36 — 9,730ft","07/25 — 4,800ft"], region:"florida", weather_icao:"KPIE",
+  KPIE:{ name:"St Pete-Clearwater International Airport", city:"Clearwater, FL", elevation:11, class:"Class D", type:"Towered (part-time)", runways:["18/36 — 9,730ft","04/22 — 6,000ft"], region:"florida", weather_icao:"KPIE", source:FAA_SE_CURRENT,
     hazards:[
-      {id:"CLASS_C",phase:["all"],sev:"critical",icon:"📡",title:"Class C Airspace — Mandatory Contact Before Entry",why:"Class C requires two-way radio contact before entry.",detail:"KPIE is Class C from surface to 3,200ft MSL. You must establish two-way communication with St Pete-Clearwater Approach before entering Class C. Squawk your assigned code. The Class C shelf extends 10nm — plan contact well in advance."},
+      {id:"CLASS_D",phase:["all"],sev:"high",icon:"📡",title:"Part-Time Class D — Status Changes When Tower Closes",why:"The published surface-airspace and communication procedures change outside tower hours.",detail:"KPIE is Class D during published tower hours and Class E when the tower is closed. Check the current Chart Supplement and NOTAMs, and use the published CTAF/tower frequency for the operating status."},
       {id:"AIRLINE",phase:["all"],sev:"high",icon:"✈",title:"Commercial and Charter Traffic Mix",why:"Scheduled airline and charter operations share the field with training traffic.",detail:"KPIE handles commercial airline, charter, and cargo traffic alongside training aircraft. Be alert to wake turbulence on departure and arrival. Monitor approach and tower frequencies carefully for commercial traffic sequencing."},
       {id:"CLASS_B",phase:["departure","all"],sev:"high",icon:"📡",title:"Tampa Class B Immediately Adjacent",why:"Tampa International's Class B begins just east of KPIE.",detail:"Departing north or east from KPIE brings you immediately towards Tampa International's Class B airspace. Co-ordinate with St Pete-Clearwater Approach before any northbound or eastbound departure climb."},
-      {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Afternoon Thunderstorms",detail:"Tampa Bay is statistically the most lightning-active region in the USA. Sea breeze convergence creates rapidly developing CB. Ground by 13:00 in summer."},
+      {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Afternoon Thunderstorms",detail:"Sea-breeze convergence can produce rapidly developing convection. Use current observations, TAFs, radar, an official briefing, and defined personal or operator weather limits."},
     ],
-    atcNotes:"Tower 120.6 · Ground 121.6 · Clearance 125.025\nSt Pete-Clearwater Approach 124.9 · ATIS 124.6",
-    cfiNotes:"KPIE is good for introducing Class C procedures — mandatory contact, transponder requirements, and commercial traffic awareness. Watch the Tampa Class B to the east on departure. Always confirm: have you checked NOTAMs before departure?",
+    atcNotes:"CTAF/Tower 118.3 or 128.4 · Ground 121.9 · Clearance 120.6 · ATIS 134.5\nTampa Approach/Departure 125.3. Class D during published tower hours; Class E when closed.",
+    cfiNotes:"KPIE is useful for controlled-airport, wake-turbulence, and part-time-tower training. Brief the current tower status, adjacent Tampa Class B, assigned runway, frequencies, and NOTAMs before the flight.",
   },
-  KVDF:{ name:"Tampa Executive Airport (Vandenberg)", city:"Tampa, FL", elevation:14, class:"Class D", type:"Towered", runways:["05/23 — 5,000ft","18/36 — 3,264ft"], region:"florida", weather_icao:"KVDF",
+  KVDF:{ name:"Tampa Executive Airport", city:"Tampa, FL", elevation:21, class:"Class G", type:"Non-Towered", runways:["05/23 — 5,000ft","18/36 — 3,219ft"], region:"florida", weather_icao:"KVDF", source:FAA_SE_CURRENT,
     hazards:[
-      {id:"CLASS_B",phase:["all"],sev:"critical",icon:"📡",title:"Tampa International Class B — Inside the Lateral Boundary",why:"KVDF sits inside Tampa's Class B outer boundary requiring careful altitude management.",detail:"KVDF operates inside Tampa International's Class B lateral boundary. Strict altitude restrictions apply — the Class B shelf begins at 1,500ft MSL in this sector. KVDF Tower co-ordinates with Tampa Approach. Do not climb without explicit clearance."},
-      {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Short Runways — Performance Planning Required",why:"Both runways are short for a busy training environment.",detail:"Runway 09/27 is 3,500ft and 18/36 is 3,200ft. In summer heat and humidity, performance will be reduced. Always calculate actual take-off and landing distances. A go-around decision must be made early."},
+      {id:"CLASS_B",phase:["all"],sev:"critical",icon:"📡",title:"Tampa International Class B — Nearby Shelf",why:"KVDF lies beneath complex Tampa-area controlled airspace requiring careful altitude and route planning.",detail:"KVDF has no control tower. Review the current sectional and Tampa Class B shelf before flight, monitor the published CTAF, and contact Tampa Approach when required for the planned operation."},
+      {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Shorter Runway 18/36 — Performance Planning Required",why:"Runway 18/36 is substantially shorter than 05/23.",detail:"Runway 05/23 is 5,000ft and 18/36 is 3,219ft. Calculate takeoff and landing performance for actual temperature, wind, surface, weight, and runway conditions."},
       {id:"AIRSPACE",phase:["all"],sev:"high",icon:"📡",title:"Complex Overlapping Airspace",why:"KVDF sits in one of Florida's most complex airspace environments.",detail:"Tampa International to the northwest, MacDill AFB Class C/P-50 restricted area to the south, and St Pete-Clearwater Class C to the west. Know your airspace chart thoroughly before flying in this area."},
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Thunderstorm Convergence",detail:"Tampa Bay sea breeze convergence creates rapid CB development. Ground all training by 13:00 in summer."},
     ],
-    atcNotes:"Tower 119.1 · Ground 121.6 · Tampa Approach 119.9\nP-50 (MacDill) — check NOTAM before southbound flight.",
-    cfiNotes:"KVDF is complex airspace — excellent for advanced students but not appropriate for early solos without specific Class B/airspace briefing. The MacDill P-50 restricted area to the south must be pre-briefed. Always confirm: have you checked NOTAMs before departure?",
+    atcNotes:"CTAF/UNICOM 122.7 · Tampa Approach 119.9 · AWOS 121.125\nNon-towered. Obtain clearance delivery through Tampa Approach and confirm current airspace, frequencies, and NOTAMs.",
+    cfiNotes:"KVDF combines non-towered procedures with complex Tampa-area airspace. Review solo suitability under the applicable instructor/operator policy, and include nearby special-use airspace and current NOTAMs in the brief.",
   },
-  KCLW:{ name:"Clearwater Executive Airport", city:"Clearwater, FL", elevation:71, class:"Uncontrolled", type:"Non-Towered", runways:["16/34 — 4,108ft"], region:"florida", weather_icao:"KPIE",
+  KCLW:{ name:"Clearwater Executive Airport", city:"Clearwater, FL", elevation:71, class:"Uncontrolled", type:"Non-Towered", runways:["16/34 — 4,108ft"], region:"florida", weather_icao:"KPIE", source:FAA_SE_CURRENT,
     hazards:[
-      {id:"NONTOW_CLS_C",phase:["all"],sev:"critical",icon:"📻",title:"Non-Towered Inside Class C Airspace",why:"Unusual combination — uncontrolled field inside St Pete-Clearwater Class C.",detail:"KCLW is a non-towered field located within the St Pete-Clearwater Class C airspace. You must contact St Pete-Clearwater Approach 124.9 and receive a Class C clearance before operating in and out of KCLW. CTAF 122.8 for aerodrome traffic — but ATC contact is mandatory. This catches students who assume uncontrolled means no ATC required."},
-      {id:"SHORT",phase:["takeoff","landing"],sev:"critical",icon:"🛬",title:"Very Short Single Runway — 3,000ft Only",why:"One of the shortest runways in the Tampa Bay training area.",detail:"Runway 16/34 is only 3,000ft. In summer heat any density altitude penalty makes this operationally demanding. Performance calculations are essential. A go-around must be initiated early — overrun risk is real."},
-      {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Thunderstorms",detail:"Tampa Bay sea breeze convergence. Ground all flights by 13:00 in summer. No tower for weather warnings — you are responsible for your own weather awareness."},
+      {id:"LIMITS",phase:["taxi","pattern","takeoff","landing"],sev:"high",icon:"📻",title:"Published Operating Limits — Full-Stop Landings Only",why:"The current Chart Supplement publishes operating-hour and circuit restrictions that affect training use.",detail:"Landings and takeoffs are permitted only during the published 1200–0400Z period. Full-stop landings only; touch-and-go operations are not permitted. Confirm current times and NOTAMs before dispatch."},
+      {id:"DISPLACED",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Displaced Thresholds and Trees",why:"The 4,108ft runway has substantial displaced thresholds and published obstacles.",detail:"Runway 16 has a 357ft displaced threshold; Runway 34 has an 846ft displaced threshold, trees, and right traffic. Use current published distances and calculate performance for the actual conditions and aircraft."},
+      {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Tampa Bay Thunderstorms",detail:"Sea-breeze convergence can produce rapidly developing convection. The field is non-towered, so use current observations, radar, TAFs, and an official weather briefing."},
     ],
-    atcNotes:"CTAF 122.8 — Non-towered BUT inside Class C.\nMandatory: contact St Pete-Clearwater Approach 124.9 before entry/exit.\nNo tower weather service — monitor independently.",
-    cfiNotes:"KCLW is excellent for teaching the combination of non-towered procedures AND Class C requirements simultaneously. Students must understand that CTAF self-announce alone is not sufficient here — ATC contact is mandatory. Short runway demands disciplined approach technique. Always confirm: have you checked NOTAMs before departure?",
+    atcNotes:"CTAF/UNICOM 123.0 · AWOS-3P 119.225 · Tampa Approach/Departure 125.3\nNon-towered. Confirm current communications, published operating times, restrictions, and NOTAMs.",
+    cfiNotes:"KCLW is useful for teaching non-towered procedures and disciplined performance planning. Brief the full-stop-only restriction, displaced thresholds, right traffic for Runway 34, published operating period, and current NOTAMs.",
   },
   KIMM:{ name:"Immokalee Regional Airport", city:"Immokalee, FL", elevation:37, class:"Uncontrolled", type:"Non-Towered", runways:["09/27 — 5,000ft","18/36 — 4,550ft"], region:"florida", weather_icao:"KIMM",
     hazards:[
@@ -301,12 +221,12 @@ const AIRFIELDS = {
   },
   KDED:{ name:"DeLand Municipal Airport", city:"DeLand, FL", elevation:79, class:"Uncontrolled", type:"Non-Towered", runways:["12/30 — 6,001ft","05/23 — 4,300ft"], region:"florida", weather_icao:"KDED",
     hazards:[
-      {id:"JUMP",phase:["all"],sev:"critical",icon:"🪂",title:"Active Parachute Drop Zone — CRITICAL",why:"DeLand is one of the busiest skydiving drop zones in the USA.",detail:"KDLED is home to Skydive DeLand — one of the world's busiest skydiving operations. Jumpers and jump aircraft are in the air continuously during operating hours. Jumpers have no radio and are in freefall at speeds exceeding 120mph. Do not operate here without a thorough CFI brief on skydive operations."},
+      {id:"JUMP",phase:["all"],sev:"critical",icon:"🪂",title:"Active Parachute Drop Zone — CRITICAL",why:"DeLand is one of the busiest skydiving drop zones in the USA.",detail:"KDED is home to Skydive DeLand — one of the world's busiest skydiving operations. Jumpers and jump aircraft are in the air continuously during operating hours. Jumpers have no radio and are in freefall at speeds exceeding 120mph. Do not operate here without a thorough CFI brief on skydive operations."},
       {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — Jump Aircraft Priority",detail:"No ATC. CTAF 122.9. Jump aircraft announce exit altitude and jumper count. All other traffic must accommodate."},
       {id:"CB",phase:["all"],sev:"high",icon:"⛈",title:"Central Florida Thunderstorms",detail:"Central Florida afternoon CB — check TAF, morning flights preferred."},
     ],
     atcNotes:"CTAF 122.9 — No tower.\nSkydive DeLand actively operating — monitor jump aircraft calls continuously.",
-    cfiNotes:"DeLand is the most important non-towered skydiving airport in Florida for student awareness. Do not send students here without a comprehensive parachute operations brief. Always confirm: have you checked NOTAMs before departure?",
+    cfiNotes:"DeLand is an important non-towered skydiving environment for student awareness. Review current parachute operations, published procedures, CTAF practices, and NOTAMs before approving student operations there.",
   },
   KZPH:{ name:"Zephyrhills Municipal Airport", city:"Zephyrhills, FL", elevation:90, class:"Uncontrolled", type:"Non-Towered", runways:["05/23 — 5,001ft","01/19 — 6,201ft"], region:"florida", weather_icao:"KZPH",
     hazards:[
@@ -328,7 +248,7 @@ const AIRFIELDS = {
   },
   KAPF:{ name:"Naples Municipal Airport", city:"Naples, FL", elevation:8, class:"Class D", type:"Towered", runways:["05/23 — 5,000ft","14/32 — 5,000ft"], region:"florida", weather_icao:"KAPF",
     hazards:[
-      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Southwest Florida Thunderstorm Capital",why:"Naples area has some of the highest CB frequency in the USA.",detail:"Southwest Florida is among the most thunderstorm-active regions in the world. Naples sees near-daily afternoon storms June-September. Check TAF before every departure. 13:00 ground rule is non-negotiable."},
+      {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Frequent Southwest Florida Thunderstorms",why:"Summer convection is frequent and can develop rapidly in southwest Florida.",detail:"Naples commonly experiences afternoon thunderstorms from June through September. Use current observations, TAFs, radar, official briefings, and defined personal or operator weather limits rather than a fixed clock rule."},
       {id:"BIRDS",phase:["takeoff","landing"],sev:"high",icon:"🦅",title:"Everglades / Gulf Coast Bird Activity",detail:"Naples is between the Gulf and Everglades — extremely high bird activity. Vultures common on runways. Report all wildlife to tower."},
       {id:"CROSS",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Intersecting Runway Operations",detail:"Runways 05/23 and 14/32 intersect. Confirm all crossing clearances. Never cross active runway without explicit ATC clearance."},
     ],
@@ -346,7 +266,7 @@ const AIRFIELDS = {
       {id:"DUST",phase:["all"],sev:"high",icon:"🌪",title:"Haboob / Dust Storm",why:"Can reduce visibility to zero in minutes with no warning.",detail:"A haboob is a wall of dust that can be 1,500ft high and move at 30-50kt. Land immediately and tie down. Do not try to outrun a haboob."},
     ],
     atcNotes:"Tower 132.075 · Ground 121.8 · ATIS 134.975\nExpect sequencing in busy periods. Report parallel runway confusion immediately.",
-    cfiNotes:"Deer Valley's parallel runways are the #1 student confusion point. DA briefing is non-negotiable before every summer flight. Always confirm: have you checked NOTAMs before departure?",
+    cfiNotes:"Deer Valley's parallel runways require explicit runway verification. Include density altitude and aircraft performance in every warm-weather brief, using current conditions and POH/AFM data. Confirm current NOTAMs.",
   },
   KFFZ:{ name:"Falcon Field Airport", city:"Mesa, AZ", elevation:1394, class:"Class D", type:"Towered", runways:["04L/22R — 3,799ft","04R/22L — 5,101ft"], region:"phoenix", weather_icao:"KFFZ",
     hazards:[
@@ -396,7 +316,7 @@ const AIRFIELDS = {
       {id:"DUST",phase:["all"],sev:"high",icon:"🌪",title:"Haboob Risk",detail:"Standard Phoenix haboob hazard. Land and tie down immediately."},
     ],
     atcNotes:"Tower 132.1 · Ground 121.9 · Phoenix Approach 124.0\nClass B begins at 3,000ft — confirm before climbing.",
-    cfiNotes:"SDL is a good progression field for students ready for a more complex environment. Not recommended for early solo students. Always confirm: have you checked NOTAMs before departure?",
+    cfiNotes:"SDL is a useful progression field for pilots ready for a more complex environment. Assess solo suitability using the student's demonstrated proficiency, current conditions, and the applicable instructor/operator policy. Confirm current NOTAMs.",
   },
   KPRC:{ name:"Ernest A. Love Field (Prescott)", city:"Prescott, AZ", elevation:5045, class:"Class D", type:"Towered", runways:["03L/21R — 7,550ft","03R/21L — 4,847ft","12/30 — 4,000ft"], region:"phoenix", weather_icao:"KPRC",
     hazards:[
@@ -415,7 +335,7 @@ const AIRFIELDS = {
       {id:"THUNDER",phase:["all"],sev:"high",icon:"⛈",title:"Monsoon Thunderstorms — Mountain Enhanced",detail:"Summer monsoon with mountain-enhanced CB. Afternoon storms are severe and fast-developing at 7,000ft."},
     ],
     atcNotes:"Tower 118.65 · Ground 121.9\nHigh elevation — brief performance carefully before every flight.",
-    cfiNotes:"Flagstaff is an advanced training environment not suitable for early students. Do not use Cessna 172 sea-level POH data here — it is not applicable. Always confirm: have you checked NOTAMs before departure?",
+    cfiNotes:"Flagstaff is an advanced high-elevation training environment. Assess student readiness carefully and use the aircraft's POH/AFM performance data for the actual pressure altitude, temperature, weight, wind, and runway conditions. Confirm current NOTAMs.",
   },
   KBXK:{ name:"Buckeye Municipal Airport", city:"Buckeye, AZ", elevation:1033, class:"Uncontrolled", type:"Non-Towered", runways:["17/35 — 5,500ft"], region:"phoenix", weather_icao:"KGYR",
     hazards:[
@@ -604,7 +524,7 @@ const AIRFIELDS = {
       {id:"SHORT",phase:["takeoff","landing"],sev:"medium",icon:"🛬",title:"Short Runway",detail:"813m runway — know your aircraft's performance margins, especially in wet conditions."},
     ],
     atcNotes:"Fairoaks Information 123.43",
-    cfiNotes:"Genuinely advanced-only field — the Class D/LFA procedures inside Heathrow's CTR are not something to introduce early. Point out that live weather here is a Heathrow substitute, not an on-field reading. Always confirm: have you checked NOTAMs before departure?",
+    cfiNotes:"Fairoaks involves specialised LFA procedures inside Heathrow's CTR. Assess pilot readiness under the applicable instructor/operator policy and brief the current AIP procedures. Live weather shown here is from Heathrow, not an on-field observation; confirm current NOTAMs.",
   },
   EGLF:{ name:"Farnborough Airport", city:"Farnborough, Hampshire", elevation:238, class:"Class D", type:"Towered — Full ATC (CTR since 2019/2020 airspace change)", runways:["06/24 — 2,440m"], region:"uk", weather_icao:"EGLF",
     hazards:[
@@ -1063,36 +983,36 @@ const AIRFIELDS = {
     atcNotes:"No tower — self-announce on CTAF; confirm current frequency in the Chart Supplement. Clearance delivery: Denver ARTCC.",
     cfiNotes:"Leadville is the standout extreme-altitude teaching field for the whole Academy platform — genuinely more demanding than Big Bear (SoCal) or anything in Phoenix. Advanced students only, with thorough pre-flight performance planning as the entire point of the lesson. Confirmed real training destination: a local Leadville Flying Club now offers on-field instruction, and Leadville is also a standard stop on mountain-flying courses run by multiple Denver-area schools (including Independence Aviation, American Flight Schools, and Arapahoe Flying Club).",
   },
-  KEIK:{ name:"Erie Municipal Airport", city:"Erie, CO", elevation:5119, class:"Class G", type:"Non-Towered", runways:["16/34 — TBD"], region:"colorado", weather_icao:"KEIK",
+  KEIK:{ name:"Erie Municipal Airport", city:"Erie, CO", elevation:5119, class:"Class G", type:"Non-Towered", runways:["16/34 — 4,700ft"], region:"colorado", weather_icao:"KEIK", source:FAA_SW_CURRENT,
     hazards:[
       {id:"NONTOW",phase:["all"],sev:"medium",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on CTAF."},
       {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"5,119ft field elevation — recalculate performance for actual conditions."},
       {id:"DITCH",phase:["takeoff","landing"],sev:"low",icon:"⚠",title:"Documented Terrain Features Near Runway Ends",detail:"Documented ditches and a road within 1,350ft of the runway threshold on both sides — be aware on rejected takeoff or short landing scenarios."},
     ],
-    atcNotes:"No tower — self-announce on CTAF; confirm current frequency in the Chart Supplement. Clearance delivery: Denver Approach.",
+    atcNotes:"CTAF/UNICOM 123.0 · AWOS 133.825 · Denver Approach 125.125\nNon-towered. Confirm current frequencies and NOTAMs before flight.",
     cfiNotes:"A straightforward non-towered Front Range field for reinforcing self-announce discipline alongside the region's standard density-altitude planning.",
   },
-  KLMO:{ name:"Vance Brand Airport", city:"Longmont, CO", elevation:5055, class:"Class G", type:"Non-Towered", runways:["11/29 — confirm length in Chart Supplement"], region:"colorado", weather_icao:"KLMO",
+  KLMO:{ name:"Vance Brand Airport", city:"Longmont, CO", elevation:5055, class:"Class G", type:"Non-Towered", runways:["11/29 — 4,799ft"], region:"colorado", weather_icao:"KLMO", source:FAA_SW_CURRENT,
     hazards:[
       {id:"PARACHUTE",phase:["all"],sev:"high",icon:"🪂",title:"Parachute Operations On and Near the Field",detail:"Parachute jumping occurs on and in the vicinity of the airport, primarily south of the runway. Avoid overflying mid-field."},
       {id:"ULTRALIGHT",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Ultralight and Helicopter Activity",detail:"Documented ultralight and helicopter activity on and around the airport — expect a wider mix of aircraft types and speeds than a typical GA field."},
       {id:"NONTOW",phase:["all"],sev:"medium",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on CTAF."},
       {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"5,055ft field elevation — recalculate performance for actual conditions."},
     ],
-    atcNotes:"No tower — self-announce on CTAF; confirm current frequency in the Chart Supplement. Clearance delivery: Denver Approach.",
+    atcNotes:"CTAF/UNICOM 122.975 · AWOS 120.0 · Denver Approach 125.125\nNon-towered. Confirm current frequencies and NOTAMs before flight.",
     cfiNotes:"Longmont's active parachute operations combined with ultralight/helicopter mix make this a genuinely busy non-towered environment — good lookout-discipline reinforcement.",
   },
-  KGXY:{ name:"Greeley-Weld County Airport", city:"Greeley, CO", elevation:4696, class:"Class D", type:"Towered", runways:["17/35 — confirm length in Chart Supplement","10/28 — confirm length in Chart Supplement"], region:"colorado", weather_icao:"KGXY",
+  KGXY:{ name:"Greeley-Weld County Airport", city:"Greeley, CO", elevation:4697, class:"Class G", type:"Non-Towered", runways:["17/35 — 10,000ft","10/28 — 5,801ft"], region:"colorado", weather_icao:"KGXY", source:FAA_SW_CURRENT,
     hazards:[
       {id:"OILRIGS",phase:["all"],sev:"medium",icon:"⚠",title:"Oil Drilling Rigs On and Near the Airport",why:"Greeley sits in an active oil/gas extraction area.",detail:"Documented drilling rigs up to 120ft tall on and in the vicinity of the airport — a genuinely unusual obstacle hazard for a training field. Confirm current rig locations via NOTAMs."},
       {id:"CROSSWIND",phase:["landing","takeoff"],sev:"medium",icon:"💨",title:"Runway Selection Depends on Crosswind Component",detail:"Runway 17/35 is preferred when the crosswind component on 10/28 exceeds 12kt. Runway 35 is preferred when wind is below 5kt, and is the preferred runway for touch-and-go work."},
-      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"4,696ft field elevation — still meaningfully affects performance on warm days, recalculate rather than assume."},
+      {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"4,697ft field elevation — still meaningfully affects performance on warm days, recalculate rather than assume."},
       {id:"BIRD",phase:["all"],sev:"low",icon:"🦅",title:"Wildlife and Bird Activity",detail:"Documented wildlife and bird activity on and around the airport."},
     ],
-    atcNotes:"Greeley Tower — confirm current frequency in the Chart Supplement.",
+    atcNotes:"CTAF/UNICOM 122.7 · AWOS 135.175 · Denver Approach 134.85 · Clearance Delivery 126.65\nNon-towered. Confirm current frequencies and NOTAMs before flight.",
     cfiNotes:"Greeley's oil rig obstacles are a genuinely distinctive local hazard worth specifically briefing — not something students will have encountered at other Academy fields.",
   },
-  KPUB:{ name:"Pueblo Memorial Airport", city:"Pueblo, CO", elevation:4729, class:"Class D", type:"Towered", runways:["8R/26L — confirm length in Chart Supplement","17/35 — confirm length in Chart Supplement","8L/26R — confirm length in Chart Supplement (smaller third runway)"], region:"colorado", weather_icao:"KPUB",
+  KPUB:{ name:"Pueblo Memorial Airport", city:"Pueblo, CO", elevation:4729, class:"Class D", type:"Towered (part-time)", runways:["08R/26L — 10,498ft","17/35 — 8,310ft","08L/26R — 4,690ft"], region:"colorado", weather_icao:"KPUB", source:FAA_SW_CURRENT,
     hazards:[
       {id:"TRAINING",phase:["pattern","all"],sev:"medium",icon:"✈",title:"High-Volume Flight Training Traffic",why:"Pueblo hosts documented high-volume DA-20 training aircraft operations sunrise-to-sunset on weekdays.",detail:"Expect heavy, concentrated training traffic during daylight hours Monday-Friday. Listen carefully and maintain precise pattern discipline."},
       {id:"CLOSEDRWY",phase:["landing","all"],sev:"medium",icon:"⚠",title:"Visible Closed Former Runway — Do Not Use",why:"A former runway (12/30) has been closed since at least the early 1990s but its asphalt remnant remains clearly visible from the air.",detail:"A diagonal band of old asphalt runs from near the end of R/W 17 toward 26L — this can be confused for an active runway from the air, especially by pilots unfamiliar with the field. It is not shown on current charts and must never be used."},
@@ -1100,7 +1020,7 @@ const AIRFIELDS = {
       {id:"DA",phase:["takeoff","departure"],sev:"medium",icon:"🌡",title:"High-Elevation Density Altitude",detail:"4,729ft field elevation — recalculate performance for actual conditions."},
       {id:"RAPID",phase:["all"],sev:"low",icon:"⛽",title:"Rapid Refuel Operations",detail:"Rapid refuel operations are available during FBO hours with prior notice — relevant for cross-country planning."},
     ],
-    atcNotes:"Pueblo Tower — confirm current frequency in the Chart Supplement. Clearance delivery when tower/approach closed: Denver ARTCC.",
+    atcNotes:"CTAF/Tower 119.1 · Ground 121.9 · ATIS 125.25 · Clearance 120.9\nDenver Approach 120.1 during published hours; Denver Center 128.375 when closed. Class D during tower hours, Class E when closed.",
     cfiNotes:"Pueblo's genuinely documented high training volume (explicitly noted for DA-20 traffic) makes this an authentic, realistic busy-pattern training environment.",
   },
   KCFO:{ name:"Colorado Air and Space Port (formerly Front Range Airport)", city:"Denver (Watkins), CO", elevation:5515, class:"Class D", type:"Towered", runways:["8/26 — 8,002ft","17/35 — 8,000ft"], region:"colorado", weather_icao:"KCFO",
@@ -1157,7 +1077,7 @@ const SEV = {
   low:     { color:"#00C896", bg:"rgba(0,200,150,0.15)", border:"rgba(0,200,150,0.45)", label:"LOW" },
 };
 
-const PHASES = [{id:"all",label:"ALL PHASES"},{id:"pattern",label:"PATTERN"},{id:"takeoff",label:"TAKEOFF"},{id:"landing",label:"LANDING"},{id:"departure",label:"DEPARTURE"}];
+const PHASES = [{id:"all",label:"ALL PHASES"},{id:"taxi",label:"TAXI"},{id:"pattern",label:"PATTERN"},{id:"takeoff",label:"TAKEOFF"},{id:"landing",label:"LANDING"},{id:"departure",label:"DEPARTURE"}];
 
 function useWindowWidth() {
   const [w,setW] = useState(typeof window!=="undefined"?window.innerWidth:1024);
@@ -1206,7 +1126,6 @@ function DAWidget({ airfield, liveWx }) {
   const [tempC,setTempC] = useState(liveTemp??25);
   const [altim,setAltim] = useState(liveAlt??29.92);
   const [useLive,setUseLive] = useState(!!liveTemp);
-  useEffect(()=>{ if(liveTemp!==null){setTempC(liveTemp);setUseLive(true);} if(liveAlt!==null)setAltim(liveAlt); },[liveTemp,liveAlt]);
   const da = calcDA(airfield.elevation,tempC,altim);
   const [daColor,daLabel,daRisk] = da>5000?["#FF3B3B","EXTREME","Recalculate ALL performance. Significant reductions in climb rate and extended takeoff roll."]:da>3500?["#FF8C00","HIGH","Significant performance loss. Review POH numbers at field elevation before engine start."]:da>2000?["#FFD700","MODERATE","Performance affected. Recalculate takeoff roll and climb rate."]:["#00C896","NORMAL","Standard performance expected. Continue with normal planning."];
   return (
@@ -1260,7 +1179,6 @@ function UkWeatherWidget({ airfield, liveWx }) {
   const [tempC,setTempC] = useState(liveTemp??15);
   const [dewC,setDewC] = useState(liveDew??10);
   const [useLive,setUseLive] = useState(!!liveTemp);
-  useEffect(()=>{ if(liveTemp!==null){setTempC(liveTemp);setUseLive(true);} if(liveDew!==null){setDewC(liveDew);} },[liveTemp,liveDew]);
   const cloudBaseAmsl = calcCloudBase(tempC, dewC, airfield.elevation);
   const cloudBaseAgl = Math.max(0, cloudBaseAmsl - airfield.elevation);
   const freezingLevel = calcFreezingLevel(tempC, airfield.elevation);
@@ -1308,7 +1226,18 @@ function MapWidget({ airfield, icao }) {
   const [frameIndex, setFrameIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const [leaflet, setLeaflet] = useState(null);
   const coords = FIELD_COORDS[icao] || [39.8, -98.6];
+  const latitude = coords[0];
+  const longitude = coords[1];
+
+  useEffect(() => {
+    let cancelled = false;
+    import("leaflet")
+      .then(module => { if (!cancelled) setLeaflet(module.default); })
+      .catch(() => { if (!cancelled) setLoadError("Could not load the weather map."); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1326,27 +1255,27 @@ function MapWidget({ airfield, icao }) {
   }, []);
 
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    if (!mapContainerRef.current || !leaflet) return;
     if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
-    const map = L.map(mapContainerRef.current, { center:coords, zoom:7, minZoom:4, maxZoom:12, scrollWheelZoom:false, doubleClickZoom:true, touchZoom:true, zoomControl:true });
+    const map = leaflet.map(mapContainerRef.current, { center:[latitude,longitude], zoom:7, minZoom:4, maxZoom:12, scrollWheelZoom:false, doubleClickZoom:true, touchZoom:true, zoomControl:true });
     map.on('click', () => map.scrollWheelZoom.enable());
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> | Radar: <a href="https://www.rainviewer.com/">RainViewer</a>', maxZoom:12 }).addTo(map);
-    L.marker(coords).addTo(map).bindPopup(`${airfield.name} (${icao})`);
+    leaflet.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> | Radar: <a href="https://www.rainviewer.com/">RainViewer</a>', maxZoom:12 }).addTo(map);
+    leaflet.marker([latitude,longitude]).addTo(map).bindPopup(`${airfield.name} (${icao})`);
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
-  }, [icao]);
+    return () => { map.remove(); mapRef.current = null; radarLayerRef.current = null; };
+  }, [airfield.name, icao, latitude, leaflet, longitude]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !frames.length) return;
+    if (!map || !frames.length || !leaflet) return;
     const frame = frames[frameIndex];
     if (!frame) return;
     const tileUrl = `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
     if (radarLayerRef.current) map.removeLayer(radarLayerRef.current);
-    const layer = L.tileLayer(tileUrl, { opacity:0.7, zIndex:10, maxZoom:12 });
+    const layer = leaflet.tileLayer(tileUrl, { opacity:0.7, zIndex:10, maxZoom:12 });
     layer.addTo(map);
     radarLayerRef.current = layer;
-  }, [frames, frameIndex]);
+  }, [frames, frameIndex, icao, leaflet]);
 
   useEffect(() => {
     if (!isPlaying || !frames.length) return;
@@ -1372,7 +1301,11 @@ function MapWidget({ airfield, icao }) {
         </div>
       )}
       <div style={{fontSize:9,color:"#556677",marginTop:10,lineHeight:1.5}}>
-        Radar from <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>RainViewer</a>. Not a substitute for the Met Office Aviation Briefing Service — check <a href="https://mavis.metoffice.gov.uk/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>MAVIS</a> for regulated TAFs, SIGMETs, and F215 charts before flight.
+        {airfield.region === "uk" ? <>
+          Radar from <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>RainViewer</a>. Not a substitute for the Met Office Aviation Briefing Service — check <a href="https://mavis.metoffice.gov.uk/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>MAVIS</a> for regulated TAFs, SIGMETs, and F215 charts before flight.
+        </> : <>
+          Radar from <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>RainViewer</a>. For official US aviation weather and a complete briefing, use <a href="https://aviationweather.gov/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>AviationWeather.gov</a> and <a href="https://www.1800wxbrief.com/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>Flight Service</a>.
+        </>}
       </div>
     </div>
   );
@@ -1410,18 +1343,20 @@ function TAFDisplay({ tafs }) {
   );
 }
 
-function WeatherStrip({ liveWx, wxLoad }) {
+function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
   const [wxTab, setWxTab] = useState("metar");
   if (wxLoad) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>Loading live weather…</div>;
   if (!liveWx) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>No live weather data available for this field.</div>;
   const tafThreats = parseTAFThreats(liveWx.tafs);
   const hasCB = liveWx.metar && /\b(?:FEW|SCT|BKN|OVC)\d{3}CB\b|\bTSRA\b|(?:^|\s)\+TS\b/.test(liveWx.metar);
+  const usesNearbyStation = requestedIcao !== weatherIcao;
   return (
     <div style={{background:"#0A1828",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>🌤 LIVE WEATHER</div>
         <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#FF3B3B"}}>● LIVE</span>
       </div>
+      {usesNearbyStation && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ Weather shown is from nearby station <b>{weatherIcao}</b>, not an on-airport observation for {requestedIcao}. Allow for local differences.</div>}
       {/* Weather sub-tabs */}
       <div style={{display:"flex",gap:2,marginBottom:12,borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
         {[["metar","METAR"],["taf","TAF FORECAST"]].map(([tid,label])=>(
@@ -1626,13 +1561,14 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack 
 }
 
 function WelcomeScreen({ onSelect }) {
+  const count = region => Object.values(AIRFIELDS).filter(airfield => airfield.region === region).length;
   const options = [
-    { id:"florida", label:"FLORIDA", icon:"🌴", desc:"22 training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay." },
-    { id:"phoenix", label:"PHOENIX / ARIZONA", icon:"☀", desc:"13 training airfields across the Phoenix area and Arizona — density altitude, haboobs, high terrain, military airspace." },
-    { id:"texas", label:"TEXAS", icon:"🤠", desc:"13 training airfields across Fort Worth, Austin, and Houston — Class B/C/D operations, severe thunderstorms, military jet traffic, Gulf Coast fog." },
-    { id:"socal", label:"SOUTHERN CALIFORNIA", icon:"🏙", desc:"16 training airfields across the LA Basin and San Diego County — extremely dense multi-airport Class B/C/D stacking, marine layer fog, and terrain transitions from sea level to 6,752ft." },
-    { id:"colorado", label:"COLORADO / FRONT RANGE", icon:"⛰", desc:"11 training airfields along the Front Range corridor — genuine high-altitude performance planning, mountain wave turbulence, and terrain awareness, every field at 4,600ft+ MSL." },
-    { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:"29 training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar." },
+    { id:"florida", label:"FLORIDA", icon:"🌴", desc:`${count("florida")} training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay.` },
+    { id:"phoenix", label:"PHOENIX / ARIZONA", icon:"☀", desc:`${count("phoenix")} training airfields across the Phoenix area and Arizona — density altitude, haboobs, high terrain, military airspace.` },
+    { id:"texas", label:"TEXAS", icon:"🤠", desc:`${count("texas")} training airfields across Fort Worth, Austin, and Houston — Class B/C/D operations, severe thunderstorms, military jet traffic, Gulf Coast fog.` },
+    { id:"socal", label:"SOUTHERN CALIFORNIA", icon:"🏙", desc:`${count("socal")} training airfields across the LA Basin and San Diego County — extremely dense multi-airport Class B/C/D stacking, marine layer fog, and terrain transitions from sea level to 6,752ft.` },
+    { id:"colorado", label:"COLORADO / FRONT RANGE", icon:"⛰", desc:`${count("colorado")} training airfields along the Front Range corridor — genuine high-altitude performance planning, mountain wave turbulence, and terrain awareness, every field at 4,600ft+ MSL.` },
+    { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:`${count("uk")} training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar.` },
   ];
   return (
     <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
@@ -1750,7 +1686,6 @@ const FRAT_SECTIONS = [
 
 const FRAT_MAX = FRAT_SECTIONS.reduce((sum, s) => sum + s.questions.length * 3, 0);
 const FRAT_MATERIAL_SCORE = 2;
-const FRAT_RETAIN_CONTROL = "No effective control identified — retain the current risk and seek further review";
 const FRAT_QUESTION_ENTRIES = FRAT_SECTIONS.flatMap(section =>
   section.questions.map((question, index) => ({
     key: `${section.id}_${index}`,
@@ -1774,16 +1709,6 @@ function fratRiskLevel(score) {
 
 function fratAnswerLabel(question, value) {
   return question.options.find(([, points]) => points === value)?.[0] || "Not answered";
-}
-
-function hasRecordedControl(control) {
-  return !!control && (control.actions?.length > 0 || control.note?.trim());
-}
-
-function canControlReduce(question, control) {
-  return !!control?.note?.trim() || !!control?.actions?.some(action =>
-    action !== FRAT_RETAIN_CONTROL && !question.nonReducingMitigations?.includes(action)
-  );
 }
 
 function FRATFlow({ stage }) {
@@ -2309,7 +2234,7 @@ export default function App() {
   const [menuOpen,setMenuOpen] = useState(false);
   const [tab,setTab] = useState("hazards");
   const [liveWx,setLiveWx] = useState(null);
-  const [wxLoad,setWxLoad] = useState(false);
+  const [wxLoad,setWxLoad] = useState(true);
   const [briefing,setBrief] = useState("");
   const [briefLoad,setBriefLoad] = useState(false);
   const airfield = AIRFIELDS[selected];
@@ -2325,6 +2250,12 @@ export default function App() {
   }
 
   function selectAirfield(code) {
+    if (code !== selected) {
+      setLiveWx(null);
+      setWxLoad(true);
+      setBrief("");
+      setExpanded({});
+    }
     setSelected(code);
     setQuery(code);
     setSuggestions([]);
@@ -2336,14 +2267,27 @@ export default function App() {
   function chooseRegion(r) {
     setRegion(r);
     const def = REGION_DEFAULT_AIRFIELD[r];
+    if (def !== selected) {
+      setLiveWx(null);
+      setWxLoad(true);
+      setBrief("");
+      setExpanded({});
+    }
     setSelected(def);
     setQuery(def);
     setShowWelcome(false);
   }
 
-  useEffect(()=>{ setLiveWx(null);setWxLoad(true);setBrief("");setExpanded({});
-    fetchLiveWeather(airfield.weather_icao).then(wx=>{setLiveWx(wx);setWxLoad(false);}).catch(()=>setWxLoad(false));
-  },[selected]);
+  const weatherIcao = airfield.weather_icao;
+  useEffect(()=>{
+    let cancelled = false;
+    fetchLiveWeather(weatherIcao).then(wx=>{
+      if (cancelled) return;
+      setLiveWx(wx);
+      setWxLoad(false);
+    });
+    return () => { cancelled = true; };
+  },[weatherIcao]);
 
   const filteredHazards = airfield.hazards
     .filter(h=>phase==="all"||h.phase.includes(phase)||h.phase.includes("all"))
@@ -2564,14 +2508,17 @@ export default function App() {
                 </div>
                 <div style={{fontSize:11,color:"#556677",marginBottom:8}}>{airfield.city}  ·  <span style={{color:"#00B4FF",fontWeight:600}}>{airfield.class}</span>  ·  {airfield.type}  ·  Elevation <span style={{color:"#FFD700",fontWeight:600}}>{airfield.elevation.toLocaleString()}ft</span></div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{airfield.runways.map(r=><span key={r} style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#8899AA",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:4,padding:"3px 8px"}}>{r}</span>)}</div>
+                <div style={{fontSize:8.5,color:airfield.source?"#00C896":"#FFD700",marginTop:7,lineHeight:1.5}}>
+                  {airfield.source ? <>✓ Verified against <a href={airfield.source.url} target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>{airfield.source.label}</a> · {airfield.source.cycle}</> : <>Reference training summary — verify runways, frequencies, airspace, hours, and NOTAMs in the current <a href={airfield.region==="uk"?UK_AIP:FAA_CHART_SUPPLEMENT_SEARCH} target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>{airfield.region==="uk"?"UK AIP":"FAA Chart Supplement"}</a> before flight.</>}
+                </div>
               </div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 {["critical","high","medium"].map(s=>{const count=airfield.hazards.filter(h=>h.sev===s).length;if(!count)return null;const sc=SEV[s];return <div key={s} style={{textAlign:"center",background:sc.bg,border:`1px solid ${sc.border}`,borderRadius:6,padding:"6px 12px"}}><div style={{fontFamily:"'DM Mono',monospace",fontSize:18,color:sc.color,fontWeight:"bold",lineHeight:1}}>{count}</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:sc.color,marginTop:2}}>{s.toUpperCase()}</div></div>;})}
               </div>
             </div>
           </div>
-          <WeatherStrip liveWx={liveWx} wxLoad={wxLoad}/>
-          {airfield.region==="uk" ? <UkWeatherWidget airfield={airfield} liveWx={liveWx}/> : <DAWidget airfield={airfield} liveWx={liveWx}/>}
+          <WeatherStrip liveWx={liveWx} wxLoad={wxLoad} requestedIcao={selected} weatherIcao={weatherIcao}/>
+          {airfield.region==="uk" ? <UkWeatherWidget key={`${selected}:${liveWx?.metar||"loading"}`} airfield={airfield} liveWx={liveWx}/> : <DAWidget key={`${selected}:${liveWx?.metar||"loading"}`} airfield={airfield} liveWx={liveWx}/>}
           <MapWidget airfield={airfield} icao={selected}/>
           <div style={{display:"flex",borderBottom:"2px solid rgba(255,255,255,0.06)",marginBottom:14,overflowX:"auto",gap:2}}>
             {[["hazards",`THREATS (${filteredHazards.length})`],["atc","ATC & AIRSPACE"],["cfi","CFI NOTES"],["brief","W-A-N-T BRIEF"]].map(([tid,label])=>(
