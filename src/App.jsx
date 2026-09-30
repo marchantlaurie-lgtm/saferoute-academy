@@ -1294,6 +1294,7 @@ function IcingPanel({ airfield, icao, liveWx }) {
   const coords = FIELD_COORDS[icao];
   const [icingLoad, setIcingLoad] = useState(airfield.region !== "uk" && !!coords);
   const [icingError, setIcingError] = useState(false);
+  const metarStale = liveWx?.metarStatus === "last-known-good";
   const tempC = liveWx ? parseMetarTemp(liveWx.metar) : null;
   const freezingLevel = estimateFreezingLevel(tempC, airfield.elevation);
   const visibleMoisture = hasVisibleMoistureSignal(liveWx?.metar || "", liveWx?.tafs || []);
@@ -1313,7 +1314,7 @@ function IcingPanel({ airfield, icao, liveWx }) {
   });
   const statusColor = status === "OFFICIAL ADVISORY ACTIVE" || status === "ICING REPORTED NEARBY"
     ? "#FF3B3B"
-    : status === "POTENTIAL" ? "#FFD700" : status === "DATA UNAVAILABLE" ? "#8899AA" : "#00C896";
+    : status === "POTENTIAL" ? "#FFD700" : status.startsWith("ESTIMATE UNAVAILABLE") ? "#8899AA" : "#00C896";
   const officialUrl = airfield.region === "uk"
     ? "https://mavis.metoffice.gov.uk/"
     : "https://aviationweather.gov/gfa/#ice";
@@ -1342,9 +1343,9 @@ function IcingPanel({ airfield, icao, liveWx }) {
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:12}}>
         <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
-          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>METAR-BASED ESTIMATE</div>
+          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>{metarStale?"LAST-VALID METAR ESTIMATE":"METAR-BASED ESTIMATE"}</div>
           <div style={{fontSize:21,color:"#FFFFFF",fontWeight:"bold"}}>{freezingLevel === null ? "—" : `~${freezingLevel.toLocaleString()}ft`}</div>
-          <div style={{fontSize:8,color:"#8899AA",marginTop:3}}>MSL · surface lapse-rate estimate</div>
+          <div style={{fontSize:8,color:"#8899AA",marginTop:3}}>{freezingLevel === null ? "METAR temperature missing" : "MSL · surface lapse-rate estimate"}</div>
         </div>
         <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
           <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>PLANNED ALTITUDE</div>
@@ -1354,7 +1355,7 @@ function IcingPanel({ airfield, icao, liveWx }) {
         <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
           <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>VISIBLE-MOISTURE SIGNAL</div>
           <div style={{fontSize:14,color:visibleMoisture?"#FFD700":"#00C896",fontWeight:"bold",marginTop:5}}>{visibleMoisture?"INDICATED":"NOT INDICATED"}</div>
-          <div style={{fontSize:8,color:"#8899AA",marginTop:5}}>Current METAR and TAF only</div>
+          <div style={{fontSize:8,color:"#8899AA",marginTop:5}}>{metarStale?"Last-valid METAR and current TAF":"Current METAR and TAF only"}</div>
         </div>
       </div>
 
@@ -1535,6 +1536,12 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
   const [wxTab, setWxTab] = useState("metar");
   if (wxLoad) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>Loading live weather…</div>;
   if (!liveWx) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>No live weather data available for this field.</div>;
+  const metarStatus = liveWx.metarStatus || (liveWx.metar ? "current" : "unavailable");
+  const metarStale = metarStatus === "last-known-good";
+  const metarUnavailable = metarStatus === "unavailable";
+  const observedLabel = liveWx.metarObservedAt
+    ? new Date(liveWx.metarObservedAt).toLocaleString([], {timeZone:"UTC",hour:"2-digit",minute:"2-digit",day:"numeric",month:"short",timeZoneName:"short"})
+    : null;
   const tafThreats = parseTAFThreats(liveWx.tafs);
   const hasCB = liveWx.metar && /\b(?:FEW|SCT|BKN|OVC)\d{3}CB\b|\bTSRA\b|(?:^|\s)\+TS\b/.test(liveWx.metar);
   const usesNearbyStation = requestedIcao !== weatherIcao;
@@ -1542,9 +1549,11 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
     <div style={{background:"#0A1828",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>🌤 LIVE WEATHER</div>
-        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#FF3B3B"}}>● LIVE</span>
+        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:metarStale||metarUnavailable?"#FFD700":"#00C896"}}>{metarStale?"◷ LAST VALID METAR":metarUnavailable?"⚠ METAR UNAVAILABLE":"● LIVE"}</span>
       </div>
       {usesNearbyStation && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ Weather shown is from nearby station <b>{weatherIcao}</b>, not an on-airport observation for {requestedIcao}. Allow for local differences.</div>}
+      {metarStale && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ The current METAR feed is temporarily unavailable. Academy is showing the last valid observation{observedLabel?` from ${observedLabel}`:""} and will recheck the official feed.</div>}
+      {metarUnavailable && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ No current or retained METAR is available. METAR-dependent estimates are unavailable; use the TAF and official weather sources while Academy retries the feed.</div>}
       {/* Weather sub-tabs */}
       <div style={{display:"flex",gap:2,marginBottom:12,borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
         {[["metar","METAR"],["taf","TAF FORECAST"]].map(([tid,label])=>(
@@ -1554,9 +1563,9 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
       {wxTab==="metar" && (
         <div>
           <div style={{background:"rgba(255,255,255,0.04)",borderRadius:6,padding:"10px 12px",marginBottom:10}}>
-            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",marginBottom:4,letterSpacing:"0.1em"}}>CURRENT CONDITIONS</div>
+            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",marginBottom:4,letterSpacing:"0.1em"}}>{metarStale?"LAST VALID CONDITIONS":"CURRENT CONDITIONS"}</div>
             {/* CHANGE 2: METAR interpretation text now white */}
-            <div style={{fontSize:13,color:"#FFFFFF",fontWeight:"500",lineHeight:1.6}}>{interpretMetarShort(liveWx.metar)}</div>
+            <div style={{fontSize:13,color:metarUnavailable?"#8899AA":"#FFFFFF",fontWeight:"500",lineHeight:1.6}}>{metarUnavailable?"METAR temporarily unavailable.":interpretMetarShort(liveWx.metar)}</div>
             {hasCB && <div style={{marginTop:6,fontSize:11,color:"#FF3B3B",fontWeight:"bold"}}>⛈ ACTIVE THUNDERSTORM / CB DETECTED IN METAR</div>}
           </div>
           {tafThreats.length>0 && (
@@ -1565,7 +1574,7 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
               {tafThreats.map((t,i)=><div key={i} style={{fontSize:12,color:t.color,marginBottom:3,fontWeight:"500"}}>{t.icon}  {t.text}</div>)}
             </div>
           )}
-          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#FFFFFF",lineHeight:1.6,wordBreak:"break-all"}}>{liveWx.metar}</div>
+          {!metarUnavailable && <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#FFFFFF",lineHeight:1.6,wordBreak:"break-all"}}>{liveWx.metar}</div>}
         </div>
       )}
       {wxTab==="taf" && <TAFDisplay tafs={liveWx.tafs}/>}

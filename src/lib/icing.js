@@ -21,7 +21,7 @@ export function classifyIcingAwareness({
 }) {
   if (advisoryActive) return "OFFICIAL ADVISORY ACTIVE";
   if (positivePirepCount > 0) return "ICING REPORTED NEARBY";
-  if (!Number.isFinite(freezingLevelFt) || !Number.isFinite(plannedAltitudeFt)) return "DATA UNAVAILABLE";
+  if (!Number.isFinite(freezingLevelFt) || !Number.isFinite(plannedAltitudeFt)) return "ESTIMATE UNAVAILABLE — METAR TEMP MISSING";
   if (plannedAltitudeFt >= freezingLevelFt && visibleMoisture) return "POTENTIAL";
   return "NOT INDICATED LOCALLY";
 }

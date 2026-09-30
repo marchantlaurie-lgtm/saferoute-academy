@@ -23,4 +23,5 @@ test("official advisories and positive PIREPs outrank the local estimate", () =>
   assert.equal(classifyIcingAwareness({ plannedAltitudeFt:3000, freezingLevelFt:8000, visibleMoisture:false, positivePirepCount:1 }), "ICING REPORTED NEARBY");
   assert.equal(classifyIcingAwareness({ plannedAltitudeFt:9000, freezingLevelFt:8000, visibleMoisture:true }), "POTENTIAL");
   assert.equal(classifyIcingAwareness({ plannedAltitudeFt:7000, freezingLevelFt:8000, visibleMoisture:true }), "NOT INDICATED LOCALLY");
+  assert.equal(classifyIcingAwareness({ plannedAltitudeFt:7000, freezingLevelFt:null, visibleMoisture:false }), "ESTIMATE UNAVAILABLE — METAR TEMP MISSING");
 });
