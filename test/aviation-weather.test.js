@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 
 import {
   interpretMetarShort,
+  isMetarUsableForCalculations,
   parseAviationVisibility,
   parseMetarAltimeter,
+  parseMetarDewpoint,
+  parseMetarTemp,
   parsePeriodSummary,
   parseTAFPeriods,
 } from "../src/lib/aviation-weather.js";
@@ -32,6 +35,19 @@ test("altimeter parser supports both inHg and QNH", () => {
   assert.equal(parseMetarAltimeter("KVRB 290753Z 24004KT 10SM CLR 22/18 A2996"), 29.96);
   assert.equal(parseMetarAltimeter("EGLL 291050Z 24005KT CAVOK 17/10 Q1016"), 30.0);
   assert.equal(parseMetarAltimeter("EGLL 291050Z 24005KT CAVOK 17/10"), null);
+});
+
+test("METAR temperature remains usable when the dew point is omitted", () => {
+  const metar = "METAR KZPH 301235Z AUTO 00000KT 10SM CLR 22/ A3006";
+  assert.equal(parseMetarTemp(metar), 22);
+  assert.equal(parseMetarDewpoint(metar), null);
+});
+
+test("stale and unavailable METARs cannot drive calculations", () => {
+  assert.equal(isMetarUsableForCalculations({ metar:"METAR KAAA", metarStatus:"current" }), true);
+  assert.equal(isMetarUsableForCalculations({ metar:"METAR KAAA", metarStatus:"last-known-good" }), true);
+  assert.equal(isMetarUsableForCalculations({ metar:"METAR KAAA", metarStatus:"stale" }), false);
+  assert.equal(isMetarUsableForCalculations({ metar:"", metarStatus:"unavailable" }), false);
 });
 
 test("TAF periods retain base and FROM groups", () => {

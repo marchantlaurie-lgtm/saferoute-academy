@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import {
   interpretMetarShort,
+  isMetarUsableForCalculations,
   parseMetarAltimeter,
   parseMetarDewpoint,
   parseMetarTemp,
@@ -12,6 +13,7 @@ import {
   classifyIcingAwareness,
   estimateFreezingLevel,
   hasVisibleMoistureSignal,
+  isNegativeIcingIntensity,
 } from "./lib/icing.js";
 import { canControlReduce, FRAT_RETAIN_CONTROL, hasRecordedControl } from "./lib/frat-controls.js";
 
@@ -275,7 +277,7 @@ const AIRFIELDS = {
     atcNotes:"CTAF/UNICOM 123.0 · AWOS-3P 119.225 · Tampa Approach/Departure 125.3\nNon-towered. Confirm current communications, published operating times, restrictions, and NOTAMs.",
     cfiNotes:"KCLW is useful for teaching non-towered procedures and disciplined performance planning. Brief the full-stop-only restriction, displaced thresholds, right traffic for Runway 34, published operating period, and current NOTAMs.",
   },
-  KIMM:{ name:"Immokalee Regional Airport", city:"Immokalee, FL", elevation:37, class:"Uncontrolled", type:"Non-Towered", runways:["09/27 — 5,000ft","18/36 — 4,550ft"], region:"florida", weather_icao:"KIMM",
+  KIMM:{ name:"Immokalee Regional Airport", city:"Immokalee, FL", elevation:37, class:"Uncontrolled", type:"Non-Towered", runways:["09/27 — 5,000ft","18/36 — 4,550ft"], region:"florida", weather_icao:"KRSW",
     hazards:[
       {id:"NONTOW",phase:["all"],sev:"critical",icon:"📻",title:"Non-Towered — Self-Announce Required",why:"No ATC — all separation is pilot responsibility.",detail:"KIMM has no control tower. All pilots must self-announce on CTAF 122.8. Announce at every standard reporting point: 10nm inbound, downwind, base, final, and clear of runway."},
       {id:"CB",phase:["all"],sev:"critical",icon:"⛈",title:"Southwest Florida Thunderstorms + No Tower Warning",why:"No tower means no weather alerts — you must self-brief.",detail:"At a non-towered field, there is no ATC to warn you about developing weather. You are responsible for your own weather awareness. Monitor weather radar on ForeFlight/Garmin Pilot. Set a personal 13:00 turn-around rule in summer."},
@@ -432,7 +434,7 @@ const AIRFIELDS = {
   },
 
   // ── UNITED KINGDOM ────────────────────────────────────────────────────────
-  EGBP:{ name:"Kemble (Cotswold Airport)", city:"Kemble, Gloucestershire", elevation:433, class:"Class G", type:"Uncontrolled", runways:["08/26 — 2,000m"], region:"uk", weather_icao:"EGBP",
+  EGBP:{ name:"Kemble (Cotswold Airport)", city:"Kemble, Gloucestershire", elevation:433, class:"Class G", type:"Uncontrolled", runways:["08/26 — 2,000m"], region:"uk", weather_icao:"EGBJ",
     hazards:[
       {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Uncontrolled — Radio Discipline Required",why:"No ATC — all separation is pilot responsibility.",detail:"Kemble is a busy uncontrolled field. Make blind calls at all reporting points and listen out continuously on the A/G frequency. Do not assume other traffic has heard your call."},
       {id:"GLIDER",phase:["pattern","all"],sev:"medium",icon:"🪂",title:"Glider & Parachute Activity Nearby",why:"Shared local airspace with gliding and parachute operations.",detail:"Check NOTAMs for active parachute drop zones and glider launch sites before flight. Gliders may not be radio-equipped."},
@@ -490,7 +492,7 @@ const AIRFIELDS = {
     atcNotes:"Shoreham Tower 123.15",
     cfiNotes:"Coastal fog awareness is the standout brief here — reinforce checking trends, not just current conditions. Always confirm: have you checked NOTAMs before departure?",
   },
-  EGBW:{ name:"Wellesbourne Mountford Airfield", city:"Wellesbourne, Warwickshire", elevation:154, class:"Class G", type:"ATZ — AFIS (Aerodrome Flight Information Service)", runways:["18/36 — 1,097m","05/23 — 741m"], region:"uk", weather_icao:"EGBW",
+  EGBW:{ name:"Wellesbourne Mountford Airfield", city:"Wellesbourne, Warwickshire", elevation:154, class:"Class G", type:"ATZ — AFIS (Aerodrome Flight Information Service)", runways:["18/36 — 1,097m","05/23 — 741m"], region:"uk", weather_icao:"EGBB",
     hazards:[
       {id:"AFIS",phase:["all"],sev:"medium",icon:"📻",title:"AFIS, Not Basic Self-Announce",detail:"Wellesbourne runs a genuine AFIS with a licensed AFISO. Special calls at specific points are mandatory, and if the AFISO advises a different circuit direction or action than requested, follow their advice."},
       {id:"MULTI",phase:["pattern","all"],sev:"medium",icon:"📻",title:"Multiple Flying Schools",detail:"Several schools operate from Wellesbourne. Expect non-standard spacing — announce clearly, look before every turn."},
@@ -506,7 +508,7 @@ const AIRFIELDS = {
     atcNotes:"Southampton Approach 128.85 · Tower 118.2",
     cfiNotes:"Good introduction to mixed GA/commercial Class D operations. Always confirm: have you checked NOTAMs before departure?",
   },
-  EGLK:{ name:"Blackbushe Airport", city:"Camberley, Hampshire", elevation:325, class:"Class G", type:"ATZ — AFIS (Aerodrome Flight Information Service)", runways:["07/25 — 1,384m"], region:"uk", weather_icao:"EGLK",
+  EGLK:{ name:"Blackbushe Airport", city:"Camberley, Hampshire", elevation:325, class:"Class G", type:"ATZ — AFIS (Aerodrome Flight Information Service)", runways:["07/25 — 1,384m"], region:"uk", weather_icao:"EGLF",
     hazards:[
       {id:"AFIS",phase:["all"],sev:"medium",icon:"📻",title:"AFIS — Not a Basic Advisory Service",why:"Blackbushe runs a genuine AFIS, not simple self-announce radio — ground movement requires ATSU approval.",detail:"Contact Blackbushe Information before entering the ATZ. Aircraft may not taxi or commence any ground movement — including after vacating the runway or refuelling — without approval from the ATSU."},
       {id:"BUSY",phase:["pattern","all"],sev:"medium",icon:"✈",title:"Busy Business Aviation Traffic",detail:"Blackbushe sees significant business jet and turboprop traffic alongside GA training — expect faster-moving aircraft in the pattern."},
@@ -601,7 +603,7 @@ const AIRFIELDS = {
     atcNotes:"Farnborough Tower 122.5 · Approach/Radar 134.355 · Director 130.055 · LARS 125.25 · ATIS 128.405",
     cfiNotes:"Not a routine training field — reserve for advanced radio-procedure exposure. Emphasise that this is genuine Class D controlled airspace with mandatory clearance, not an informal Class G environment. Always confirm: have you checked NOTAMs before departure?",
   },
-  EGTB:{ name:"Wycombe Air Park", city:"Booker, Buckinghamshire", elevation:520, class:"Class G", type:"Uncontrolled (ATZ)", runways:["06/24 — 823m","01/19 — 561m"], region:"uk", weather_icao:"EGTB",
+  EGTB:{ name:"Wycombe Air Park", city:"Booker, Buckinghamshire", elevation:520, class:"Class G", type:"Uncontrolled (ATZ)", runways:["06/24 — 823m","01/19 — 561m"], region:"uk", weather_icao:"EGLL",
     hazards:[
       {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"ATZ with Flight Information Service",detail:"Listen out and make position calls on the A/G frequency."},
       {id:"GLIDER",phase:["pattern","all"],sev:"medium",icon:"🪂",title:"Gliding and Parachute Operations",detail:"Wycombe has active gliding and parachute operations. Check NOTAMs before flight."},
@@ -616,7 +618,7 @@ const AIRFIELDS = {
     atcNotes:"Manchester Approach 118.575 · Tower 118.625",
     cfiNotes:"Use only for advanced radio-procedure exposure with thorough pre-flight briefing — not for routine circuit training. Always confirm: have you checked NOTAMs before departure?",
   },
-  EGCB:{ name:"City Airport Manchester (Barton)", city:"Eccles, Greater Manchester", elevation:75, class:"Class G", type:"ATZ — AFIS (Aerodrome Flight Information Service)", runways:["08/26 — 610m","14/32 — 555m"], region:"uk", weather_icao:"EGCB",
+  EGCB:{ name:"City Airport Manchester (Barton)", city:"Eccles, Greater Manchester", elevation:75, class:"Class G", type:"ATZ — AFIS (Aerodrome Flight Information Service)", runways:["08/26 — 610m","14/32 — 555m"], region:"uk", weather_icao:"EGCC",
     hazards:[
       {id:"AFIS",phase:["all"],sev:"medium",icon:"📻",title:"AFIS, Not Basic Self-Announce",detail:"Barton runs a genuine AFIS — contact Barton Information before entering the ATZ rather than treating this as a purely self-announce field."},
       {id:"SHORT",phase:["takeoff","landing"],sev:"high",icon:"🛬",title:"Short Grass/Paved Runways",why:"Runways under 650m — some of the shortest in regular training use.",detail:"Know your aircraft's demonstrated short-field performance before accepting these runways. Add a safety margin, particularly if grass is wet."},
@@ -672,7 +674,7 @@ const AIRFIELDS = {
     atcNotes:"Newquay Approach 125.475 · Tower 133.4",
     cfiNotes:"Coastal weather awareness is the standout brief — reinforce trend-checking over single-report reliance. Always confirm: have you checked NOTAMs before departure?",
   },
-  EGLM:{ name:"White Waltham Airfield", city:"White Waltham, Berkshire", elevation:133, class:"Class G", type:"Uncontrolled (ATZ)", runways:["03/21 — 823m","07/25 — 796m"], region:"uk", weather_icao:"EGLM",
+  EGLM:{ name:"White Waltham Airfield", city:"White Waltham, Berkshire", elevation:133, class:"Class G", type:"Uncontrolled (ATZ)", runways:["03/21 — 823m","07/25 — 796m"], region:"uk", weather_icao:"EGLL",
     hazards:[
       {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"ATZ with Flight Information Service",detail:"Listen out and make position calls on the A/G frequency."},
       {id:"GRASS",phase:["takeoff","landing"],sev:"medium",icon:"🛬",title:"Grass Runways",detail:"All runways are grass — performance and braking differ from paved surfaces, especially when wet."},
@@ -680,7 +682,7 @@ const AIRFIELDS = {
     atcNotes:"White Waltham Radio 122.6",
     cfiNotes:"Good grass-field introduction — reinforce the performance differences from paved-runway training. Always confirm: have you checked NOTAMs before departure?",
   },
-  EGSG:{ name:"Stapleford Aerodrome", city:"Stapleford Tawney, Essex", elevation:190, class:"Class G", type:"Uncontrolled (ATZ)", runways:["04/22 — 793m"], region:"uk", weather_icao:"EGSG",
+  EGSG:{ name:"Stapleford Aerodrome", city:"Stapleford Tawney, Essex", elevation:190, class:"Class G", type:"Uncontrolled (ATZ)", runways:["04/22 — 793m"], region:"uk", weather_icao:"EGSS",
     hazards:[
       {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"ATZ with Flight Information Service",detail:"Listen out and make position calls on the A/G frequency."},
       {id:"MULTI",phase:["pattern","all"],sev:"medium",icon:"📻",title:"Busy Multi-School Circuit",detail:"Multiple schools operate from Stapleford. Expect non-standard spacing — announce clearly, look before every turn."},
@@ -793,7 +795,7 @@ const AIRFIELDS = {
     atcNotes:"No tower — self-announce on the local CTAF frequency; confirm the current frequency in the Chart Supplement.",
     cfiNotes:"Good non-towered introduction south of Houston — reinforce self-briefing discipline given the lack of a tower to catch developing weather.",
   },
-  KIWS:{ name:"West Houston Airport", city:"Houston (Katy), TX", elevation:111, class:"Uncontrolled", type:"Non-Towered", runways:["15/33 — 3,953ft"], region:"texas", weather_icao:"KIWS",
+  KIWS:{ name:"West Houston Airport", city:"Houston (Katy), TX", elevation:111, class:"Uncontrolled", type:"Non-Towered", runways:["15/33 — 3,953ft"], region:"texas", weather_icao:"KSGR",
     hazards:[
       {id:"NONTOW",phase:["all"],sev:"high",icon:"📻",title:"Non-Towered — Self-Announce Required",detail:"No control tower. Self-announce at every standard reporting point on the local CTAF frequency."},
       {id:"HOURS",phase:["pattern","all"],sev:"low",icon:"🕐",title:"Touch-and-Go Curfew",detail:"Touch-and-go circuits are restricted between 2200 and 0600 local. Plan pattern work accordingly."},
@@ -1188,8 +1190,9 @@ function calcWindTriangle(trueCourseDeg, tasKt, windDirDeg, windSpdKt) {
 }
 
 function DAWidget({ airfield, liveWx }) {
-  const liveTemp = liveWx?parseMetarTemp(liveWx.metar):null;
-  const liveAlt  = liveWx?parseMetarAltimeter(liveWx.metar):null;
+  const metarUsable = isMetarUsableForCalculations(liveWx);
+  const liveTemp = metarUsable?parseMetarTemp(liveWx.metar):null;
+  const liveAlt  = metarUsable?parseMetarAltimeter(liveWx.metar):null;
   const [tempC,setTempC] = useState(liveTemp??25);
   const [altim,setAltim] = useState(liveAlt??29.92);
   const [useLive,setUseLive] = useState(!!liveTemp);
@@ -1237,8 +1240,9 @@ function calcCloudBase(tempC, dewpointC, elevFt) {
 }
 
 function UkWeatherWidget({ airfield, liveWx }) {
-  const liveTemp = liveWx?parseMetarTemp(liveWx.metar):null;
-  const liveDew  = liveWx?parseMetarDewpoint(liveWx.metar):null;
+  const metarUsable = isMetarUsableForCalculations(liveWx);
+  const liveTemp = metarUsable?parseMetarTemp(liveWx.metar):null;
+  const liveDew  = metarUsable?parseMetarDewpoint(liveWx.metar):null;
   const [tempC,setTempC] = useState(liveTemp??15);
   const [dewC,setDewC] = useState(liveDew??10);
   const [useLive,setUseLive] = useState(!!liveTemp);
@@ -1294,24 +1298,34 @@ function IcingPanel({ airfield, icao, liveWx }) {
   const coords = FIELD_COORDS[icao];
   const [icingLoad, setIcingLoad] = useState(airfield.region !== "uk" && !!coords);
   const [icingError, setIcingError] = useState(false);
-  const metarStale = liveWx?.metarStatus === "last-known-good";
-  const tempC = liveWx ? parseMetarTemp(liveWx.metar) : null;
+  const metarRetained = liveWx?.metarStatus === "last-known-good";
+  const metarTooOld = liveWx?.metarStatus === "stale";
+  const metarUnavailable = !liveWx?.metar || liveWx?.metarStatus === "unavailable";
+  const metarUsable = isMetarUsableForCalculations(liveWx);
+  const tempC = metarUsable ? parseMetarTemp(liveWx.metar) : null;
   const freezingLevel = estimateFreezingLevel(tempC, airfield.elevation);
-  const visibleMoisture = hasVisibleMoistureSignal(liveWx?.metar || "", liveWx?.tafs || []);
+  const visibleMoisture = hasVisibleMoistureSignal(metarUsable ? liveWx.metar : "", liveWx?.tafs || []);
   const advisoryActive = (icingData?.advisories || []).length > 0;
   const positivePireps = (icingData?.pireps || []).filter(report =>
-    report.layers?.some(layer => layer.intensity && !/^(NEG|NONE)$/i.test(layer.intensity))
+    report.layers?.some(layer => layer.intensity && !isNegativeIcingIntensity(layer.intensity))
   );
   const negativePireps = (icingData?.pireps || []).filter(report =>
-    report.layers?.some(layer => /^(NEG|NONE)$/i.test(layer.intensity))
+    report.layers?.some(layer => isNegativeIcingIntensity(layer.intensity))
   );
-  const status = classifyIcingAwareness({
+  const calculatedStatus = classifyIcingAwareness({
     plannedAltitudeFt:plannedAltitude,
     freezingLevelFt:freezingLevel,
     visibleMoisture,
     advisoryActive,
     positivePirepCount:positivePireps.length,
   });
+  const status = advisoryActive || positivePireps.length > 0
+    ? calculatedStatus
+    : metarTooOld
+      ? "ESTIMATE UNAVAILABLE — METAR TOO OLD"
+      : metarUnavailable
+        ? "ESTIMATE UNAVAILABLE — NO CURRENT METAR"
+        : calculatedStatus;
   const statusColor = status === "OFFICIAL ADVISORY ACTIVE" || status === "ICING REPORTED NEARBY"
     ? "#FF3B3B"
     : status === "POTENTIAL" ? "#FFD700" : status.startsWith("ESTIMATE UNAVAILABLE") ? "#8899AA" : "#00C896";
@@ -1343,9 +1357,9 @@ function IcingPanel({ airfield, icao, liveWx }) {
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:12}}>
         <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
-          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>{metarStale?"LAST-VALID METAR ESTIMATE":"METAR-BASED ESTIMATE"}</div>
+          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>{metarTooOld?"STALE METAR — ESTIMATE DISABLED":metarRetained?"LAST-VALID METAR ESTIMATE":"METAR-BASED ESTIMATE"}</div>
           <div style={{fontSize:21,color:"#FFFFFF",fontWeight:"bold"}}>{freezingLevel === null ? "—" : `~${freezingLevel.toLocaleString()}ft`}</div>
-          <div style={{fontSize:8,color:"#8899AA",marginTop:3}}>{freezingLevel === null ? "METAR temperature missing" : "MSL · surface lapse-rate estimate"}</div>
+          <div style={{fontSize:8,color:"#8899AA",marginTop:3}}>{metarTooOld?"Stale observation excluded":metarUnavailable?"No current METAR":freezingLevel === null?"METAR temperature missing":"MSL · surface lapse-rate estimate"}</div>
         </div>
         <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
           <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>PLANNED ALTITUDE</div>
@@ -1355,7 +1369,7 @@ function IcingPanel({ airfield, icao, liveWx }) {
         <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
           <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>VISIBLE-MOISTURE SIGNAL</div>
           <div style={{fontSize:14,color:visibleMoisture?"#FFD700":"#00C896",fontWeight:"bold",marginTop:5}}>{visibleMoisture?"INDICATED":"NOT INDICATED"}</div>
-          <div style={{fontSize:8,color:"#8899AA",marginTop:5}}>{metarStale?"Last-valid METAR and current TAF":"Current METAR and TAF only"}</div>
+          <div style={{fontSize:8,color:"#8899AA",marginTop:5}}>{metarTooOld?"Current TAF only · stale METAR excluded":metarUnavailable?"Current TAF only · METAR unavailable":metarRetained?"Last-valid METAR and current TAF":"Current METAR and TAF only"}</div>
         </div>
       </div>
 
@@ -1537,22 +1551,32 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
   if (wxLoad) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>Loading live weather…</div>;
   if (!liveWx) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>No live weather data available for this field.</div>;
   const metarStatus = liveWx.metarStatus || (liveWx.metar ? "current" : "unavailable");
-  const metarStale = metarStatus === "last-known-good";
+  const metarRetained = metarStatus === "last-known-good";
+  const metarTooOld = metarStatus === "stale";
   const metarUnavailable = metarStatus === "unavailable";
+  const metarAge = Number.isFinite(liveWx.metarAgeMinutes) ? liveWx.metarAgeMinutes : null;
+  const ageLabel = metarAge === null
+    ? null
+    : metarAge < 90
+      ? `${metarAge} minutes`
+      : metarAge < 2880
+        ? `${Math.round(metarAge / 60)} hours`
+        : `${Math.round(metarAge / 1440)} days`;
   const observedLabel = liveWx.metarObservedAt
     ? new Date(liveWx.metarObservedAt).toLocaleString([], {timeZone:"UTC",hour:"2-digit",minute:"2-digit",day:"numeric",month:"short",timeZoneName:"short"})
     : null;
   const tafThreats = parseTAFThreats(liveWx.tafs);
-  const hasCB = liveWx.metar && /\b(?:FEW|SCT|BKN|OVC)\d{3}CB\b|\bTSRA\b|(?:^|\s)\+TS\b/.test(liveWx.metar);
+  const hasCB = !metarTooOld && liveWx.metar && /\b(?:FEW|SCT|BKN|OVC)\d{3}CB\b|\bTSRA\b|(?:^|\s)\+TS\b/.test(liveWx.metar);
   const usesNearbyStation = requestedIcao !== weatherIcao;
   return (
     <div style={{background:"#0A1828",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>🌤 LIVE WEATHER</div>
-        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:metarStale||metarUnavailable?"#FFD700":"#00C896"}}>{metarStale?"◷ LAST VALID METAR":metarUnavailable?"⚠ METAR UNAVAILABLE":"● LIVE"}</span>
+        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:metarRetained||metarTooOld||metarUnavailable?"#FFD700":"#00C896"}}>{metarRetained?"◷ LAST VALID METAR":metarTooOld?"⚠ STALE METAR":metarUnavailable?"⚠ METAR UNAVAILABLE":"● LIVE"}</span>
       </div>
       {usesNearbyStation && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ Weather shown is from nearby station <b>{weatherIcao}</b>, not an on-airport observation for {requestedIcao}. Allow for local differences.</div>}
-      {metarStale && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ The current METAR feed is temporarily unavailable. Academy is showing the last valid observation{observedLabel?` from ${observedLabel}`:""} and will recheck the official feed.</div>}
+      {metarRetained && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ The current METAR feed is temporarily unavailable. Academy is showing the last valid observation{observedLabel?` from ${observedLabel}`:""} and will recheck the official feed.</div>}
+      {metarTooOld && <div style={{background:"rgba(255,59,59,0.08)",border:"1px solid rgba(255,59,59,0.35)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FF8C00",lineHeight:1.5}}>⚠ The latest METAR is {ageLabel?`${ageLabel} old`:"not time-verifiable"}{observedLabel?` (${observedLabel})`:""}. It is shown for context only; Academy has disabled METAR-dependent calculations.</div>}
       {metarUnavailable && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ No current or retained METAR is available. METAR-dependent estimates are unavailable; use the TAF and official weather sources while Academy retries the feed.</div>}
       {/* Weather sub-tabs */}
       <div style={{display:"flex",gap:2,marginBottom:12,borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
@@ -1563,7 +1587,7 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
       {wxTab==="metar" && (
         <div>
           <div style={{background:"rgba(255,255,255,0.04)",borderRadius:6,padding:"10px 12px",marginBottom:10}}>
-            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",marginBottom:4,letterSpacing:"0.1em"}}>{metarStale?"LAST VALID CONDITIONS":"CURRENT CONDITIONS"}</div>
+            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",marginBottom:4,letterSpacing:"0.1em"}}>{metarTooOld?"STALE CONDITIONS — CONTEXT ONLY":metarRetained?"LAST VALID CONDITIONS":"CURRENT CONDITIONS"}</div>
             {/* CHANGE 2: METAR interpretation text now white */}
             <div style={{fontSize:13,color:metarUnavailable?"#8899AA":"#FFFFFF",fontWeight:"500",lineHeight:1.6}}>{metarUnavailable?"METAR temporarily unavailable.":interpretMetarShort(liveWx.metar)}</div>
             {hasCB && <div style={{marginTop:6,fontSize:11,color:"#FF3B3B",fontWeight:"bold"}}>⛈ ACTIVE THUNDERSTORM / CB DETECTED IN METAR</div>}
@@ -2494,9 +2518,10 @@ export default function App() {
   // than left entirely to the AI, so Weather/Aircraft/NOTAM-reminder/Threats
   // are accurate and deterministic. The AI summary underneath ties it
   // together in plain language but isn't the source of these facts.
-  const briefLiveTemp = liveWx ? parseMetarTemp(liveWx.metar) : null;
-  const briefLiveDew  = liveWx ? parseMetarDewpoint(liveWx.metar) : null;
-  const briefLiveAlt  = liveWx ? parseMetarAltimeter(liveWx.metar) : null;
+  const briefMetarUsable = isMetarUsableForCalculations(liveWx);
+  const briefLiveTemp = briefMetarUsable ? parseMetarTemp(liveWx.metar) : null;
+  const briefLiveDew  = briefMetarUsable ? parseMetarDewpoint(liveWx.metar) : null;
+  const briefLiveAlt  = briefMetarUsable ? parseMetarAltimeter(liveWx.metar) : null;
   const briefTafThreats = parseTAFThreats(liveWx?.tafs);
 
   let aircraftPerf = null;
@@ -2526,11 +2551,17 @@ export default function App() {
 
   async function generateBriefing() {
     setBriefLoad(true);setBrief("");
-    const liveTemp = liveWx?parseMetarTemp(liveWx.metar):null;
-    const liveAlt  = liveWx?parseMetarAltimeter(liveWx.metar):null;
+    const metarUsable = isMetarUsableForCalculations(liveWx);
+    const liveTemp = metarUsable?parseMetarTemp(liveWx.metar):null;
+    const liveAlt  = metarUsable?parseMetarAltimeter(liveWx.metar):null;
     const da = liveTemp!==null?calcDA(airfield.elevation,liveTemp,liveAlt??29.92):null;
     const tafThreats = parseTAFThreats(liveWx?.tafs);
-    const wxText = [liveWx?.metar?`METAR: ${liveWx.metar}`:"No METAR available.",liveWx?.tafs?.[0]?`TAF: ${liveWx.tafs[0].slice(0,300)}`:"",da!==null?`Current Density Altitude: ${da.toLocaleString()}ft`:"",tafThreats.length?`Forecast hazards: ${tafThreats.map(t=>t.text).join(", ")}`:""].filter(Boolean).join("\n");
+    const metarText = metarUsable
+      ? `METAR: ${liveWx.metar}`
+      : liveWx?.metar
+        ? `STALE METAR — CONTEXT ONLY, DO NOT USE FOR CURRENT CALCULATIONS: ${liveWx.metar}`
+        : "No METAR available.";
+    const wxText = [metarText,liveWx?.tafs?.[0]?`TAF: ${liveWx.tafs[0].slice(0,300)}`:"",da!==null?`Current Density Altitude: ${da.toLocaleString()}ft`:"",tafThreats.length?`Forecast hazards: ${tafThreats.map(t=>t.text).join(", ")}`:""].filter(Boolean).join("\n");
     try {
       const res = await fetch(`${BACKEND}/routebrief`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dep:selected,dest:selected,alts:[],aircraft:"Training aircraft (single-engine piston)",threats:airfield.hazards.map(h=>`${h.title} (${h.sev.toUpperCase()})`),liveWeather:wxText})});
       if(!res.ok) throw new Error("Failed");

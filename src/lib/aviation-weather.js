@@ -3,13 +3,19 @@ function signedTemperature(token) {
 }
 
 export function parseMetarTemp(metar) {
-  const match = metar?.match(/\s(M?\d{2})\/(M?\d{2})\s/);
+  const match = metar?.match(/(?:^|\s)(M?\d{2})\/(?:M?\d{2}|\/{1,2})?(?=\s|$)/);
   return match ? signedTemperature(match[1]) : null;
 }
 
 export function parseMetarDewpoint(metar) {
-  const match = metar?.match(/\s(M?\d{2})\/(M?\d{2})\s/);
-  return match ? signedTemperature(match[2]) : null;
+  const match = metar?.match(/(?:^|\s)M?\d{2}\/(M?\d{2})(?=\s|$)/);
+  return match ? signedTemperature(match[1]) : null;
+}
+
+export function isMetarUsableForCalculations(liveWx) {
+  if (!liveWx?.metar) return false;
+  const status = liveWx.metarStatus || "current";
+  return status === "current" || status === "last-known-good";
 }
 
 export function parseMetarAltimeter(metar) {

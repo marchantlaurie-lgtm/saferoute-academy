@@ -12,6 +12,10 @@ export function hasVisibleMoistureSignal(metar="", tafs=[]) {
   return SIGNIFICANT_CLOUD.test(weatherText) || PRECIPITATION_TOKEN.test(weatherText);
 }
 
+export function isNegativeIcingIntensity(intensity="") {
+  return /^(?:NEG|NONE)/i.test(String(intensity).trim());
+}
+
 export function classifyIcingAwareness({
   plannedAltitudeFt,
   freezingLevelFt,

@@ -4,6 +4,7 @@ import {
   classifyIcingAwareness,
   estimateFreezingLevel,
   hasVisibleMoistureSignal,
+  isNegativeIcingIntensity,
 } from "../src/lib/icing.js";
 
 test("freezing level estimate uses the surface elevation and standard lapse rate", () => {
@@ -24,4 +25,11 @@ test("official advisories and positive PIREPs outrank the local estimate", () =>
   assert.equal(classifyIcingAwareness({ plannedAltitudeFt:9000, freezingLevelFt:8000, visibleMoisture:true }), "POTENTIAL");
   assert.equal(classifyIcingAwareness({ plannedAltitudeFt:7000, freezingLevelFt:8000, visibleMoisture:true }), "NOT INDICATED LOCALLY");
   assert.equal(classifyIcingAwareness({ plannedAltitudeFt:7000, freezingLevelFt:null, visibleMoisture:false }), "ESTIMATE UNAVAILABLE — METAR TEMP MISSING");
+});
+
+test("negative PIREP intensity variants are not counted as positive icing", () => {
+  assert.equal(isNegativeIcingIntensity("NEG"), true);
+  assert.equal(isNegativeIcingIntensity("NEGclr"), true);
+  assert.equal(isNegativeIcingIntensity("NONE"), true);
+  assert.equal(isNegativeIcingIntensity("TRC"), false);
 });
