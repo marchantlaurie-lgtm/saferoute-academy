@@ -8,13 +8,27 @@ import {
   parsePeriodSummary,
   parseTAFPeriods,
 } from "./lib/aviation-weather.js";
+import {
+  classifyIcingAwareness,
+  estimateFreezingLevel,
+  hasVisibleMoistureSignal,
+} from "./lib/icing.js";
 import { canControlReduce, FRAT_RETAIN_CONTROL, hasRecordedControl } from "./lib/frat-controls.js";
 
-const BACKEND = "https://saferoute-backend-production.up.railway.app";
+const BACKEND = import.meta.env.VITE_BACKEND_URL || "https://saferoute-backend-production.up.railway.app";
 
 async function fetchLiveWeather(icao) {
   try {
     const res = await fetch(`${BACKEND}/weather/${icao}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+async function fetchIcingData(icao, latitude, longitude) {
+  try {
+    const query = new URLSearchParams({ lat:String(latitude), lon:String(longitude) });
+    const res = await fetch(`${BACKEND}/icing/${icao}?${query}`);
     if (!res.ok) return null;
     return await res.json();
   } catch { return null; }
@@ -1221,10 +1235,6 @@ function calcCloudBase(tempC, dewpointC, elevFt) {
   const aglFt = Math.max(0, spread * 400);
   return Math.round(aglFt + elevFt);
 }
-function calcFreezingLevel(tempC, elevFt) {
-  if (tempC <= 0) return elevFt;
-  return Math.round(elevFt + tempC * 500);
-}
 
 function UkWeatherWidget({ airfield, liveWx }) {
   const liveTemp = liveWx?parseMetarTemp(liveWx.metar):null;
@@ -1234,8 +1244,8 @@ function UkWeatherWidget({ airfield, liveWx }) {
   const [useLive,setUseLive] = useState(!!liveTemp);
   const cloudBaseAmsl = calcCloudBase(tempC, dewC, airfield.elevation);
   const cloudBaseAgl = Math.max(0, cloudBaseAmsl - airfield.elevation);
-  const freezingLevel = calcFreezingLevel(tempC, airfield.elevation);
-  const icingRisk = tempC<=0 ? "LIKELY" : (freezingLevel < cloudBaseAmsl+2000 ? "POSSIBLE" : "LOW");
+  const freezingLevel = estimateFreezingLevel(tempC, airfield.elevation);
+  const icingRisk = tempC<=0 ? "LIKELY" : (freezingLevel < cloudBaseAmsl+2000 ? "POSSIBLE" : "NOT INDICATED");
   const riskColor = icingRisk==="LIKELY" ? "#FF3B3B" : icingRisk==="POSSIBLE" ? "#FFD700" : "#00C896";
   return (
     <div style={{background:"#0A1828",border:`2px solid ${riskColor}55`,borderRadius:8,padding:"11px 13px",marginBottom:10}}>
@@ -1266,6 +1276,131 @@ function UkWeatherWidget({ airfield, liveWx }) {
       </div>
       <div style={{fontSize:7,color:"#556677",marginTop:7,lineHeight:1.4}}>Estimates only. Always confirm against the actual TAF/METAR and F214/F215 charts before flight.</div>
     </div>
+  );
+}
+
+function formatIcingLevel(level) {
+  if (!level) return "not reported";
+  if (level === "FZL") return "the freezing level";
+  if (level === "SFC") return "the surface";
+  const hundreds = Number(level);
+  return Number.isFinite(hundreds) ? `${(hundreds * 100).toLocaleString()}ft MSL` : level;
+}
+
+function IcingPanel({ airfield, icao, liveWx }) {
+  const defaultAltitude = Math.min(17500, Math.ceil((airfield.elevation + 3000) / 500) * 500);
+  const [plannedAltitude, setPlannedAltitude] = useState(defaultAltitude);
+  const [icingData, setIcingData] = useState(null);
+  const coords = FIELD_COORDS[icao];
+  const [icingLoad, setIcingLoad] = useState(airfield.region !== "uk" && !!coords);
+  const [icingError, setIcingError] = useState(false);
+  const tempC = liveWx ? parseMetarTemp(liveWx.metar) : null;
+  const freezingLevel = estimateFreezingLevel(tempC, airfield.elevation);
+  const visibleMoisture = hasVisibleMoistureSignal(liveWx?.metar || "", liveWx?.tafs || []);
+  const advisoryActive = (icingData?.advisories || []).length > 0;
+  const positivePireps = (icingData?.pireps || []).filter(report =>
+    report.layers?.some(layer => layer.intensity && !/^(NEG|NONE)$/i.test(layer.intensity))
+  );
+  const negativePireps = (icingData?.pireps || []).filter(report =>
+    report.layers?.some(layer => /^(NEG|NONE)$/i.test(layer.intensity))
+  );
+  const status = classifyIcingAwareness({
+    plannedAltitudeFt:plannedAltitude,
+    freezingLevelFt:freezingLevel,
+    visibleMoisture,
+    advisoryActive,
+    positivePirepCount:positivePireps.length,
+  });
+  const statusColor = status === "OFFICIAL ADVISORY ACTIVE" || status === "ICING REPORTED NEARBY"
+    ? "#FF3B3B"
+    : status === "POTENTIAL" ? "#FFD700" : status === "DATA UNAVAILABLE" ? "#8899AA" : "#00C896";
+  const officialUrl = airfield.region === "uk"
+    ? "https://mavis.metoffice.gov.uk/"
+    : "https://aviationweather.gov/gfa/#ice";
+  const officialLabel = airfield.region === "uk" ? "OPEN MET OFFICE MAVIS" : "OPEN FAA GFA ICING";
+
+  useEffect(() => {
+    let cancelled = false;
+    if (airfield.region === "uk" || !coords) {
+      return () => { cancelled = true; };
+    }
+    fetchIcingData(icao, coords[0], coords[1]).then(data => {
+      if (cancelled) return;
+      setIcingData(data);
+      setIcingError(!data);
+      setIcingLoad(false);
+    });
+    return () => { cancelled = true; };
+  }, [airfield.region, coords, icao]);
+
+  return (
+    <div style={{background:"#0A1828",border:`1px solid ${statusColor}55`,borderRadius:10,padding:"16px 18px",marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:12}}>
+        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>❄ ICING / FREEZING LEVEL</div>
+        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:statusColor,border:`1px solid ${statusColor}66`,background:`${statusColor}18`,padding:"3px 7px",borderRadius:4,fontWeight:"bold"}}>{status}</span>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:12}}>
+        <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
+          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>METAR-BASED ESTIMATE</div>
+          <div style={{fontSize:21,color:"#FFFFFF",fontWeight:"bold"}}>{freezingLevel === null ? "—" : `~${freezingLevel.toLocaleString()}ft`}</div>
+          <div style={{fontSize:8,color:"#8899AA",marginTop:3}}>MSL · surface lapse-rate estimate</div>
+        </div>
+        <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
+          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>PLANNED ALTITUDE</div>
+          <div style={{fontSize:21,color:"#FFFFFF",fontWeight:"bold"}}>{plannedAltitude.toLocaleString()}ft</div>
+          <div style={{fontSize:8,color:"#8899AA",marginTop:3}}>MSL · selectable below</div>
+        </div>
+        <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
+          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>VISIBLE-MOISTURE SIGNAL</div>
+          <div style={{fontSize:14,color:visibleMoisture?"#FFD700":"#00C896",fontWeight:"bold",marginTop:5}}>{visibleMoisture?"INDICATED":"NOT INDICATED"}</div>
+          <div style={{fontSize:8,color:"#8899AA",marginTop:5}}>Current METAR and TAF only</div>
+        </div>
+      </div>
+
+      <div style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",marginBottom:5}}><span>FIELD {airfield.elevation.toLocaleString()}ft</span><span>17,500ft MSL</span></div>
+        <input aria-label="Planned altitude for icing comparison" type="range" min={Math.max(0,Math.floor(airfield.elevation/500)*500)} max={17500} step={500} value={plannedAltitude} onChange={event=>setPlannedAltitude(Number(event.target.value))} style={{width:"100%",accentColor:statusColor}}/>
+      </div>
+
+      {airfield.region !== "uk" && (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:8,marginBottom:12}}>
+          <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:7,padding:"10px 12px"}}>
+            <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:6}}>G-AIRMET ZULU · SELECTED AIRFIELD</div>
+            {icingLoad ? <div style={{fontSize:10,color:"#8899AA"}}>Checking official advisory…</div> : advisoryActive ? (
+              (icingData.advisories || []).map((advisory,index)=><div key={`${advisory.validTime}-${index}`} style={{fontSize:10,color:"#FF8C00",lineHeight:1.55,fontWeight:"bold"}}>{advisory.severity || "MOD"} icing · {formatIcingLevel(advisory.base)} to {formatIcingLevel(advisory.top)}</div>)
+            ) : <div style={{fontSize:10,color:icingError?"#8899AA":"#00C896",lineHeight:1.5}}>{icingError?"Official advisory feed unavailable.":"No current G-AIRMET icing area intersects this airfield."}</div>}
+            {icingData?.validTime && <div style={{fontSize:8,color:"#556677",marginTop:5}}>Snapshot valid {new Date(icingData.validTime).toLocaleString([], {timeZone:"UTC",hour:"2-digit",minute:"2-digit",day:"numeric",month:"short",timeZoneName:"short"})}</div>}
+          </div>
+          <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:7,padding:"10px 12px"}}>
+            <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:6}}>ICING PIREPS · 100 NM / 6 HOURS</div>
+            {icingLoad ? <div style={{fontSize:10,color:"#8899AA"}}>Checking recent pilot reports…</div> : (
+              <>
+                <div style={{fontSize:10,color:positivePireps.length?"#FF8C00":"#C0D4E8",lineHeight:1.5}}>{positivePireps.length} positive · {negativePireps.length} negative</div>
+                {positivePireps.slice(0,3).map((report,index)=><div key={`${report.observedAt}-${index}`} style={{fontSize:9,color:"#C0D4E8",lineHeight:1.5,marginTop:4}}>{report.layers.map(layer=>`${layer.intensity}${layer.type?` ${layer.type}`:""}`).join(" / ")} · {report.flightLevelFt?`${report.flightLevelFt.toLocaleString()}ft`:"altitude not reported"}{report.distanceNm!==null?` · ${report.distanceNm} NM`:""}</div>)}
+                {!icingError && !positivePireps.length && <div style={{fontSize:8,color:"#556677",marginTop:5,lineHeight:1.4}}>No positive icing reports returned. Absence of PIREPs is not evidence of no icing.</div>}
+                {icingError && <div style={{fontSize:8,color:"#8899AA",marginTop:5}}>Official PIREP feed unavailable.</div>}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <a href={officialUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",background:"rgba(0,180,255,0.15)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:6,padding:"7px 13px",color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:9,textDecoration:"none",fontWeight:"bold",marginBottom:10}}>{officialLabel} →</a>
+      <div style={{fontSize:8,color:"#556677",lineHeight:1.5}}>Training awareness only. The freezing level is estimated from one surface observation and can miss inversions or multiple freezing layers. Icing requires below-freezing temperatures and visible moisture; use the full official forecast, advisories, PIREPs, aircraft limitations, and an approved weather briefing. “Not indicated locally” never means “no icing.”</div>
+    </div>
+  );
+}
+
+function WeatherLayerWidget({ airfield, icao, liveWx }) {
+  const [layer, setLayer] = useState("radar");
+  return (
+    <>
+      <div style={{display:"flex",gap:5,marginBottom:8,position:"relative",zIndex:1}} role="tablist" aria-label="Weather display">
+        {[["radar","🗺 RADAR"],["icing","❄ ICING / FREEZING LEVEL"]].map(([id,label])=><button key={id} role="tab" aria-selected={layer===id} onClick={()=>setLayer(id)} style={{background:layer===id?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${layer===id?"rgba(0,180,255,0.45)":"rgba(255,255,255,0.08)"}`,borderRadius:6,padding:"7px 12px",color:layer===id?"#00B4FF":"#8899AA",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",letterSpacing:"0.05em"}}>{label}</button>)}
+      </div>
+      {layer === "radar" ? <MapWidget airfield={airfield} icao={icao}/> : <IcingPanel key={icao} airfield={airfield} icao={icao} liveWx={liveWx}/>}
+    </>
   );
 }
 
@@ -2361,8 +2496,8 @@ export default function App() {
       const dew = briefLiveDew ?? briefLiveTemp - 5;
       const cbAmsl = calcCloudBase(briefLiveTemp, dew, airfield.elevation);
       const cbAgl = Math.max(0, cbAmsl - airfield.elevation);
-      const freezingLevel = calcFreezingLevel(briefLiveTemp, airfield.elevation);
-      const icingRisk = briefLiveTemp<=0 ? "LIKELY" : (freezingLevel < cbAmsl+2000 ? "POSSIBLE" : "LOW");
+      const freezingLevel = estimateFreezingLevel(briefLiveTemp, airfield.elevation);
+      const icingRisk = briefLiveTemp<=0 ? "LIKELY" : (freezingLevel < cbAmsl+2000 ? "POSSIBLE" : "NOT INDICATED");
       aircraftPerf = { kind:"uk", cbAgl, cbAmsl, freezingLevel, icingRisk, hasDew: briefLiveDew !== null };
     } else {
       const da = calcDA(airfield.elevation, briefLiveTemp, briefLiveAlt ?? 29.92);
@@ -2572,7 +2707,7 @@ export default function App() {
           </div>
           <WeatherStrip liveWx={liveWx} wxLoad={wxLoad} requestedIcao={selected} weatherIcao={weatherIcao}/>
           {airfield.region==="uk" ? <UkWeatherWidget key={`${selected}:${liveWx?.metar||"loading"}`} airfield={airfield} liveWx={liveWx}/> : <DAWidget key={`${selected}:${liveWx?.metar||"loading"}`} airfield={airfield} liveWx={liveWx}/>}
-          <MapWidget airfield={airfield} icao={selected}/>
+          <WeatherLayerWidget airfield={airfield} icao={selected} liveWx={liveWx}/>
           <div style={{display:"flex",borderBottom:"2px solid rgba(255,255,255,0.06)",marginBottom:14,overflowX:"auto",gap:2}}>
             {[["hazards",`THREATS (${filteredHazards.length})`],["atc","ATC & AIRSPACE"],["cfi","CFI NOTES"],["brief","W-A-N-T BRIEF"]].map(([tid,label])=>(
               <button key={tid} onClick={()=>setTab(tid)} style={{background:tab===tid?"rgba(0,180,255,0.08)":"none",border:"none",cursor:"pointer",padding:"10px 16px",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.08em",whiteSpace:"nowrap",color:tab===tid?"#00B4FF":"#FFFFFF",borderBottom:tab===tid?"2px solid #00B4FF":"2px solid transparent",transition:"all 0.15s",marginBottom:"-2px"}}>{label}</button>
