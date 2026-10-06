@@ -43,7 +43,16 @@ npm run lint
 npm run build
 ```
 
-The Vercel branch preview must also be checked through the flight-school Pilot / Ops path at desktop and mobile widths before Step 2 starts.
+## Verification record — 6 October 2026
+
+- `npm test`: **27 passed, 0 failed**.
+- `npm run lint`: passed with no findings.
+- `npm run build`: passed; the existing Vite bundle-size advisory remains non-blocking.
+- Local browser acceptance: passed for the current-pilot, restricted-aircraft, overdue-check, pilot-override, grounded-aircraft, and missing-authorisation scenarios.
+- Shared session acceptance: a CFI sign-off/type authorisation immediately changed Pilot / Ops eligibility; an Engineering change to Maintenance immediately blocked the aircraft in Pilot / Ops.
+- Responsive acceptance: passed at 1280 × 900 and 390 × 844 with no horizontal document overflow.
+- Vercel branch preview: [academy-engineering-cfi-prototype](https://saferoute-academy-git-academy-engineering-cfi-4aa47c-saferoute1.vercel.app/) passed the Pilot / Ops → integrated FRAT path at desktop and mobile widths, with no browser-console errors.
+- Production was not promoted or changed; this verification used the prototype branch preview only.
 
 ## Explicitly deferred
 
