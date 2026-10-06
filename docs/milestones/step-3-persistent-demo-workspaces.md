@@ -4,6 +4,10 @@ Status: **implementation complete; cloud activation pending**
 
 Branch: `academy-engineering-cfi-prototype`
 
+Implementation commit: `7d3b90dbe80d2051f04a1bdeef59ccf5dfc2d382`
+
+Branch preview: [academy-engineering-cfi-prototype](https://saferoute-academy-git-academy-engineering-cfi-4aa47c-saferoute1.vercel.app/)
+
 Production and `main`: unchanged; no production promotion is authorised by this milestone
 
 ## Purpose
@@ -60,6 +64,7 @@ Before any real personal or operational data is considered, SafeRoute still need
 - Local browser test: a fictional CFI status change saved, survived a full reload, appeared in Pilot / Ops, and triggered the expected CFI-intervention context.
 - Local browser console: no warnings or errors on the tested path.
 - Grounded and Maintenance aircraft remained blocked; missing type authorisation remained blocked.
+- The Vercel branch preview deployed the new independent-CFI entry, 12-person/six-aircraft fictional workspace and device-persistence fallback; its tested CFI path produced no browser-console warnings or errors.
 
 ## Remaining activation gate
 

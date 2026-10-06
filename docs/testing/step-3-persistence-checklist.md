@@ -1,6 +1,6 @@
 # Step 3 persistence checklist
 
-Milestone state: **local pass; cloud preview pending**
+Milestone state: **local and device-mode preview pass; cloud preview pending**
 
 Run this checklist against the `academy-engineering-cfi-prototype` preview only. Do not use production and do not enter real information.
 
@@ -17,10 +17,10 @@ Run this checklist against the `academy-engineering-cfi-prototype` preview only.
 
 | Check | Local result | Cloud preview |
 | --- | --- | --- |
-| Warning says the workspace is synthetic, private and resettable | Pass | Pending |
-| Warning says not to enter real personal or operational data | Pass | Pending |
-| Demo contains 12 fictional people, including three CFIs | Pass | Pending |
-| Demo contains six fictional aircraft, including restricted, grounded and maintenance examples | Pass | Pending |
+| Warning says the workspace is synthetic, private and resettable | Pass | Pass in device mode; cloud mode pending |
+| Warning says not to enter real personal or operational data | Pass | Pass in device mode; cloud mode pending |
+| Demo contains 12 fictional people, including three CFIs | Pass | Pass in device mode; cloud mode pending |
+| Demo contains six fictional aircraft, including restricted, grounded and maintenance examples | Pass | Pass in device mode; cloud mode pending |
 | Non-synthetic or authoritative snapshots are rejected | Pass — automated | Pending |
 
 ## Persistence and integration
@@ -44,7 +44,7 @@ Run this checklist against the `academy-engineering-cfi-prototype` preview only.
 | A second private identity cannot read the first workspace | Pending |
 | Concurrent stale revision is rejected instead of silently overwriting newer state | Pending |
 | Cloud failure falls back to clearly labelled private device storage | Pending |
-| Browser console has no errors on the critical path | Pending |
+| Browser console has no errors on the critical path | Pass in device mode; cloud mode pending |
 
 ## Responsive regression
 
@@ -53,6 +53,15 @@ Run this checklist against the `academy-engineering-cfi-prototype` preview only.
 | New warning/reset panel does not overflow | Pass | Pending |
 | Login actions remain visible and usable | Pass | Pending |
 | CFI, Engineering, Admin and Ops dashboards retain frozen workflow | Pass on tested CFI/Ops path | Pending |
+
+## Device-mode preview record
+
+- Verification date: 6 October 2026
+- Verified application commit: `7d3b90dbe80d2051f04a1bdeef59ccf5dfc2d382`
+- Vercel preview: [stable prototype-branch preview](https://saferoute-academy-git-academy-engineering-cfi-4aa47c-saferoute1.vercel.app/)
+- Visible persistence state: `PRIVATE SYNTHETIC DEMO · SAVED ON THIS DEVICE`
+- Browser-console result on tested CFI path: no warnings or errors
+- Cloud completion gate: not passed
 
 ## Completion record
 
