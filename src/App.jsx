@@ -1958,11 +1958,11 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }
         <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated training records only. CFI changes update the shared pilot record used by the Pilot / Ops workspace for this browser session.</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
           {[
-            ["🟢","Current",counts.current,"#00C896"],
-            ["🟡","Due soon",counts.due,"#FFD700"],
-            ["🔴","Action required",counts.noncurrent,"#FF5B5B"],
-            ["🔵","Awaiting sign-off",counts.signoff,"#00B4FF"],
-          ].map(([icon,label,value,color])=><div key={label} style={{background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:10,color:"#778899",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
+            ["🟢","Current",counts.current,"#00C896",false],
+            ["🟡","Due soon",counts.due,"#FFD700",false],
+            ["🔴","Action required",counts.noncurrent,"#FF5B5B",true],
+            ["🔵","Awaiting sign-off",counts.signoff,"#00B4FF",false],
+          ].map(([icon,label,value,color,urgent])=><div key={label} style={{background:urgent?"rgba(255,91,91,0.12)":"rgba(255,255,255,0.035)",border:`1px solid ${urgent?"rgba(255,91,91,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:10,padding:"14px",boxShadow:urgent&&value>0?"0 0 0 1px rgba(255,91,91,0.08), 0 0 18px rgba(255,91,91,0.08)":"none"}}><div style={{fontSize:10,color:urgent?"#FF7C7C":"#778899",fontFamily:"'DM Mono',monospace",fontWeight:urgent?700:400}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"minmax(250px,0.8fr) minmax(0,2fr)",gap:16,alignItems:"start"}}>
@@ -1970,9 +1970,11 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",marginBottom:10}}>PILOTS REQUIRING ATTENTION</div>
             {people.map(p=>{
               const meta=statusMeta[p.trainingStatus]||statusMeta.current;
-              return <button key={p.id} onClick={()=>setSelectedId(p.id)} style={{width:"100%",textAlign:"left",background:selectedId===p.id?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.025)",border:`1px solid ${selectedId===p.id?"rgba(0,180,255,0.42)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF"}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:8}}><strong>{p.name}</strong><span style={{color:meta.color,fontSize:10}}>{meta.icon} {meta.label}</span></div>
-                <div style={{fontSize:10,color:"#778899",marginTop:3}}>{p.role} · {p.hrs90} hrs / 90d</div>
+              const urgent=p.trainingStatus==="noncurrent";
+              const selected=selectedId===p.id;
+              return <button key={p.id} onClick={()=>setSelectedId(p.id)} style={{width:"100%",textAlign:"left",background:urgent?(selected?"rgba(255,91,91,0.19)":"rgba(255,91,91,0.10)"):(selected?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.025)"),border:`1px solid ${urgent?"rgba(255,91,91,0.55)":selected?"rgba(0,180,255,0.42)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF",boxShadow:urgent?"inset 3px 0 0 #FF5B5B":"none"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong>{p.name}</strong><span style={{color:meta.color,fontSize:10,fontWeight:urgent?800:500,background:urgent?"rgba(255,91,91,0.14)":"transparent",border:urgent?"1px solid rgba(255,91,91,0.45)":"1px solid transparent",borderRadius:5,padding:urgent?"4px 6px":"0"}}>{meta.icon} {meta.label}</span></div>
+                <div style={{fontSize:10,color:urgent?"#FF9A9A":"#778899",marginTop:3}}>{p.role} · {p.hrs90} hrs / 90d{urgent?` · ${p.clubCurrency}`:""}</div>
               </button>;
             })}
           </div>
@@ -1980,7 +1982,7 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }
           {person && <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
               <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:29,letterSpacing:"0.07em",color:"#FFFFFF"}}>{person.name}</div><div style={{fontSize:12,color:"#8899AA"}}>{person.role}</div></div>
-              <div style={{background:`${statusMeta[person.trainingStatus].color}16`,border:`1px solid ${statusMeta[person.trainingStatus].color}55`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:statusMeta[person.trainingStatus].color}}>{statusMeta[person.trainingStatus].icon} {statusMeta[person.trainingStatus].label}</div>
+              <div style={{background:person.trainingStatus==="noncurrent"?"rgba(255,91,91,0.16)":`${statusMeta[person.trainingStatus].color}16`,border:`1px solid ${person.trainingStatus==="noncurrent"?"rgba(255,91,91,0.6)":statusMeta[person.trainingStatus].color+"55"}`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:statusMeta[person.trainingStatus].color,fontWeight:person.trainingStatus==="noncurrent"?800:500,boxShadow:person.trainingStatus==="noncurrent"?"0 0 16px rgba(255,91,91,0.1)":"none"}}>{statusMeta[person.trainingStatus].icon} {statusMeta[person.trainingStatus].label}</div>
             </div>
 
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:9,marginTop:18}}>
