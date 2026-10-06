@@ -2,7 +2,10 @@
 
 This directory contains the database migration for private synthetic beta workspaces.
 
-Apply `migrations/202610060001_step3_demo_workspaces.sql` to a beta-only Supabase project, enable anonymous sign-ins, then set these variables in the Vercel **Preview** environment for the prototype branch:
+Apply the migrations in filename order to a beta-only Supabase project, enable anonymous sign-ins, then set these variables in the Vercel **Preview** environment for the prototype branch:
+
+- `202610060001_step3_demo_workspaces.sql` creates the isolated synthetic workspaces and checked service functions.
+- `202610060002_harden_auto_rls_helper.sql` prevents the public API roles from calling Supabase's internal automatic-RLS helper when that optional helper exists.
 
 ```text
 VITE_SUPABASE_URL=
