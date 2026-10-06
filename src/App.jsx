@@ -15,6 +15,7 @@ import {
   hasVisibleMoistureSignal,
   isNegativeIcingIntensity,
 } from "./lib/icing.js";
+import { buildOpsFratSeed, evaluateFratEligibility } from "./lib/academy-frat.js";
 import { canControlReduce, FRAT_RETAIN_CONTROL, hasRecordedControl } from "./lib/frat-controls.js";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "https://saferoute-backend-production.up.railway.app";
@@ -1655,29 +1656,6 @@ const MOCK_OPS_AIRCRAFT = [
   { id:"a4", tail:"N721CT", type:"Cessna 152", status:"airworthy", squawk:null, last100:"3 days ago", airframeHours:7642.3, nextMaintenanceHours:47.8, annualDue:"08 Feb 2027", defects:[], maintenanceHistory:["50-hour inspection completed 03 Oct 2026"], audit:[{time:"03 Oct 2026 11:10",text:"50-hour inspection completed — returned to service"}] },
 ];
 
-function hrs90ToFratPoints(hrs) {
-  if (hrs > 20) return 0;
-  if (hrs >= 10) return 1;
-  if (hrs >= 3) return 2;
-  return 3;
-}
-
-function buildOpsFratSeed(opsPrefill) {
-  const answers = {};
-  const keys = {};
-  if (opsPrefill?.person) {
-    answers["pilot_0"] = hrs90ToFratPoints(opsPrefill.person.hrs90);
-    keys["pilot_0"] = true;
-  }
-  if (opsPrefill?.aircraft) {
-    answers["aircraft_0"] = 0;
-    answers["aircraft_1"] = opsPrefill.aircraft.squawk ? 2 : 0;
-    keys["aircraft_0"] = true;
-    keys["aircraft_1"] = true;
-  }
-  return { answers, keys };
-}
-
 function AccountTypeScreen({ onSelect }) {
   return (
     <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
@@ -1743,20 +1721,22 @@ function OpsPersonCard({ person, selected, onSelect }) {
   );
 }
 
-function OpsAircraftCard({ ac, selected, onSelect }) {
+function OpsAircraftCard({ ac, person, selected, onSelect }) {
   const unavailable = ac.status === "grounded" || ac.status === "maintenance";
+  const unauthorised = !!person && !(person.aircraftAuth || []).includes(ac.type);
+  const disabled = unavailable || unauthorised;
   const restricted = ac.status === "restricted";
   const stateText = unavailable ? (ac.status==="maintenance"?"MAINTENANCE":"GROUNDED") : restricted ? "RESTRICTED" : "SERVICEABLE";
-  const stateColor = unavailable ? "#FF6B6B" : restricted || ac.squawk ? "#FFD700" : "#00C896";
+  const stateColor = unavailable || unauthorised ? "#FF6B6B" : restricted || ac.squawk ? "#FFD700" : "#00C896";
   return (
-    <button disabled={unavailable} onClick={()=>!unavailable && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:unavailable?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.03)",border:`1px solid ${unavailable?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"11px 14px",cursor:unavailable?"not-allowed":"pointer",marginBottom:8,opacity:unavailable?0.75:1}}>
+    <button disabled={disabled} onClick={()=>!disabled && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:disabled?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.03)",border:`1px solid ${disabled?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"11px 14px",cursor:disabled?"not-allowed":"pointer",marginBottom:8,opacity:disabled?0.75:1}}>
       <div>
         <div style={{fontSize:13,color:"#FFFFFF",fontWeight:600}}>{ac.tail} <span style={{color:"#8899AA",fontWeight:400}}>· {ac.type}</span></div>
         <div style={{fontSize:10,color:stateColor,marginTop:2}}>
-          {unavailable?"🔴":restricted||ac.squawk?"🟡":"🟢"} {stateText}{ac.squawk?` — ${ac.squawk}`:" — no open defects"} · {ac.nextMaintenanceHours!=null?`${ac.nextMaintenanceHours} hrs to scheduled maintenance`:`Last 100hr: ${ac.last100}`}
+          {unavailable ? <>🔴 {stateText} — blocked from FRAT selection{ac.squawk?` · ${ac.squawk}`:""}</> : unauthorised ? `🔴 CFI AUTHORISATION REQUIRED — ${person.name} is not authorised for this type` : <>{restricted||ac.squawk?"🟡":"🟢"} {stateText}{ac.squawk?` — ${ac.squawk}`:" — no open defects"} · {ac.nextMaintenanceHours!=null?`${ac.nextMaintenanceHours} hrs to scheduled maintenance`:`Last 100hr: ${ac.last100}`}</>}
         </div>
       </div>
-      {selected && !unavailable && <div style={{color:"#00B4FF",fontSize:16}}>✓</div>}
+      {selected && !disabled && <div style={{color:"#00B4FF",fontSize:16}}>✓</div>}
     </button>
   );
 }
@@ -1764,6 +1744,14 @@ function OpsAircraftCard({ ac, selected, onSelect }) {
 function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack, people=MOCK_OPS_PEOPLE, aircraftList=MOCK_OPS_AIRCRAFT }) {
   const [person, setPerson] = useState(null);
   const [aircraft, setAircraft] = useState(null);
+  const eligibility = evaluateFratEligibility(person, aircraft);
+  const canStart = !!person && !!aircraft && eligibility.allowed;
+
+  function selectPerson(nextPerson) {
+    setPerson(nextPerson);
+    if (aircraft && !(nextPerson.aircraftAuth || []).includes(aircraft.type)) setAircraft(null);
+  }
+
   return (
     <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
@@ -1775,15 +1763,18 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
         <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:22}}>⚠ SIMULATED DATA — this roster and fleet are fabricated examples illustrating a planned integration. No real student, instructor, or aircraft records are connected.</div>
 
         <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",marginBottom:10}}>SELECT PILOT</div>
-        {people.map(p=><OpsPersonCard key={p.id} person={p} selected={person?.id===p.id} onSelect={setPerson}/>)}
-
+        {people.map(p=><OpsPersonCard key={p.id} person={p} selected={person?.id===p.id} onSelect={selectPerson}/>)}
 
         <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",margin:"22px 0 10px"}}>SELECT AIRCRAFT</div>
-        {aircraftList.map(a=><OpsAircraftCard key={a.id} ac={a} selected={aircraft?.id===a.id} onSelect={setAircraft}/>)}
+        {aircraftList.map(a=><OpsAircraftCard key={a.id} ac={a} person={person} selected={aircraft?.id===a.id} onSelect={setAircraft}/>)}
+
+        {person && !aircraft && <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"9px 11px",fontSize:10,color:"#8DCBEA",lineHeight:1.5}}>Only serviceable aircraft types currently authorised on {person.name}'s shared CFI record can be selected. Engineering and CFI changes apply here immediately for this session.</div>}
+
+        {eligibility.blockers.map(blocker=><div key={blocker.code} style={{background:"rgba(255,59,59,0.09)",border:"1px solid rgba(255,59,59,0.38)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FF9A9A",lineHeight:1.55,marginTop:10}}><b>BLOCKED — {blocker.title}</b><br/>{blocker.detail}</div>)}
 
         <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:24}}>
-          <button disabled={!person||!aircraft} onClick={()=>onStartBriefing(person,aircraft)} style={{width:"100%",background:(person&&aircraft)?"linear-gradient(135deg,#00B4FF,#0090DD)":"rgba(255,255,255,0.06)",border:"none",borderRadius:8,padding:"13px",color:(person&&aircraft)?"#050D18":"#556677",fontWeight:"bold",fontSize:13,cursor:(person&&aircraft)?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>
-            🛡 START PRE-FLIGHT RISK ASSESSMENT {person&&aircraft?`— ${person.name.split(" ")[0]} / ${aircraft.tail}`:"(select pilot & aircraft)"}
+          <button disabled={!canStart} onClick={()=>canStart && onStartBriefing(person,aircraft)} style={{width:"100%",background:canStart?"linear-gradient(135deg,#00B4FF,#0090DD)":"rgba(255,255,255,0.06)",border:"none",borderRadius:8,padding:"13px",color:canStart?"#050D18":"#556677",fontWeight:"bold",fontSize:13,cursor:canStart?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>
+            🛡 {person?.trainingStatus === "noncurrent" ? "CFI ACTION REQUIRED BEFORE FRAT" : `START PRE-FLIGHT RISK ASSESSMENT ${person&&aircraft?`— ${person.name.split(" ")[0]} / ${aircraft.tail}`:"(select pilot & aircraft)"}`}
           </button>
           <button onClick={onContinueToApp} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,padding:"11px",color:"#8899AA",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>Continue to SafeRoute Academy →</button>
         </div>
@@ -2201,16 +2192,20 @@ function FRATFlow({ stage }) {
   );
 }
 
-function FRATQuestion({ q, options, value, onChange, color, isPrefilled, link, onLinkClick }) {
+function FRATQuestion({ q, options, value, onChange, color, isPrefilled, academyContext, link, onLinkClick }) {
+  const hasAnswer = value !== undefined;
+  const entryLabel = isPrefilled ? "🔗 ACADEMY AUTO-FILL" : hasAnswer ? "✎ PILOT ENTERED" : "✎ PILOT INPUT REQUIRED";
+  const entryColor = isPrefilled ? "#FFD700" : hasAnswer ? "#7DD8FF" : "#667788";
   return (
     <div style={{marginBottom:16}}>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8,flexWrap:"wrap"}}>
         <div style={{fontSize:12,color:"#D0DCE8",lineHeight:1.4}}>{q}</div>
-        {isPrefilled && <div style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#FFD700",background:"rgba(255,180,0,0.12)",border:"1px solid rgba(255,180,0,0.35)",borderRadius:4,padding:"2px 6px",flexShrink:0,letterSpacing:"0.04em"}}>🔗 OPS DATA</div>}
+        <div style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:entryColor,background:isPrefilled?"rgba(255,180,0,0.12)":"rgba(0,180,255,0.07)",border:`1px solid ${isPrefilled?"rgba(255,180,0,0.35)":"rgba(0,180,255,0.18)"}`,borderRadius:4,padding:"2px 6px",flexShrink:0,letterSpacing:"0.04em"}}>{entryLabel}</div>
         {link && (
           <button onClick={()=>onLinkClick(link.action)} style={{background:"none",border:"none",padding:0,color:"#00B4FF",fontSize:10.5,fontFamily:"'DM Mono',monospace",cursor:"pointer",textDecoration:"underline",flexShrink:0}}>{link.label}</button>
         )}
       </div>
+      {academyContext && <div style={{background:"rgba(255,180,0,0.055)",border:"1px solid rgba(255,180,0,0.18)",borderRadius:6,padding:"8px 10px",marginBottom:8,fontSize:10,color:"#B8A974",lineHeight:1.5}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#FFD700",letterSpacing:"0.06em"}}>{academyContext.source.toUpperCase()}</span><br/>{academyContext.detail}{!isPrefilled && hasAnswer && <><br/><span style={{color:"#7DD8FF"}}>Pilot override recorded; Academy context remains visible.</span></>}</div>}
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {options.map(([label,pts],i)=>(
           <button key={i} onClick={()=>onChange(pts)} style={{
@@ -2229,7 +2224,7 @@ function FRATQuestion({ q, options, value, onChange, color, isPrefilled, link, o
   );
 }
 
-function FRATSection({ section, answers, onAnswer, prefillKeys, onLinkClick }) {
+function FRATSection({ section, answers, onAnswer, prefillKeys, academyContexts, onLinkClick }) {
   return (
     <E6BCard title={section.title} icon={section.icon}>
       {section.questions.map((item,i)=>{
@@ -2237,6 +2232,7 @@ function FRATSection({ section, answers, onAnswer, prefillKeys, onLinkClick }) {
         return (
           <FRATQuestion key={i} q={item.q} options={item.options} color={section.color}
             value={answers[key]} isPrefilled={!!prefillKeys?.[key]}
+            academyContext={academyContexts?.[key]}
             link={item.link} onLinkClick={onLinkClick}
             onChange={(pts)=>onAnswer(key, pts)} />
         );
@@ -2396,6 +2392,7 @@ function FRATFinalReview({ materialFactors, initialAnswers, controls, residualAn
 }
 
 function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefillKeys, setPrefillKeys, initialAnswers, setInitialAnswers, controls, setControls, residualAnswers, setResidualAnswers, reviewComplete, setReviewComplete }) {
+  const academySeed = buildOpsFratSeed(opsPrefill);
   const totalQuestions = FRAT_SECTIONS.reduce((sum,s)=>sum+s.questions.length,0);
   const answeredCount = Object.keys(answers).length;
   const score = Object.values(answers).reduce((sum,v)=>sum+v,0);
@@ -2485,14 +2482,16 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
 
         {stage==="assessment" && opsPrefill && (opsPrefill.person || opsPrefill.aircraft) && (
           <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"11px 13px",fontSize:11,color:"#FFD700",lineHeight:1.6,marginBottom:16}}>
-            🔗 <b>{opsPrefill.person?.name}{opsPrefill.person && opsPrefill.aircraft ? " / " : ""}{opsPrefill.aircraft?.tail}</b> — {Object.keys(prefillKeys).length} answer{Object.keys(prefillKeys).length===1?"":"s"} below auto-filled from the (simulated) ops system. Anything you change yourself overrides it.
+            🔗 <b>{opsPrefill.person?.name}{opsPrefill.person && opsPrefill.aircraft ? " / " : ""}{opsPrefill.aircraft?.tail}</b> — {Object.keys(prefillKeys).length} answer{Object.keys(prefillKeys).length===1?"":"s"} below auto-filled from shared simulated Academy records. Anything you change yourself is marked as pilot-entered while the source context stays visible.<br/><span style={{color:"#C0A95C"}}>Sleep, IMSAFE, weather, performance, fuel and external-pressure answers remain manual.</span>
           </div>
         )}
+
+        {stage==="assessment" && academySeed.advisories.map(advisory=><div key={advisory.id} style={{background:"rgba(255,215,0,0.055)",border:"1px solid rgba(255,215,0,0.22)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#C8B76E",lineHeight:1.55,marginBottom:9}}><b style={{color:"#FFD700"}}>🟡 ADVISORY — {advisory.title}</b><br/>{advisory.detail}</div>)}
 
         {stage==="assessment" && <>
           <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset}/>
           {FRAT_SECTIONS.map(section=>(
-            <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} prefillKeys={prefillKeys} onLinkClick={(action)=>{ if(action==="da") onOpenDA?.(); }} />
+            <FRATSection key={section.id} section={section} answers={answers} onAnswer={onAnswer} prefillKeys={prefillKeys} academyContexts={academySeed.contexts} onLinkClick={(action)=>{ if(action==="da") onOpenDA?.(); }} />
           ))}
           <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset} title="INITIAL RISK RESULT" onContinue={allAnswered?beginControls:null}/>
         </>}
@@ -2947,6 +2946,7 @@ export default function App() {
     people={opsPeople}
     aircraftList={opsAircraftList}
     onStartBriefing={(person,aircraft)=>{
+      if (!evaluateFratEligibility(person,aircraft).allowed) return;
       setOpsPrefill({person,aircraft});
       const seed = buildOpsFratSeed({person,aircraft});
       setFratAnswers(seed.answers); setFratPrefillKeys(seed.keys);
