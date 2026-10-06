@@ -1986,7 +1986,22 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }
             </div>
 
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:9,marginTop:18}}>
-              {[["90-DAY HOURS",person.hrs90],["LAST FLIGHT",person.lastFlight],["CLUB CURRENCY",person.clubCurrency],["NEXT CHECK",person.nextCheck],["MEDICAL",person.medical],["LAST CHECK",person.lastCheck]].map(([label,value])=><div key={label} style={{background:"rgba(0,180,255,0.055)",border:"1px solid rgba(0,180,255,0.14)",borderRadius:8,padding:"10px"}}><div style={{fontSize:8,color:"#667788",fontFamily:"'DM Mono',monospace"}}>{label}</div><div style={{fontSize:12,color:"#FFFFFF",marginTop:4,lineHeight:1.35}}>{value}</div></div>)}
+              {[["90-DAY HOURS",person.hrs90],["LAST FLIGHT",person.lastFlight],["CLUB CURRENCY",person.clubCurrency],["NEXT CHECK",person.nextCheck],["MEDICAL",person.medical],["LAST CHECK",person.lastCheck]].map(([label,value])=>{
+                const text=String(value??"").toLowerCase();
+                const isCritical =
+                  (label==="CLUB CURRENCY" && (text.includes("expired") || text.includes("non-current") || text.includes("not current"))) ||
+                  (label==="NEXT CHECK" && text.includes("overdue")) ||
+                  (label==="MEDICAL" && (text.includes("expired") || text.includes("not current")));
+                const isWarning = !isCritical && (
+                  (label==="CLUB CURRENCY" && (text.includes("due") || text.includes("expires in") || text.includes("expiring"))) ||
+                  (label==="NEXT CHECK" && (text.includes("due") || text.includes("soon"))) ||
+                  (label==="MEDICAL" && (text.includes("expires in") || text.includes("expiring")))
+                );
+                return <div key={label} style={{background:isCritical?"rgba(255,91,91,0.14)":isWarning?"rgba(255,215,0,0.10)":"rgba(0,180,255,0.055)",border:`1px solid ${isCritical?"rgba(255,91,91,0.58)":isWarning?"rgba(255,215,0,0.42)":"rgba(0,180,255,0.14)"}`,borderRadius:8,padding:"10px",boxShadow:isCritical?"inset 3px 0 0 #FF5B5B":"none"}}>
+                  <div style={{fontSize:8,color:isCritical?"#FF8F8F":isWarning?"#FFD75A":"#667788",fontFamily:"'DM Mono',monospace",fontWeight:(isCritical||isWarning)?700:400}}>{label}</div>
+                  <div style={{fontSize:12,color:isCritical?"#FFB0B0":isWarning?"#FFE38A":"#FFFFFF",marginTop:4,lineHeight:1.35,fontWeight:isCritical?700:400}}>{isCritical?"🔴 ":isWarning?"🟡 ":""}{value}</div>
+                </div>;
+              })}
             </div>
 
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",margin:"22px 0 8px"}}>AIRCRAFT AUTHORISATIONS</div>
