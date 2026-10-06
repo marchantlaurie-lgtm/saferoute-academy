@@ -1,19 +1,21 @@
 # SafeRoute Academy
 
-SafeRoute Academy is a controlled beta/prototype for student-pilot safety intelligence and pre-flight risk awareness. The flight-school workspaces currently use simulated, browser-session data and are not authoritative maintenance, training, or regulatory records.
+SafeRoute Academy is a controlled beta/prototype for student-pilot safety intelligence and pre-flight risk awareness. The flight-school workspaces use persistent synthetic demo data and are not authoritative maintenance, training, or regulatory records.
 
 ## Current milestone
 
-Step 2 of the beta sequence — the interface freeze — is complete. Its scope, regression evidence, single closed responsive-layout exception, and exit record are documented in [docs/milestones/step-2-interface-freeze.md](docs/milestones/step-2-interface-freeze.md).
+Step 3 of the beta sequence — persistent private demo workspaces — is active. The application implementation, database migration, data boundary and activation status are documented in [docs/milestones/step-3-persistent-demo-workspaces.md](docs/milestones/step-3-persistent-demo-workspaces.md).
 
-The frozen regression suite and issue classification are maintained in:
+The Step 3 persistence checklist is maintained in [docs/testing/step-3-persistence-checklist.md](docs/testing/step-3-persistence-checklist.md).
+
+Step 2 — the interface freeze — remains recorded in [docs/milestones/step-2-interface-freeze.md](docs/milestones/step-2-interface-freeze.md). Its frozen regression suite and issue classification are maintained in:
 
 - [docs/testing/step-2-regression-checklist.md](docs/testing/step-2-regression-checklist.md)
 - [docs/triage/step-2-interface-triage.md](docs/triage/step-2-interface-triage.md)
 
 Step 1 — the shared Academy → PAVE/FRAT integration — remains recorded in [docs/milestones/step-1-academy-pave-frat-integration.md](docs/milestones/step-1-academy-pave-frat-integration.md).
 
-The next planned milestone is Step 3: replace the simulated session-only records with a persistent shared database while preserving the frozen interface contract.
+Step 3 is not complete until the prepared database migration is applied to the beta database, the preview is connected to it, and the cloud-persistence checklist passes. Without those two public beta settings, the app deliberately falls back to private persistence on the tester's current device.
 
 ## Local verification
 
