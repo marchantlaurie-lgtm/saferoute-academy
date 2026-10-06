@@ -50,10 +50,12 @@ export function daysSinceAcademyDate(value, asOf = new Date()) {
   const recordDate = parseAcademyDate(value);
   const assessmentDate = parseAcademyDate(asOf);
   if (!recordDate || !assessmentDate) return null;
-  return Math.max(0, Math.floor((assessmentDate.getTime() - recordDate.getTime()) / DAY_MS));
+  const days = Math.floor((assessmentDate.getTime() - recordDate.getTime()) / DAY_MS);
+  return days < 0 ? null : days;
 }
 
 export function hrs90ToFratPoints(hours) {
+  if (!Number.isFinite(hours) || hours < 0) return null;
   if (hours > 20) return 0;
   if (hours >= 10) return 1;
   if (hours >= 3) return 2;
@@ -72,13 +74,14 @@ export function lastFlightToFratPoints(lastFlight, asOf = new Date()) {
 export function trainingStatusToFratPoints(person, asOf = new Date()) {
   if (person?.trainingStatus === "noncurrent") return 3;
   if (person?.trainingStatus === "due") return 2;
+  if (person?.trainingStatus !== "current") return null;
 
   const daysSinceCheck = daysSinceAcademyDate(person?.lastCheck, asOf);
   return daysSinceCheck !== null && daysSinceCheck <= 90 ? 0 : 1;
 }
 
 export function getOpenAircraftDefects(aircraft) {
-  return (aircraft?.defects || []).filter(defect => defect.status !== "Closed");
+  return (aircraft?.defects || []).filter(defect => defect.status?.toLowerCase() !== "closed");
 }
 
 export function aircraftDefectToFratPoints(aircraft) {
@@ -100,7 +103,9 @@ function aircraftDefectDetail(aircraft) {
   if (!openDefects.length) {
     return aircraft?.squawk
       ? `${aircraft.tail}: ${aircraft.squawk}`
-      : `${aircraft.tail}: no open defects recorded.`;
+      : aircraft?.status === "restricted"
+        ? `${aircraft.tail}: Engineering status is restricted; no restriction detail is recorded.`
+        : `${aircraft.tail}: no open defects recorded.`;
   }
 
   return openDefects.map(defect => {
@@ -129,14 +134,6 @@ export function evaluateFratEligibility(person, aircraft) {
     });
   }
 
-  if (person?.trainingStatus === "noncurrent") {
-    blockers.push({
-      code: "training_action_required",
-      title: `${person.name}'s training record requires action`,
-      detail: `${person.clubCurrency || "Club currency is not current"}. A CFI must complete the required check or sign-off before a normal flight assessment can start.`,
-    });
-  }
-
   return { allowed: blockers.length === 0, blockers };
 }
 
@@ -149,12 +146,21 @@ export function buildOpsFratSeed(opsPrefill, asOf = new Date()) {
   const aircraft = opsPrefill?.aircraft;
 
   if (person) {
-    answers.pilot_0 = hrs90ToFratPoints(person.hrs90);
-    keys.pilot_0 = true;
-    contexts.pilot_0 = {
-      source: "Academy pilot record",
-      detail: `${person.hrs90} hours recorded in the last 90 days.`,
-    };
+    const hoursPoints = hrs90ToFratPoints(person.hrs90);
+    if (hoursPoints !== null) {
+      answers.pilot_0 = hoursPoints;
+      keys.pilot_0 = true;
+      contexts.pilot_0 = {
+        source: "Academy pilot record",
+        detail: `${person.hrs90} hours recorded in the last 90 days.`,
+      };
+    } else {
+      advisories.push({
+        id: "hours-90-unverified",
+        title: "90-day flight time needs confirmation",
+        detail: "Academy does not have a valid 90-day total, so this answer remains pilot-entered.",
+      });
+    }
 
     const daysSinceFlight = daysSinceAcademyDate(person.lastFlight, asOf);
     const lastFlightPoints = lastFlightToFratPoints(person.lastFlight, asOf);
@@ -173,18 +179,35 @@ export function buildOpsFratSeed(opsPrefill, asOf = new Date()) {
       });
     }
 
-    answers.pilot_4 = trainingStatusToFratPoints(person, asOf);
-    keys.pilot_4 = true;
-    contexts.pilot_4 = {
-      source: "Academy CFI / training record",
-      detail: `Status: ${person.clubCurrency || person.trainingStatus}. Last check: ${person.lastCheck || "not recorded"}. Next check: ${person.nextCheck || "not recorded"}.`,
-    };
+    const trainingPoints = trainingStatusToFratPoints(person, asOf);
+    if (trainingPoints !== null) {
+      answers.pilot_4 = trainingPoints;
+      keys.pilot_4 = true;
+      contexts.pilot_4 = {
+        source: "Academy CFI / training record",
+        detail: `Status: ${person.clubCurrency || person.trainingStatus}. Last check: ${person.lastCheck || "not recorded"}. Next check: ${person.nextCheck || "not recorded"}.`,
+      };
+    } else {
+      advisories.push({
+        id: "training-status-unverified",
+        title: "Training / check status needs confirmation",
+        detail: "Academy does not have a recognised current, due-soon, or non-current status, so the flight-review answer remains pilot-entered.",
+      });
+    }
 
     if (person.trainingStatus === "due") {
       advisories.push({
         id: "training-due-soon",
         title: "Training / check due soon",
         detail: `${person.clubCurrency || "The next check is approaching"}. This directly informs the Pilot currency answer but is not itself a prohibition.`,
+      });
+    }
+    if (person.trainingStatus === "noncurrent") {
+      advisories.push({
+        id: "training-action-required",
+        level: "action",
+        title: "CFI intervention required",
+        detail: `${person.clubCurrency || "Training / check status is not current"}. Academy has marked the flight-review answer as lapsed or unsure; the FRAT can support the review but does not authorise the flight.`,
       });
     }
     if (person.pendingSignoff) {
@@ -212,7 +235,7 @@ export function buildOpsFratSeed(opsPrefill, asOf = new Date()) {
       });
     }
 
-    if (aircraft.nextMaintenanceHours != null && aircraft.nextMaintenanceHours <= 10) {
+    if (Number.isFinite(aircraft.nextMaintenanceHours) && aircraft.nextMaintenanceHours <= 10) {
       advisories.push({
         id: "maintenance-due-soon",
         title: "Scheduled maintenance due soon",

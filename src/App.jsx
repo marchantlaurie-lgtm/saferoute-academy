@@ -1790,11 +1790,13 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
 
         {person && !aircraft && <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"9px 11px",fontSize:10,color:"#8DCBEA",lineHeight:1.5}}>Only serviceable aircraft types currently authorised on {person.name}'s shared CFI record can be selected. Engineering and CFI changes apply here immediately for this session.</div>}
 
+        {person?.trainingStatus === "noncurrent" && <div style={{background:"rgba(255,59,59,0.09)",border:"1px solid rgba(255,59,59,0.38)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FF9A9A",lineHeight:1.55,marginTop:10}}><b>CFI ACTION REQUIRED — {person.clubCurrency || "training / check status is not current"}</b><br/>The FRAT remains available for structured review and will auto-fill the flight-review field as lapsed or unsure. Completing a FRAT does not authorise the flight.</div>}
+
         {eligibility.blockers.map(blocker=><div key={blocker.code} style={{background:"rgba(255,59,59,0.09)",border:"1px solid rgba(255,59,59,0.38)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FF9A9A",lineHeight:1.55,marginTop:10}}><b>BLOCKED — {blocker.title}</b><br/>{blocker.detail}</div>)}
 
         <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:24}}>
           <button disabled={!canStart} onClick={()=>canStart && onStartBriefing(person,aircraft)} style={{width:"100%",background:canStart?"linear-gradient(135deg,#00B4FF,#0090DD)":"rgba(255,255,255,0.06)",border:"none",borderRadius:8,padding:"13px",color:canStart?"#050D18":"#556677",fontWeight:"bold",fontSize:13,cursor:canStart?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>
-            🛡 {person?.trainingStatus === "noncurrent" ? "CFI ACTION REQUIRED BEFORE FRAT" : `START PRE-FLIGHT RISK ASSESSMENT ${person&&aircraft?`— ${person.name.split(" ")[0]} / ${aircraft.tail}`:"(select pilot & aircraft)"}`}
+            🛡 {person?.trainingStatus === "noncurrent" && person && aircraft ? `START RISK REVIEW — CFI INTERVENTION REQUIRED (${person.name.split(" ")[0]} / ${aircraft.tail})` : `START PRE-FLIGHT RISK ASSESSMENT ${person&&aircraft?`— ${person.name.split(" ")[0]} / ${aircraft.tail}`:"(select pilot & aircraft)"}`}
           </button>
           <button onClick={onContinueToApp} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,padding:"11px",color:"#8899AA",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>Continue to SafeRoute Academy →</button>
         </div>
@@ -2616,7 +2618,7 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
       <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
         <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:14}}>← BACK</button>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"#FFFFFF",marginLeft:6}}>🛡 FLIGHT RISK ASSESSMENT</div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"#FFFFFF",marginLeft:6}}>🛡 FLIGHT RISK ASSESSMENT{opsPrefill ? " — DEMO" : ""}</div>
       </div>
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
         <FRATFlow stage={stage}/>
@@ -2628,7 +2630,10 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
           </div>
         )}
 
-        {stage==="assessment" && academySeed.advisories.map(advisory=><div key={advisory.id} style={{background:"rgba(255,215,0,0.055)",border:"1px solid rgba(255,215,0,0.22)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#C8B76E",lineHeight:1.55,marginBottom:9}}><b style={{color:"#FFD700"}}>🟡 ADVISORY — {advisory.title}</b><br/>{advisory.detail}</div>)}
+        {stage==="assessment" && academySeed.advisories.map(advisory=>{
+          const requiresAction = advisory.level === "action";
+          return <div key={advisory.id} style={{background:requiresAction?"rgba(255,59,59,0.09)":"rgba(255,215,0,0.055)",border:`1px solid ${requiresAction?"rgba(255,59,59,0.38)":"rgba(255,215,0,0.22)"}`,borderRadius:8,padding:"10px 12px",fontSize:10.5,color:requiresAction?"#FF9A9A":"#C8B76E",lineHeight:1.55,marginBottom:9}}><b style={{color:requiresAction?"#FF7C7C":"#FFD700"}}>{requiresAction?"🔴 ACTION REQUIRED":"🟡 ADVISORY"} — {advisory.title}</b><br/>{advisory.detail}</div>;
+        })}
 
         {stage==="assessment" && <>
           <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset}/>

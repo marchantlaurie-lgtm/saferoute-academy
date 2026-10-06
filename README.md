@@ -1,4 +1,20 @@
-# React + Vite
+# SafeRoute Academy
+
+SafeRoute Academy is a controlled beta/prototype for student-pilot safety intelligence and pre-flight risk awareness. The flight-school workspaces currently use simulated, browser-session data and are not authoritative maintenance, training, or regulatory records.
+
+## Current milestone
+
+Step 1 of the beta sequence — the shared Academy → PAVE/FRAT integration — is documented in [docs/milestones/step-1-academy-pave-frat-integration.md](docs/milestones/step-1-academy-pave-frat-integration.md).
+
+## Local verification
+
+```text
+npm test
+npm run lint
+npm run build
+```
+
+## Vite project notes
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
