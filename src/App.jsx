@@ -16,6 +16,12 @@ import {
   isNegativeIcingIntensity,
 } from "./lib/icing.js";
 import { buildOpsFratSeed, evaluateFratEligibility } from "./lib/academy-frat.js";
+import {
+  buildClubAdminSummary,
+  CLUB_ACCESS_ROLES,
+  toggleClubUserRole,
+  toggleClubUserStatus,
+} from "./lib/club-admin.js";
 import { canControlReduce, FRAT_RETAIN_CONTROL, hasRecordedControl } from "./lib/frat-controls.js";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "https://saferoute-backend-production.up.railway.app";
@@ -1656,6 +1662,19 @@ const MOCK_OPS_AIRCRAFT = [
   { id:"a4", tail:"N721CT", type:"Cessna 152", status:"airworthy", squawk:null, last100:"3 days ago", airframeHours:7642.3, nextMaintenanceHours:47.8, annualDue:"08 Feb 2027", defects:[], maintenanceHistory:["50-hour inspection completed 03 Oct 2026"], audit:[{time:"03 Oct 2026 11:10",text:"50-hour inspection completed — returned to service"}] },
 ];
 
+const MOCK_CLUB_USERS = [
+  { id:"u1", personId:"p1", name:"Jordan Reyes", email:"jordan@example.test", status:"active", roles:["pilot"] },
+  { id:"u2", personId:"p2", name:"Alicia Chen", email:"alicia@example.test", status:"active", roles:["pilot"] },
+  { id:"u3", personId:"p3", name:"Marcus Webb", email:"marcus@example.test", status:"active", roles:["pilot","cfi","admin"] },
+  { id:"u4", personId:"p4", name:"Sarah Kim", email:"sarah@example.test", status:"active", roles:["pilot"] },
+  { id:"u5", personId:null, name:"Evelyn Carter", email:"evelyn@example.test", status:"active", roles:["engineering"] },
+];
+
+const MOCK_ADMIN_AUDIT = [
+  { time:"06 Oct 2026 09:00", source:"Club Admin", text:"Functional beta access review opened" },
+  { time:"05 Oct 2026 17:45", source:"Club Admin", text:"Prototype safety policies confirmed as enforced" },
+];
+
 function AccountTypeScreen({ onSelect }) {
   return (
     <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
@@ -1702,6 +1721,7 @@ function FlightSchoolLoginScreen({ onLogin, onBack }) {
         <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:24}}>⚠ DEMO MODE — all records are simulated and changes last only for this browser session.</div>
         <button onClick={()=>onLogin("Demo Flight School","ops")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"#050D18",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>PILOT / OPS LOGIN</button>
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.1em",margin:"18px 0 4px"}}>SPECIALIST WORKSPACES</div>
+        <button onClick={()=>onLogin("Demo Flight School","admin")} style={secondaryButton}>🏛 CLUB ADMIN</button>
         <button onClick={()=>onLogin("Demo Flight School","cfi")} style={secondaryButton}>🎓 CFI / TRAINING</button>
         <button onClick={()=>onLogin("Demo Flight School","engineering")} style={secondaryButton}>🔧 ENGINEERING LOGIN</button>
       </div>
@@ -1791,6 +1811,128 @@ function DemoWorkspaceHeader({ icon, title, orgName, onBack, accent="#00B4FF" })
       <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"#FFFFFF",marginLeft:6}}>{icon} {title}</div>
       <div style={{flex:1}}/>
       <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#667788"}}>{orgName || "DEMO FLIGHT SCHOOL"} · DEMO</div>
+    </div>
+  );
+}
+
+function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUsers, adminAudit, setAdminAudit, onBack }) {
+  const [selectedId,setSelectedId] = useState(users[0]?.id || null);
+  const [notice,setNotice] = useState(null);
+  const selectedUser = users.find(user=>user.id===selectedId) || users[0];
+  const linkedPilot = people.find(person=>person.id===selectedUser?.personId);
+  const summary = buildClubAdminSummary(people,aircraftList,users);
+  const roleLabels = Object.fromEntries(CLUB_ACCESS_ROLES.map(role=>[role.id,role.label]));
+  const activity = [
+    ...adminAudit,
+    ...aircraftList.flatMap(aircraft=>(aircraft.audit||[]).map(event=>({...event,source:`Engineering · ${aircraft.tail}`}))),
+  ].slice(0,8);
+
+  function recordAdminEvent(text) {
+    setAdminAudit(previous=>[{time:new Date().toLocaleString("en-GB"),source:"Club Admin",text},...previous]);
+  }
+
+  function changeRole(role) {
+    const result=toggleClubUserRole(users,selectedUser.id,role);
+    if(!result.changed) {
+      setNotice({tone:"error",text:result.reason});
+      return;
+    }
+    const adding=!selectedUser.roles.includes(role);
+    setUsers(result.users);
+    setNotice({tone:"success",text:`${roleLabels[role]} access ${adding?"granted to":"removed from"} ${selectedUser.name}.`});
+    recordAdminEvent(`${roleLabels[role]} access ${adding?"granted to":"removed from"} ${selectedUser.name}`);
+  }
+
+  function changeStatus() {
+    const result=toggleClubUserStatus(users,selectedUser.id);
+    if(!result.changed) {
+      setNotice({tone:"error",text:result.reason});
+      return;
+    }
+    const nextStatus=selectedUser.status==="active"?"suspended":"active";
+    setUsers(result.users);
+    setNotice({tone:"success",text:`${selectedUser.name} marked ${nextStatus}.`});
+    recordAdminEvent(`${selectedUser.name} marked ${nextStatus}`);
+  }
+
+  const statusMeta={
+    current:{label:"CURRENT",color:"#00C896"},
+    due:{label:"DUE SOON",color:"#FFD700"},
+    noncurrent:{label:"ACTION REQUIRED",color:"#FF5B5B"},
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
+      <DemoWorkspaceHeader icon="🏛" title="CLUB ADMIN" orgName={orgName} onBack={onBack} accent="#A78BFA"/>
+      <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated Club Admin data only. Access changes last for this browser session. Club Admin provides oversight and system access; CFI sign-off and Engineering return-to-service authority remain in their specialist workspaces.</div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:10,marginBottom:18}}>
+          {[
+            ["👥","Active users",summary.activeUsers,"#A78BFA"],
+            ["🔴","Pilots requiring action",summary.attentionPilots,"#FF5B5B"],
+            ["🟡","Checks due soon",summary.dueSoonPilots,"#FFD700"],
+            ["✈","Aircraft available",summary.availableAircraft,"#00C896"],
+            ["⛔","Aircraft unavailable",summary.unavailableAircraft,"#FF6B6B"],
+            ["🛠","Open defects",summary.openDefects,"#00B4FF"],
+          ].map(([icon,label,value,color])=><div key={label} style={{background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:9,color:"#778899",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:27,color,fontWeight:700,marginTop:4}}>{value}</div>{label==="Aircraft available"&&summary.restrictedAircraft>0&&<div style={{fontSize:9,color:"#FFD700",marginTop:2}}>{summary.restrictedAircraft} restricted</div>}</div>)}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16,alignItems:"start",marginBottom:18}}>
+          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:10}}>USERS & ACCESS</div>
+            {users.map(user=>{
+              const selected=user.id===selectedId;
+              return <button key={user.id} onClick={()=>{setSelectedId(user.id);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selected?"rgba(167,139,250,0.13)":"rgba(255,255,255,0.025)",border:`1px solid ${selected?"rgba(167,139,250,0.45)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"10px 11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF",opacity:user.status==="suspended"?0.62:1}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong style={{fontSize:11.5}}>{user.name}</strong><span style={{fontSize:8,color:user.status==="active"?"#00C896":"#FF7C7C",fontFamily:"'DM Mono',monospace"}}>{user.status.toUpperCase()}</span></div>
+                <div style={{fontSize:9,color:"#778899",marginTop:4,lineHeight:1.4}}>{user.roles.map(role=>roleLabels[role]).join(" · ") || "No workspace access"}</div>
+              </button>;
+            })}
+          </div>
+
+          {selectedUser&&<div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
+              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:"0.07em",color:"#FFFFFF"}}>{selectedUser.name}</div><div style={{fontSize:10,color:"#778899",marginTop:2}}>{selectedUser.email}</div></div>
+              <button onClick={changeStatus} style={{background:selectedUser.status==="active"?"rgba(0,200,150,0.1)":"rgba(255,91,91,0.1)",border:`1px solid ${selectedUser.status==="active"?"rgba(0,200,150,0.35)":"rgba(255,91,91,0.35)"}`,color:selectedUser.status==="active"?"#00C896":"#FF7C7C",borderRadius:7,padding:"8px 10px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9}}>{selectedUser.status==="active"?"● ACTIVE — SUSPEND ACCESS":"● SUSPENDED — RESTORE ACCESS"}</button>
+            </div>
+
+            {linkedPilot&&<div style={{marginTop:14,background:"rgba(0,180,255,0.055)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"10px 11px",display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}><div><div style={{fontSize:8,color:"#667788",fontFamily:"'DM Mono',monospace"}}>LINKED PILOT RECORD</div><div style={{fontSize:11,color:"#FFFFFF",marginTop:3}}>{linkedPilot.role} · {linkedPilot.hrs90} hrs / 90d</div></div><div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:statusMeta[linkedPilot.trainingStatus].color}}>{statusMeta[linkedPilot.trainingStatus].label}</div></div>}
+            {!linkedPilot&&<div style={{marginTop:14,background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,padding:"10px 11px",fontSize:10,color:"#778899"}}>No pilot record is linked to this Engineering-only demo account.</div>}
+
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",margin:"20px 0 9px"}}>WORKSPACE ACCESS</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
+              {CLUB_ACCESS_ROLES.map(role=>{
+                const enabled=selectedUser.roles.includes(role.id);
+                return <button key={role.id} onClick={()=>changeRole(role.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,textAlign:"left",background:enabled?"rgba(167,139,250,0.13)":"rgba(255,255,255,0.025)",border:`1px solid ${enabled?"rgba(167,139,250,0.45)":"rgba(255,255,255,0.08)"}`,borderRadius:7,padding:"9px 10px",color:enabled?"#E4DBFF":"#778899",cursor:"pointer",fontSize:10}}><span>{role.label}</span><span style={{color:enabled?"#A78BFA":"#445566"}}>{enabled?"✓":"+"}</span></button>;
+              })}
+            </div>
+            <div style={{fontSize:9.5,color:"#778899",lineHeight:1.55,marginTop:10}}>These controls manage access only. They do not change pilot currency, aircraft authorisations, defect status or airworthiness.</div>
+            {notice&&<div style={{marginTop:12,background:notice.tone==="error"?"rgba(255,91,91,0.1)":"rgba(0,200,150,0.08)",border:`1px solid ${notice.tone==="error"?"rgba(255,91,91,0.35)":"rgba(0,200,150,0.28)"}`,borderRadius:7,padding:"9px 10px",fontSize:10,color:notice.tone==="error"?"#FF9A9A":"#7CE0C0"}}>{notice.text}</div>}
+          </div>}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16}}>
+          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"15px"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:11}}>ORGANISATION / TEST SETTINGS</div>
+            {[
+              ["Organisation",orgName||"Demo Flight School","#FFFFFF"],
+              ["Environment","FUNCTIONAL DEMO / TEST","#FFD700"],
+              ["Data storage","BROWSER SESSION ONLY","#FFD700"],
+              ["External invitations","DISABLED","#8899AA"],
+              ["Official operational record","NO — PROTOTYPE ONLY","#FF7C7C"],
+            ].map(([label,value,color])=><div key={label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)",fontSize:10}}><span style={{color:"#778899"}}>{label}</span><strong style={{color,textAlign:"right",fontFamily:"'DM Mono',monospace",fontSize:9}}>{value}</strong></div>)}
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#667788",letterSpacing:"0.08em",margin:"15px 0 8px"}}>SAFETY POLICIES — LOCKED FOR TESTING</div>
+            {["Serviceable aircraft required","Pilot type authorisation required","Current training record required"].map(policy=><div key={policy} style={{fontSize:10,color:"#A9C8BE",marginTop:6}}>🔒 <span style={{color:"#00C896"}}>ENFORCED</span> · {policy}</div>)}
+          </div>
+
+          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"15px"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:11}}>RECENT PROTOTYPE ACTIVITY</div>
+            {activity.map((event,index)=><div key={`${event.time}-${index}`} style={{padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)"}}><div style={{display:"flex",justifyContent:"space-between",gap:8,fontFamily:"'DM Mono',monospace",fontSize:8,color:"#556677"}}><span>{event.source}</span><span>{event.time}</span></div><div style={{fontSize:10.5,color:"#AAB8C6",marginTop:4,lineHeight:1.45}}>{event.text}</div></div>)}
+            <div style={{fontSize:9.5,color:"#667788",lineHeight:1.55,marginTop:11}}>Read-only oversight view. A production beta would use immutable, identity-linked audit records.</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2688,9 +2830,11 @@ export default function App() {
   const [orgName,setOrgName] = useState("");
   const [opsPrefill,setOpsPrefill] = useState(null); // { person, aircraft } | null
   const [showOpsDashboard,setShowOpsDashboard] = useState(false);
-  const [opsWorkspace,setOpsWorkspace] = useState(null); // "ops" | "cfi" | "engineering"
+  const [opsWorkspace,setOpsWorkspace] = useState(null); // "ops" | "admin" | "cfi" | "engineering"
   const [opsPeople,setOpsPeople] = useState(()=>MOCK_OPS_PEOPLE.map(p=>({...p,aircraftAuth:[...(p.aircraftAuth||[])]})));
   const [opsAircraftList,setOpsAircraftList] = useState(()=>MOCK_OPS_AIRCRAFT.map(a=>({...a,defects:(a.defects||[]).map(d=>({...d})),maintenanceHistory:[...(a.maintenanceHistory||[])],audit:[...(a.audit||[])]})));
+  const [opsUsers,setOpsUsers] = useState(()=>MOCK_CLUB_USERS.map(user=>({...user,roles:[...user.roles]})));
+  const [opsAdminAudit,setOpsAdminAudit] = useState(()=>MOCK_ADMIN_AUDIT.map(event=>({...event})));
   const [fratAnswers,setFratAnswers] = useState({});
   const [fratPrefillKeys,setFratPrefillKeys] = useState({});
   const [fratInitialAnswers,setFratInitialAnswers] = useState(null);
@@ -2928,6 +3072,16 @@ export default function App() {
   if (accountType === "flightschool" && !opsLoggedIn) return <FlightSchoolLoginScreen
     onLogin={(org,workspace)=>{setOrgName(org);setOpsWorkspace(workspace||"ops");setOpsLoggedIn(true);setShowOpsDashboard((workspace||"ops")==="ops");}}
     onBack={()=>setAccountType(null)}
+  />;
+  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "admin") return <ClubAdminDashboardScreen
+    orgName={orgName}
+    people={opsPeople}
+    aircraftList={opsAircraftList}
+    users={opsUsers}
+    setUsers={setOpsUsers}
+    adminAudit={opsAdminAudit}
+    setAdminAudit={setOpsAdminAudit}
+    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
   />;
   if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "engineering") return <EngineeringDashboardScreen
     orgName={orgName}
