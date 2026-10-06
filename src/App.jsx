@@ -1642,17 +1642,17 @@ function HazardCard({ h, expanded, onToggle }) {
 // appears — never presented as if it were a real live feed.
 
 const MOCK_OPS_PEOPLE = [
-  { id:"p1", name:"Jordan Reyes", role:"Student — PPL", hrs90:14.2, currency:"Medical current (Class 3, exp. 8mo)" },
-  { id:"p2", name:"Alicia Chen", role:"Student — Instrument", hrs90:6.5, currency:"Medical current (Class 3, exp. 5mo)" },
-  { id:"p3", name:"Marcus Webb", role:"CFI", hrs90:42.0, currency:"Flight review & medical current" },
-  { id:"p4", name:"Sarah Kim", role:"Student — Solo", hrs90:3.1, currency:"Medical current (Class 3, exp. 11mo)" },
+  { id:"p1", name:"Jordan Reyes", role:"Student — PPL", hrs90:14.2, currency:"Medical current (Class 3, exp. 8mo)", medical:"Current — 8 months remaining", lastFlight:"28 Sep 2026", clubCurrency:"Current", nextCheck:"18 Nov 2026", trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 152"], lastCheck:"18 May 2026" },
+  { id:"p2", name:"Alicia Chen", role:"Student — Instrument", hrs90:6.5, currency:"Medical current (Class 3, exp. 5mo)", medical:"Current — 5 months remaining", lastFlight:"22 Sep 2026", clubCurrency:"Expires in 12 days", nextCheck:"18 Oct 2026", trainingStatus:"due", pendingSignoff:true, aircraftAuth:["Cessna 172N"], lastCheck:"18 Apr 2026" },
+  { id:"p3", name:"Marcus Webb", role:"CFI", hrs90:42.0, currency:"Flight review & medical current", medical:"Current", lastFlight:"05 Oct 2026", clubCurrency:"Current", nextCheck:"12 Feb 2027", trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 172N","Piper PA-28-181","Cessna 152"], lastCheck:"12 Aug 2026" },
+  { id:"p4", name:"Sarah Kim", role:"Student — Solo", hrs90:3.1, currency:"Medical current (Class 3, exp. 11mo)", medical:"Current — 11 months remaining", lastFlight:"31 Aug 2026", clubCurrency:"Expired — checkout required", nextCheck:"OVERDUE", trainingStatus:"noncurrent", pendingSignoff:false, aircraftAuth:["Cessna 152"], lastCheck:"14 Mar 2026" },
 ];
 
 const MOCK_OPS_AIRCRAFT = [
-  { id:"a1", tail:"N172SR", type:"Cessna 172S", status:"airworthy", squawk:null, last100:"12 days ago" },
-  { id:"a2", tail:"N44TR", type:"Cessna 172N", status:"airworthy", squawk:"Right nav light intermittent — deferred (minor)", last100:"45 days ago" },
-  { id:"a3", tail:"N9DA", type:"Piper PA-28-181", status:"grounded", squawk:"Engine oil analysis pending — DO NOT FLY", last100:"6 days ago" },
-  { id:"a4", tail:"N721CT", type:"Cessna 152", status:"airworthy", squawk:null, last100:"3 days ago" },
+  { id:"a1", tail:"N172SR", type:"Cessna 172S", status:"airworthy", squawk:null, last100:"12 days ago", airframeHours:4218.6, nextMaintenanceHours:37.2, annualDue:"14 Jan 2027", defects:[], maintenanceHistory:["100-hour inspection completed 24 Sep 2026","Oil & filter change 24 Sep 2026"], audit:[{time:"24 Sep 2026 15:20",text:"Returned to service after 100-hour inspection"}] },
+  { id:"a2", tail:"N44TR", type:"Cessna 172N", status:"restricted", squawk:"Right nav light intermittent — deferred (minor)", last100:"45 days ago", airframeHours:3184.7, nextMaintenanceHours:8.4, annualDue:"02 Dec 2026", defects:[{id:"DEF-0047",text:"Right nav light intermittent",status:"Deferred",restriction:"Day VFR only"}], maintenanceHistory:["50-hour inspection completed 22 Aug 2026"], audit:[{time:"04 Oct 2026 09:15",text:"DEF-0047 assessed — aircraft restricted to Day VFR"}] },
+  { id:"a3", tail:"N9DA", type:"Piper PA-28-181", status:"grounded", squawk:"Engine oil analysis pending — DO NOT FLY", last100:"6 days ago", airframeHours:5520.1, nextMaintenanceHours:94.0, annualDue:"21 Mar 2027", defects:[{id:"DEF-0051",text:"Engine oil analysis pending",status:"Work in progress",restriction:"Aircraft grounded"}], maintenanceHistory:["100-hour inspection completed 30 Sep 2026"], audit:[{time:"05 Oct 2026 17:42",text:"Aircraft grounded pending engine oil analysis"}] },
+  { id:"a4", tail:"N721CT", type:"Cessna 152", status:"airworthy", squawk:null, last100:"3 days ago", airframeHours:7642.3, nextMaintenanceHours:47.8, annualDue:"08 Feb 2027", defects:[], maintenanceHistory:["50-hour inspection completed 03 Oct 2026"], audit:[{time:"03 Oct 2026 11:10",text:"50-hour inspection completed — returned to service"}] },
 ];
 
 function hrs90ToFratPoints(hrs) {
@@ -1710,15 +1710,22 @@ function AccountTypeScreen({ onSelect }) {
 }
 
 function FlightSchoolLoginScreen({ onLogin, onBack }) {
+  const secondaryButton = {
+    width:"100%",background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.28)",borderRadius:8,padding:"12px",
+    color:"#00B4FF",fontWeight:"bold",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.04em",marginTop:9
+  };
   return (
     <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}`}</style>
-      <div style={{width:"100%",maxWidth:360}}>
+      <div style={{width:"100%",maxWidth:380}}>
         <button onClick={onBack} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:13,marginBottom:24}}>← BACK</button>
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.1em",color:"#FFFFFF",marginBottom:4}}>🏫 FLIGHT SCHOOL / CLUB LOGIN</div>
-        <div style={{fontSize:11,color:"#8899AA",lineHeight:1.6,marginBottom:20}}>Sign in to your organisation's ops system.</div>
-        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:24}}>⚠ DEMO MODE — this is a simulated ops-system integration to illustrate a planned feature, not a live login.</div>
-        <button onClick={()=>onLogin("Demo Flight School")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"#050D18",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>LOG IN</button>
+        <div style={{fontSize:11,color:"#8899AA",lineHeight:1.6,marginBottom:20}}>Choose the workspace you want to preview.</div>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:24}}>⚠ DEMO MODE — all records are simulated and changes last only for this browser session.</div>
+        <button onClick={()=>onLogin("Demo Flight School","ops")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"#050D18",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>PILOT / OPS LOGIN</button>
+        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.1em",margin:"18px 0 4px"}}>SPECIALIST WORKSPACES</div>
+        <button onClick={()=>onLogin("Demo Flight School","cfi")} style={secondaryButton}>🎓 CFI / TRAINING</button>
+        <button onClick={()=>onLogin("Demo Flight School","engineering")} style={secondaryButton}>🔧 ENGINEERING LOGIN</button>
       </div>
     </div>
   );
@@ -1737,21 +1744,24 @@ function OpsPersonCard({ person, selected, onSelect }) {
 }
 
 function OpsAircraftCard({ ac, selected, onSelect }) {
-  const grounded = ac.status === "grounded";
+  const unavailable = ac.status === "grounded" || ac.status === "maintenance";
+  const restricted = ac.status === "restricted";
+  const stateText = unavailable ? (ac.status==="maintenance"?"MAINTENANCE":"GROUNDED") : restricted ? "RESTRICTED" : "SERVICEABLE";
+  const stateColor = unavailable ? "#FF6B6B" : restricted || ac.squawk ? "#FFD700" : "#00C896";
   return (
-    <button disabled={grounded} onClick={()=>!grounded && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:grounded?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.03)",border:`1px solid ${grounded?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"11px 14px",cursor:grounded?"not-allowed":"pointer",marginBottom:8,opacity:grounded?0.75:1}}>
+    <button disabled={unavailable} onClick={()=>!unavailable && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:unavailable?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.03)",border:`1px solid ${unavailable?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"11px 14px",cursor:unavailable?"not-allowed":"pointer",marginBottom:8,opacity:unavailable?0.75:1}}>
       <div>
         <div style={{fontSize:13,color:"#FFFFFF",fontWeight:600}}>{ac.tail} <span style={{color:"#8899AA",fontWeight:400}}>· {ac.type}</span></div>
-        <div style={{fontSize:10,color:grounded?"#FF6B6B":ac.squawk?"#FFD700":"#00C896",marginTop:2}}>
-          {grounded ? "🔴 GROUNDED — " : ac.squawk ? "🟡 " : "🟢 Airworthy, no open squawks — "}{ac.squawk||""} · Last 100hr: {ac.last100}
+        <div style={{fontSize:10,color:stateColor,marginTop:2}}>
+          {unavailable?"🔴":restricted||ac.squawk?"🟡":"🟢"} {stateText}{ac.squawk?` — ${ac.squawk}`:" — no open defects"} · {ac.nextMaintenanceHours!=null?`${ac.nextMaintenanceHours} hrs to scheduled maintenance`:`Last 100hr: ${ac.last100}`}
         </div>
       </div>
-      {selected && !grounded && <div style={{color:"#00B4FF",fontSize:16}}>✓</div>}
+      {selected && !unavailable && <div style={{color:"#00B4FF",fontSize:16}}>✓</div>}
     </button>
   );
 }
 
-function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack }) {
+function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack, people=MOCK_OPS_PEOPLE, aircraftList=MOCK_OPS_AIRCRAFT }) {
   const [person, setPerson] = useState(null);
   const [aircraft, setAircraft] = useState(null);
   return (
@@ -1765,16 +1775,235 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack 
         <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:22}}>⚠ SIMULATED DATA — this roster and fleet are fabricated examples illustrating a planned integration. No real student, instructor, or aircraft records are connected.</div>
 
         <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",marginBottom:10}}>SELECT PILOT</div>
-        {MOCK_OPS_PEOPLE.map(p=><OpsPersonCard key={p.id} person={p} selected={person?.id===p.id} onSelect={setPerson}/>)}
+        {people.map(p=><OpsPersonCard key={p.id} person={p} selected={person?.id===p.id} onSelect={setPerson}/>)}
+
 
         <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",margin:"22px 0 10px"}}>SELECT AIRCRAFT</div>
-        {MOCK_OPS_AIRCRAFT.map(a=><OpsAircraftCard key={a.id} ac={a} selected={aircraft?.id===a.id} onSelect={setAircraft}/>)}
+        {aircraftList.map(a=><OpsAircraftCard key={a.id} ac={a} selected={aircraft?.id===a.id} onSelect={setAircraft}/>)}
 
         <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:24}}>
           <button disabled={!person||!aircraft} onClick={()=>onStartBriefing(person,aircraft)} style={{width:"100%",background:(person&&aircraft)?"linear-gradient(135deg,#00B4FF,#0090DD)":"rgba(255,255,255,0.06)",border:"none",borderRadius:8,padding:"13px",color:(person&&aircraft)?"#050D18":"#556677",fontWeight:"bold",fontSize:13,cursor:(person&&aircraft)?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>
             🛡 START PRE-FLIGHT RISK ASSESSMENT {person&&aircraft?`— ${person.name.split(" ")[0]} / ${aircraft.tail}`:"(select pilot & aircraft)"}
           </button>
           <button onClick={onContinueToApp} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,padding:"11px",color:"#8899AA",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>Continue to SafeRoute Academy →</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function DemoWorkspaceHeader({ icon, title, orgName, onBack, accent="#00B4FF" }) {
+  return (
+    <div style={{background:"rgba(3,10,22,0.97)",borderBottom:`1px solid ${accent}33`,padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
+      <button onClick={onBack} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:14}}>← LOG OUT</button>
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"#FFFFFF",marginLeft:6}}>{icon} {title}</div>
+      <div style={{flex:1}}/>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#667788"}}>{orgName || "DEMO FLIGHT SCHOOL"} · DEMO</div>
+    </div>
+  );
+}
+
+function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, onBack }) {
+  const [selectedId,setSelectedId] = useState(aircraftList[0]?.id || null);
+  const [newDefect,setNewDefect] = useState("");
+  const aircraft = aircraftList.find(a=>a.id===selectedId) || aircraftList[0];
+
+  function mutateAircraft(fn, auditText) {
+    setAircraftList(prev=>prev.map(ac=>{
+      if(ac.id!==selectedId) return ac;
+      const next=fn(ac);
+      return {...next,audit:[{time:new Date().toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"}),text:auditText},...(ac.audit||[])]};
+    }));
+  }
+
+  function changeState(status) {
+    const labels={airworthy:"SERVICEABLE",restricted:"RESTRICTED",maintenance:"MAINTENANCE",grounded:"UNSERVICEABLE"};
+    mutateAircraft(ac=>({...ac,status}),`Aircraft state changed to ${labels[status]}`);
+  }
+
+  function addDefect() {
+    const text=newDefect.trim();
+    if(!text) return;
+    mutateAircraft(ac=>{
+      const defects=[...(ac.defects||[]),{id:`DEF-${String(48+(ac.defects?.length||0)).padStart(4,"0")}`,text,status:"Reported",restriction:"Under engineering assessment"}];
+      return {...ac,defects,squawk:ac.squawk||text};
+    },`New defect reported: ${text}`);
+    setNewDefect("");
+  }
+
+  function closeDefect(id) {
+    mutateAircraft(ac=>{
+      const defects=(ac.defects||[]).map(d=>d.id===id?{...d,status:"Closed"}:d);
+      const open=defects.find(d=>d.status!=="Closed");
+      return {...ac,defects,squawk:open?.text||null};
+    },`${id} closed after engineering action`);
+  }
+
+  function recordInspection() {
+    mutateAircraft(ac=>({...ac,last100:"Today",nextMaintenanceHours:100,maintenanceHistory:[`100-hour inspection completed ${new Date().toLocaleDateString("en-GB")}`,...(ac.maintenanceHistory||[])]}),"100-hour inspection recorded complete");
+  }
+
+  const counts={
+    serviceable:aircraftList.filter(a=>a.status==="airworthy").length,
+    restricted:aircraftList.filter(a=>a.status==="restricted").length,
+    unavailable:aircraftList.filter(a=>a.status==="grounded"||a.status==="maintenance").length,
+    defects:aircraftList.reduce((n,a)=>n+(a.defects||[]).filter(d=>d.status!=="Closed").length,0)
+  };
+  const stateMeta={
+    airworthy:{label:"SERVICEABLE",color:"#00C896",icon:"🟢"},
+    restricted:{label:"SERVICEABLE WITH RESTRICTIONS",color:"#FFD700",icon:"🟡"},
+    maintenance:{label:"MAINTENANCE",color:"#FF8C42",icon:"🟠"},
+    grounded:{label:"UNSERVICEABLE / GROUNDED",color:"#FF5B5B",icon:"🔴"},
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
+      <DemoWorkspaceHeader icon="🔧" title="ENGINEERING" orgName={orgName} onBack={onBack} accent="#FF8C42"/>
+      <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated fleet data only. Changes below update the Pilot / Ops view during this browser session so the workflow can be tested end-to-end.</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
+          {[
+            ["🟢","Serviceable",counts.serviceable,"#00C896"],
+            ["🟡","Restricted",counts.restricted,"#FFD700"],
+            ["🔴","Unavailable",counts.unavailable,"#FF5B5B"],
+            ["🛠","Open defects",counts.defects,"#00B4FF"],
+          ].map(([icon,label,value,color])=><div key={label} style={{background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:10,color:"#778899",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"minmax(250px,0.8fr) minmax(0,2fr)",gap:16,alignItems:"start"}}>
+          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#FF8C42",letterSpacing:"0.1em",marginBottom:10}}>FLEET</div>
+            {aircraftList.map(ac=>{
+              const meta=stateMeta[ac.status]||stateMeta.airworthy;
+              return <button key={ac.id} onClick={()=>setSelectedId(ac.id)} style={{width:"100%",textAlign:"left",background:selectedId===ac.id?"rgba(255,140,66,0.12)":"rgba(255,255,255,0.025)",border:`1px solid ${selectedId===ac.id?"rgba(255,140,66,0.42)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8}}><strong>{ac.tail}</strong><span style={{color:meta.color,fontSize:10}}>{meta.icon} {meta.label}</span></div>
+                <div style={{fontSize:10,color:"#778899",marginTop:3}}>{ac.type} · {ac.nextMaintenanceHours} hrs to maint.</div>
+              </button>;
+            })}
+          </div>
+          {aircraft && <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
+              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.08em",color:"#FFFFFF"}}>{aircraft.tail}</div><div style={{fontSize:12,color:"#8899AA"}}>{aircraft.type} · {aircraft.airframeHours?.toLocaleString()} airframe hrs</div></div>
+              <div style={{background:`${stateMeta[aircraft.status].color}16`,border:`1px solid ${stateMeta[aircraft.status].color}55`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:stateMeta[aircraft.status].color}}>{stateMeta[aircraft.status].icon} {stateMeta[aircraft.status].label}</div>
+            </div>
+
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#667788",letterSpacing:"0.1em",margin:"22px 0 8px"}}>UPDATE AIRCRAFT STATE</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+              {[["airworthy","🟢 SERVICEABLE"],["restricted","🟡 RESTRICTED"],["maintenance","🟠 MAINTENANCE"],["grounded","🔴 UNSERVICEABLE"]].map(([id,label])=><button key={id} onClick={()=>changeState(id)} style={{background:aircraft.status===id?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.04)",border:`1px solid ${aircraft.status===id?"rgba(0,180,255,0.45)":"rgba(255,255,255,0.1)"}`,borderRadius:6,padding:"8px 10px",color:"#D0DCE8",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>{label}</button>)}
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:9,marginTop:18}}>
+              <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"#667788"}}>NEXT SCHEDULED MAINT.</div><div style={{fontSize:18,color:aircraft.nextMaintenanceHours<10?"#FFD700":"#FFFFFF",marginTop:3}}>{aircraft.nextMaintenanceHours} hrs</div></div>
+              <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"#667788"}}>ANNUAL / INSPECTION DUE</div><div style={{fontSize:15,color:"#FFFFFF",marginTop:5}}>{aircraft.annualDue}</div></div>
+              <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"#667788"}}>LAST 100-HOUR</div><div style={{fontSize:15,color:"#FFFFFF",marginTop:5}}>{aircraft.last100}</div></div>
+            </div>
+
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",margin:"22px 0 8px"}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#FF8C42",letterSpacing:"0.1em"}}>DEFECTS / WORK IN PROGRESS</div>
+            </div>
+            {(aircraft.defects||[]).length===0 && <div style={{fontSize:11,color:"#00C896",padding:"10px 0"}}>✓ No recorded defects</div>}
+            {(aircraft.defects||[]).map(d=><div key={d.id} style={{background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"10px 11px",marginBottom:7}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:8}}><div><strong style={{fontSize:11,color:"#FFFFFF"}}>{d.id}</strong><div style={{fontSize:11,color:"#C5D0DC",marginTop:3}}>{d.text}</div><div style={{fontSize:9,color:"#8899AA",marginTop:3}}>{d.status} · {d.restriction}</div></div>{d.status!=="Closed"&&<button onClick={()=>closeDefect(d.id)} style={{alignSelf:"center",background:"rgba(0,200,150,0.1)",border:"1px solid rgba(0,200,150,0.3)",color:"#00C896",borderRadius:6,padding:"6px 8px",cursor:"pointer",fontSize:9}}>CLOSE</button>}</div>
+            </div>)}
+            <div style={{display:"flex",gap:7,marginTop:9}}>
+              <input value={newDefect} onChange={e=>setNewDefect(e.target.value)} placeholder="Enter new defect / discrepancy..." style={{flex:1,minWidth:0,background:"#071321",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"9px 10px",color:"#FFFFFF",outline:"none"}}/>
+              <button onClick={addDefect} style={{background:"rgba(255,140,66,0.14)",border:"1px solid rgba(255,140,66,0.4)",color:"#FFAA65",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontWeight:700}}>ADD</button>
+            </div>
+
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:18}}>
+              <button onClick={recordInspection} style={{background:"rgba(0,180,255,0.12)",border:"1px solid rgba(0,180,255,0.35)",color:"#00B4FF",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RECORD 100-HOUR COMPLETE</button>
+              <button onClick={()=>changeState("airworthy")} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"#00C896",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RETURN TO SERVICE</button>
+            </div>
+
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#667788",letterSpacing:"0.1em",margin:"22px 0 8px"}}>AUDIT TRAIL</div>
+            {(aircraft.audit||[]).slice(0,5).map((a,i)=><div key={i} style={{fontSize:10,color:"#9AA8B7",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}><span style={{color:"#556677"}}>{a.time}</span> · {a.text}</div>)}
+          </div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }) {
+  const [selectedId,setSelectedId] = useState(people[0]?.id || null);
+  const person=people.find(p=>p.id===selectedId) || people[0];
+  const types=[...new Set(aircraftList.map(a=>a.type))];
+  const statusMeta={
+    current:{label:"CURRENT",color:"#00C896",icon:"🟢"},
+    due:{label:"DUE SOON",color:"#FFD700",icon:"🟡"},
+    noncurrent:{label:"ACTION REQUIRED",color:"#FF5B5B",icon:"🔴"},
+  };
+  const counts={
+    current:people.filter(p=>p.trainingStatus==="current").length,
+    due:people.filter(p=>p.trainingStatus==="due").length,
+    noncurrent:people.filter(p=>p.trainingStatus==="noncurrent").length,
+    signoff:people.filter(p=>p.pendingSignoff).length,
+  };
+  function updatePerson(patch){
+    setPeople(prev=>prev.map(p=>p.id===selectedId?{...p,...patch}:p));
+  }
+  function completeCheck(){
+    updatePerson({trainingStatus:"current",pendingSignoff:false,clubCurrency:"Current",lastCheck:new Date().toLocaleDateString("en-GB"),nextCheck:"06 Apr 2027"});
+  }
+  function toggleAuth(type){
+    const has=(person.aircraftAuth||[]).includes(type);
+    updatePerson({aircraftAuth:has?(person.aircraftAuth||[]).filter(x=>x!==type):[...(person.aircraftAuth||[]),type]});
+  }
+  return (
+    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
+      <DemoWorkspaceHeader icon="🎓" title="CFI / TRAINING" orgName={orgName} onBack={onBack} accent="#00B4FF"/>
+      <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated training records only. CFI changes update the shared pilot record used by the Pilot / Ops workspace for this browser session.</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
+          {[
+            ["🟢","Current",counts.current,"#00C896"],
+            ["🟡","Due soon",counts.due,"#FFD700"],
+            ["🔴","Action required",counts.noncurrent,"#FF5B5B"],
+            ["🔵","Awaiting sign-off",counts.signoff,"#00B4FF"],
+          ].map(([icon,label,value,color])=><div key={label} style={{background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:10,color:"#778899",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"minmax(250px,0.8fr) minmax(0,2fr)",gap:16,alignItems:"start"}}>
+          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",marginBottom:10}}>PILOTS REQUIRING ATTENTION</div>
+            {people.map(p=>{
+              const meta=statusMeta[p.trainingStatus]||statusMeta.current;
+              return <button key={p.id} onClick={()=>setSelectedId(p.id)} style={{width:"100%",textAlign:"left",background:selectedId===p.id?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.025)",border:`1px solid ${selectedId===p.id?"rgba(0,180,255,0.42)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8}}><strong>{p.name}</strong><span style={{color:meta.color,fontSize:10}}>{meta.icon} {meta.label}</span></div>
+                <div style={{fontSize:10,color:"#778899",marginTop:3}}>{p.role} · {p.hrs90} hrs / 90d</div>
+              </button>;
+            })}
+          </div>
+
+          {person && <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:29,letterSpacing:"0.07em",color:"#FFFFFF"}}>{person.name}</div><div style={{fontSize:12,color:"#8899AA"}}>{person.role}</div></div>
+              <div style={{background:`${statusMeta[person.trainingStatus].color}16`,border:`1px solid ${statusMeta[person.trainingStatus].color}55`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:statusMeta[person.trainingStatus].color}}>{statusMeta[person.trainingStatus].icon} {statusMeta[person.trainingStatus].label}</div>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:9,marginTop:18}}>
+              {[["90-DAY HOURS",person.hrs90],["LAST FLIGHT",person.lastFlight],["CLUB CURRENCY",person.clubCurrency],["NEXT CHECK",person.nextCheck],["MEDICAL",person.medical],["LAST CHECK",person.lastCheck]].map(([label,value])=><div key={label} style={{background:"rgba(0,180,255,0.055)",border:"1px solid rgba(0,180,255,0.14)",borderRadius:8,padding:"10px"}}><div style={{fontSize:8,color:"#667788",fontFamily:"'DM Mono',monospace"}}>{label}</div><div style={{fontSize:12,color:"#FFFFFF",marginTop:4,lineHeight:1.35}}>{value}</div></div>)}
+            </div>
+
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",margin:"22px 0 8px"}}>AIRCRAFT AUTHORISATIONS</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+              {types.map(type=>{
+                const authorised=(person.aircraftAuth||[]).includes(type);
+                return <button key={type} onClick={()=>toggleAuth(type)} style={{background:authorised?"rgba(0,200,150,0.11)":"rgba(255,255,255,0.035)",border:`1px solid ${authorised?"rgba(0,200,150,0.35)":"rgba(255,255,255,0.1)"}`,borderRadius:7,padding:"8px 10px",color:authorised?"#00C896":"#778899",cursor:"pointer",fontSize:10}}>{authorised?"✓ ":""}{type}</button>;
+              })}
+            </div>
+
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",margin:"22px 0 8px"}}>CFI ACTIONS</div>
+            {person.pendingSignoff && <div style={{background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#7DD8FF",marginBottom:10}}>🔵 A completed training item is awaiting CFI sign-off.</div>}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <button onClick={completeCheck} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"#00C896",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>✓ RECORD CHECK / SIGN OFF</button>
+              <button onClick={()=>updatePerson({trainingStatus:"due",clubCurrency:"Check due soon"})} style={{background:"rgba(255,215,0,0.1)",border:"1px solid rgba(255,215,0,0.3)",color:"#FFD700",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>MARK DUE SOON</button>
+              <button onClick={()=>updatePerson({trainingStatus:"noncurrent",clubCurrency:"Expired — instructor check required"})} style={{background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.3)",color:"#FF7C7C",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>REQUIRE TRAINING</button>
+            </div>
+            <div style={{marginTop:18,padding:"11px 12px",background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,fontSize:10,color:"#8899AA",lineHeight:1.55}}>In the production version, these actions would be permission-controlled and create an immutable instructor audit record. This prototype is intentionally session-only.</div>
+          </div>}
         </div>
       </div>
     </div>
@@ -2443,6 +2672,9 @@ export default function App() {
   const [orgName,setOrgName] = useState("");
   const [opsPrefill,setOpsPrefill] = useState(null); // { person, aircraft } | null
   const [showOpsDashboard,setShowOpsDashboard] = useState(false);
+  const [opsWorkspace,setOpsWorkspace] = useState(null); // "ops" | "cfi" | "engineering"
+  const [opsPeople,setOpsPeople] = useState(()=>MOCK_OPS_PEOPLE.map(p=>({...p,aircraftAuth:[...(p.aircraftAuth||[])]})));
+  const [opsAircraftList,setOpsAircraftList] = useState(()=>MOCK_OPS_AIRCRAFT.map(a=>({...a,defects:(a.defects||[]).map(d=>({...d})),maintenanceHistory:[...(a.maintenanceHistory||[])],audit:[...(a.audit||[])]})));
   const [fratAnswers,setFratAnswers] = useState({});
   const [fratPrefillKeys,setFratPrefillKeys] = useState({});
   const [fratInitialAnswers,setFratInitialAnswers] = useState(null);
@@ -2677,8 +2909,26 @@ export default function App() {
   );
 
   if (accountType === null) return <AccountTypeScreen onSelect={setAccountType}/>;
-  if (accountType === "flightschool" && !opsLoggedIn) return <FlightSchoolLoginScreen onLogin={(org)=>{setOrgName(org);setOpsLoggedIn(true);setShowOpsDashboard(true);}} onBack={()=>setAccountType(null)}/>;
-  if (accountType === "flightschool" && opsLoggedIn && showOpsDashboard) return <OpsDashboardScreen orgName={orgName}
+  if (accountType === "flightschool" && !opsLoggedIn) return <FlightSchoolLoginScreen
+    onLogin={(org,workspace)=>{setOrgName(org);setOpsWorkspace(workspace||"ops");setOpsLoggedIn(true);setShowOpsDashboard((workspace||"ops")==="ops");}}
+    onBack={()=>setAccountType(null)}
+  />;
+  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "engineering") return <EngineeringDashboardScreen
+    orgName={orgName}
+    aircraftList={opsAircraftList}
+    setAircraftList={setOpsAircraftList}
+    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
+  />;
+  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "cfi") return <CfiDashboardScreen
+    orgName={orgName}
+    people={opsPeople}
+    setPeople={setOpsPeople}
+    aircraftList={opsAircraftList}
+    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
+  />;
+  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "ops" && showOpsDashboard) return <OpsDashboardScreen orgName={orgName}
+    people={opsPeople}
+    aircraftList={opsAircraftList}
     onStartBriefing={(person,aircraft)=>{
       setOpsPrefill({person,aircraft});
       const seed = buildOpsFratSeed({person,aircraft});
@@ -2687,7 +2937,7 @@ export default function App() {
       setShowOpsDashboard(false);setShowWelcome(false);setShowFRAT(true);
     }}
     onContinueToApp={()=>setShowOpsDashboard(false)}
-    onBack={()=>{setOpsLoggedIn(false);setShowOpsDashboard(false);}} />;
+    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}} />;
   if (showWelcome) return <WelcomeScreen onSelect={chooseRegion}/>;
   if (showE6B) return <E6BScreen onClose={()=>{setShowE6B(false);setMenuOpen(false);}}/>;
   if (showFRAT) return <FRATScreen
