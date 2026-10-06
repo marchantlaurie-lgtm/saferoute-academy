@@ -1,7 +1,10 @@
 # Step 2 interface triage log
 
-Status: **open for the active interface freeze**  
-Baseline: `1d9677a0f0a06c2f77b00d97be059f820a7838ca`
+Status: **closed on 6 October 2026**
+
+Original baseline: `1d9677a0f0a06c2f77b00d97be059f820a7838ca`
+
+Verified exit baseline: `e0ad49259213fdbb227d0d01a7cec8c08b33fd38`
 
 ## Classification rules
 
