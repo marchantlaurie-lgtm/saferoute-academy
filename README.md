@@ -4,7 +4,14 @@ SafeRoute Academy is a controlled beta/prototype for student-pilot safety intell
 
 ## Current milestone
 
-Step 1 of the beta sequence — the shared Academy → PAVE/FRAT integration — is documented in [docs/milestones/step-1-academy-pave-frat-integration.md](docs/milestones/step-1-academy-pave-frat-integration.md).
+Step 2 of the beta sequence — the interface freeze — is active. Its scope, change rules, and exit criteria are documented in [docs/milestones/step-2-interface-freeze.md](docs/milestones/step-2-interface-freeze.md).
+
+The frozen regression suite and issue classification are maintained in:
+
+- [docs/testing/step-2-regression-checklist.md](docs/testing/step-2-regression-checklist.md)
+- [docs/triage/step-2-interface-triage.md](docs/triage/step-2-interface-triage.md)
+
+Step 1 — the shared Academy → PAVE/FRAT integration — remains recorded in [docs/milestones/step-1-academy-pave-frat-integration.md](docs/milestones/step-1-academy-pave-frat-integration.md).
 
 ## Local verification
 
