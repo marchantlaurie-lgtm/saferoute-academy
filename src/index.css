@@ -136,6 +136,332 @@
   }
 }
 
+.guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: var(--sr-overlay);
+  backdrop-filter: blur(8px);
+}
+
+.guide-dialog {
+  width: min(960px, 100%);
+  height: min(92vh, 900px);
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  overflow: hidden;
+  text-align: left;
+  color: var(--sr-text);
+  background: var(--sr-bg-elevated);
+  border: 1px solid var(--sr-border-strong);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+  font-family: 'Inter', sans-serif;
+}
+
+.guide-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px 15px;
+  border-bottom: 1px solid var(--sr-border);
+}
+
+.guide-heading {
+  color: var(--sr-text-strong);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+}
+
+.guide-kicker {
+  color: var(--sr-accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-bottom: 5px;
+}
+
+.guide-updated {
+  color: var(--sr-text-muted-2);
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  margin-top: 4px;
+}
+
+.guide-close {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border: 1px solid var(--sr-border);
+  border-radius: 50%;
+  background: var(--sr-surface-hover);
+  color: var(--sr-text-strong);
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.guide-safety-banner {
+  padding: 10px 22px;
+  color: var(--sr-warning-text-strong);
+  background: var(--sr-warning-bg);
+  border-bottom: 1px solid var(--sr-warning-border);
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.guide-tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--sr-border);
+  scrollbar-width: thin;
+}
+
+.guide-tabs button,
+.guide-role-links button {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border: 1px solid var(--sr-border);
+  border-radius: 7px;
+  color: var(--sr-text-muted);
+  background: var(--sr-surface-soft);
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+}
+
+.guide-tabs button[aria-pressed="true"] {
+  color: var(--sr-accent);
+  background: rgba(0, 180, 255, 0.11);
+  border-color: rgba(0, 180, 255, 0.4);
+  font-weight: 700;
+}
+
+.guide-scroll-area {
+  overflow-y: auto;
+  padding: 20px 22px 30px;
+}
+
+.guide-intro-card,
+.guide-content-card {
+  padding: 17px 18px;
+  border: 1px solid var(--sr-border);
+  border-radius: 11px;
+  background: var(--sr-surface-soft);
+}
+
+.guide-intro-card {
+  margin-bottom: 14px;
+  background: var(--sr-hero);
+  border-color: rgba(0, 180, 255, 0.24);
+}
+
+.guide-intro-card h2,
+.guide-content-card h3 {
+  margin: 0;
+  color: var(--sr-text-strong);
+}
+
+.guide-intro-card h2 {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.guide-content-card h3 {
+  color: var(--sr-accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.guide-intro-card p,
+.guide-section-content p {
+  margin: 8px 0 0;
+  color: var(--sr-text-subtle);
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+
+.guide-role-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.guide-role-links button {
+  color: var(--sr-accent);
+  border-color: rgba(0, 180, 255, 0.28);
+}
+
+.guide-section-list {
+  display: grid;
+  gap: 8px;
+}
+
+.guide-section {
+  border: 1px solid var(--sr-border);
+  border-radius: 9px;
+  background: var(--sr-surface-soft);
+  overflow: hidden;
+}
+
+.guide-section summary {
+  padding: 12px 14px;
+  color: var(--sr-text-strong);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.guide-section[open] summary {
+  color: var(--sr-accent);
+  border-bottom: 1px solid var(--sr-border);
+}
+
+.guide-section-content {
+  padding: 3px 15px 14px;
+}
+
+.guide-section-content ul,
+.guide-content-card ul,
+.guide-steps {
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+
+.guide-section-content li,
+.guide-content-card li,
+.guide-steps li {
+  margin: 7px 0;
+  padding-left: 3px;
+  color: var(--sr-text);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.guide-quick-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.guide-quick-title > span {
+  font-size: 32px;
+}
+
+.guide-steps {
+  counter-reset: guide-step;
+  list-style: none;
+  padding-left: 0;
+}
+
+.guide-steps li {
+  counter-increment: guide-step;
+  position: relative;
+  min-height: 26px;
+  margin: 10px 0;
+  padding-left: 37px;
+}
+
+.guide-steps li::before {
+  content: counter(guide-step);
+  position: absolute;
+  top: -2px;
+  left: 0;
+  width: 25px;
+  height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--sr-bg);
+  background: var(--sr-accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.guide-two-column {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.guide-test-card {
+  border-color: rgba(0, 180, 255, 0.24);
+}
+
+.guide-caution-card {
+  background: var(--sr-warning-bg);
+  border-color: var(--sr-warning-border);
+}
+
+.guide-caution-card h3,
+.guide-caution-card li {
+  color: var(--sr-warning-text-strong);
+}
+
+.guide-link-note {
+  margin-top: 16px;
+  color: var(--sr-text-muted-2);
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .guide-overlay {
+    padding: 0;
+  }
+
+  .guide-dialog {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .guide-header {
+    padding: 15px 14px 11px;
+  }
+
+  .guide-heading {
+    font-size: 21px;
+  }
+
+  .guide-safety-banner {
+    padding: 8px 13px;
+    font-size: 9px;
+  }
+
+  .guide-tabs {
+    padding: 8px;
+  }
+
+  .guide-scroll-area {
+    padding: 13px 12px 28px;
+  }
+
+  .guide-two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;

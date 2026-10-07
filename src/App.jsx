@@ -33,24 +33,62 @@ import {
   normaliseAppearance,
   resolveAppearance,
 } from "./lib/appearance.js";
+import { HelpGuideModal } from "./components/help-guide.jsx";
+import { normaliseGuideId } from "./data/beta-guide-content.js";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "https://saferoute-backend-production.up.railway.app";
 
+function guideFromLocation() {
+  if (typeof window === "undefined") return null;
+  const value = new URLSearchParams(window.location.search).get("guide");
+  return value ? normaliseGuideId(value) : null;
+}
+
+function updateGuideLocation(guideId) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (guideId) url.searchParams.set("guide", normaliseGuideId(guideId));
+  else url.searchParams.delete("guide");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 function AppearanceShell({ appearance, resolvedAppearance, onAppearanceChange, showLogout=false, onLogout, children }) {
   const [settingsOpen,setSettingsOpen] = useState(false);
+  const initialGuide = guideFromLocation();
+  const [guideOpen,setGuideOpen] = useState(!!initialGuide);
+  const [guideId,setGuideId] = useState(initialGuide||"full");
   const options = [
     {id:"system",icon:"◐",label:"System",detail:"Match this device"},
     {id:"light",icon:"☀",label:"Light",detail:"Bright display"},
     {id:"dark",icon:"☾",label:"Dark",detail:"Low-light display"},
   ];
 
+  function openGuide() {
+    setGuideId("full");
+    setGuideOpen(true);
+    updateGuideLocation("full");
+  }
+
+  function changeGuide(nextGuide) {
+    const normalised=normaliseGuideId(nextGuide);
+    setGuideId(normalised);
+    updateGuideLocation(normalised);
+  }
+
+  function closeGuide() {
+    setGuideOpen(false);
+    updateGuideLocation(null);
+  }
+
   return (
     <div style={{minHeight:"100vh",background:"var(--sr-bg)",color:"var(--sr-text)"}}>
       {children}
       <div style={{position:"fixed",right:14,bottom:14,zIndex:5000,display:"flex",gap:8,alignItems:"center"}}>
         {showLogout&&<button aria-label="Log out to the Flight School and Club role selection" title="Log out to role selection" onClick={onLogout} style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(255,91,91,0.65)",borderRadius:999,padding:"10px 13px",color:"#E64444",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,boxShadow:"0 8px 26px rgba(0,0,0,0.22)"}}>⏻ LOG OUT</button>}
+        <button aria-label="Open How To and Quick Start guides" title="How To and Quick Start guides" onClick={openGuide} style={{background:"var(--sr-bg-elevated)",border:"1px solid var(--sr-border-strong)",borderRadius:999,padding:"10px 13px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,boxShadow:"0 8px 26px rgba(0,0,0,0.22)"}}>？ GUIDE</button>
         <button aria-label="Open display settings" title="Display settings" onClick={()=>setSettingsOpen(true)} style={{background:"var(--sr-bg-elevated)",border:"1px solid var(--sr-border-strong)",borderRadius:999,padding:"10px 13px",color:"var(--sr-text-strong)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,boxShadow:"0 8px 26px rgba(0,0,0,0.22)"}}>⚙ DISPLAY</button>
       </div>
+      {guideOpen&&<HelpGuideModal initialGuide={guideId} onGuideChange={changeGuide} onClose={closeGuide}/>}
       {settingsOpen&&<div role="dialog" aria-modal="true" aria-labelledby="appearance-title" onClick={()=>setSettingsOpen(false)} style={{position:"fixed",inset:0,zIndex:6000,display:"flex",alignItems:"center",justifyContent:"center",padding:18,background:"var(--sr-overlay)",backdropFilter:"blur(8px)"}}>
         <div onClick={event=>event.stopPropagation()} style={{width:"100%",maxWidth:430,background:"var(--sr-bg-elevated)",border:"1px solid var(--sr-border-strong)",borderRadius:18,padding:20,boxShadow:"0 24px 70px rgba(0,0,0,0.32)",fontFamily:"'Inter',sans-serif"}}>
           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,marginBottom:18}}>
