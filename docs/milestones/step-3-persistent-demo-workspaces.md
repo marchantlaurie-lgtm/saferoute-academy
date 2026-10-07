@@ -1,10 +1,12 @@
 # Step 3 milestone — persistent private demo workspaces
 
-Status: **implementation complete; cloud activation pending**
+Status: **complete — cloud preview verified 6 October 2026**
 
 Branch: `academy-engineering-cfi-prototype`
 
 Implementation commit: `7d3b90dbe80d2051f04a1bdeef59ccf5dfc2d382`
+
+Database hardening commit: `5334b9ce6d8e6ba710d9dd22daa67d7be34a51ff`
 
 Branch preview: [academy-engineering-cfi-prototype](https://saferoute-academy-git-academy-engineering-cfi-4aa47c-saferoute1.vercel.app/)
 
@@ -36,6 +38,7 @@ Step 3 replaces the reset-on-reload flight-school prototype with a persistent, i
 - Added a one-click reset path back to the original demo template.
 - Added a repository boundary that selects cloud persistence only when both public beta database settings are present, otherwise using private browser storage.
 - Added organisation, membership, workspace-state and append-only service audit tables in a Supabase migration.
+- Activated the migrations in the beta-only Supabase project in West EU (Ireland), including removal of public API access to Supabase's internal automatic-RLS helper.
 - Added organisation-bound row-level read policies and service functions for creation and optimistic revision-controlled saves.
 - Rejected real/authoritative workspace states in the application repository and in database constraints/functions.
 - Kept CFI and Engineering updates connected to Pilot / Ops and the Step 1 FRAT rules.
@@ -65,19 +68,26 @@ Before any real personal or operational data is considered, SafeRoute still need
 - Local browser console: no warnings or errors on the tested path.
 - Grounded and Maintenance aircraft remained blocked; missing type authorisation remained blocked.
 - The Vercel branch preview deployed the new independent-CFI entry, 12-person/six-aircraft fictional workspace and device-persistence fallback; its tested CFI path produced no browser-console warnings or errors.
+- The beta Supabase project and anonymous private-beta identities were activated without exposing a service-role key.
+- Public database settings were added only to the Vercel Preview environment for `academy-engineering-cfi-prototype`; Production remained excluded.
+- The final Vercel deployment `GZsE3DkSBUqebhP9pnq8gabE1GJc` was Ready and displayed `PRIVATE SYNTHETIC DEMO · CLOUD SAVED`.
+- A CFI training-status change survived a full reload and appeared in Pilot / Ops with the required instructor-intervention context.
+- A separate two-identity integration check proved that each identity could see only its own workspace, a stale revision was rejected, and a non-synthetic/authoritative state was rejected.
+- The final database privilege check returned `false` for both anonymous and authenticated execution of `public.rls_auto_enable()`.
+- The Supabase security advisor reported **0 errors**. Its eight remaining warnings are expected for the intentionally callable checked RPCs, anonymous beta identities behind row-level security, and unused password protection while the beta uses anonymous authentication.
+- Responsive verification at 390 × 844 showed no horizontal overflow and retained the synthetic-data warning, cloud-save label, reset action and all login choices.
+- The final preview's tested CFI path produced no browser-console warnings or errors.
+- The production domain still displayed its original session-only demo wording, and remote `main` remained at `54f0a86908c46226d6174f986d098cc4d9afa1c0`.
 
-## Remaining activation gate
+## Controlled-beta boundary after completion
 
-The code and migration are ready, but this milestone cannot be marked complete until:
+Step 3 completion means the shared persistence foundation is ready for controlled testing. It does not turn the preview into a production operational record system.
 
-1. A beta Supabase project is selected or created.
-2. Anonymous sign-in is enabled for the private demo phase.
-3. `supabase/migrations/202610060001_step3_demo_workspaces.sql` is applied.
-4. `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are added to the prototype-branch Vercel Preview environment only.
-5. The branch preview is deployed and the cloud checks in the Step 3 checklist pass.
-6. The production domain and `main` are verified unchanged.
-
-The local/device fallback is useful for development and one-device testing, but it is not the shared database required to close Step 3.
+- Keep distribution limited to invited testers while anonymous sign-in is used.
+- Continue to use fictional data only.
+- CAPTCHA/abuse controls are a precondition for broad or public distribution of the anonymous beta URL.
+- Named accounts, invitations and enforced role-specific permissions remain Step 4.
+- The immutable human-readable operational audit trail remains Step 5.
 
 ## Exit criteria
 
@@ -90,4 +100,4 @@ The local/device fallback is useful for development and one-device testing, but 
 - Automated, desktop, mobile and browser-console checks pass on the Vercel preview.
 - `main` and production remain unchanged.
 
-Only after all criteria pass should Step 3 be marked complete and Step 4 authentication/roles begin.
+All Step 3 criteria passed. Step 3 is a discrete completed milestone; Step 4 may begin only as a separate authorised piece of work.

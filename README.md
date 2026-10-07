@@ -4,7 +4,7 @@ SafeRoute Academy is a controlled beta/prototype for student-pilot safety intell
 
 ## Current milestone
 
-Step 3 of the beta sequence — persistent private demo workspaces — is active. The application implementation, database migration, data boundary and activation status are documented in [docs/milestones/step-3-persistent-demo-workspaces.md](docs/milestones/step-3-persistent-demo-workspaces.md).
+Step 3 of the beta sequence — persistent private demo workspaces — is complete on the prototype branch. The application implementation, database activation, data boundary and verification record are documented in [docs/milestones/step-3-persistent-demo-workspaces.md](docs/milestones/step-3-persistent-demo-workspaces.md).
 
 The Step 3 persistence checklist is maintained in [docs/testing/step-3-persistence-checklist.md](docs/testing/step-3-persistence-checklist.md).
 
@@ -15,7 +15,7 @@ Step 2 — the interface freeze — remains recorded in [docs/milestones/step-2-
 
 Step 1 — the shared Academy → PAVE/FRAT integration — remains recorded in [docs/milestones/step-1-academy-pave-frat-integration.md](docs/milestones/step-1-academy-pave-frat-integration.md).
 
-Step 3 is not complete until the prepared database migration is applied to the beta database, the preview is connected to it, and the cloud-persistence checklist passes. Without those two public beta settings, the app deliberately falls back to private persistence on the tester's current device.
+The Vercel branch preview is connected to the beta-only Supabase project. Those settings are scoped to the `academy-engineering-cfi-prototype` Preview environment and are not present in Production. Step 4 named authentication, invitations and enforced role-specific access has not started.
 
 ## Local verification
 
