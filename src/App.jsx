@@ -1735,13 +1735,14 @@ function AccountTypeScreen({ onSelect }) {
 function DemoDataNotice({ persistenceState, onReset, detail }) {
   const saveText=persistenceState?.status==="saving"?"Saving changes…":persistenceState?.status==="error"?"Save needs attention":persistenceState?.label||"PRIVATE SYNTHETIC DEMO";
   return (
-    <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:18}}>
-      <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
-        <div><b>⚠ SYNTHETIC PRIVATE DEMO</b> — {detail||"This resettable workspace contains fictional people, aircraft and records only."}<br/><span style={{color:"#C9B56A"}}>Do not enter real personal, medical, training, maintenance or operational information.</span></div>
-        {onReset&&<button onClick={onReset} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"6px 8px",color:"var(--sr-gold)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:8,whiteSpace:"nowrap"}}>↺ RESET DEMO DATA</button>}
+    <div style={{background:"var(--sr-warning-bg)",border:"1px solid var(--sr-warning-border)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-warning-text)",lineHeight:1.5,marginBottom:18}}>
+      <div className="demo-data-notice-body">
+        {onReset&&<div aria-hidden="true"/>}
+        <div className="demo-data-notice-message"><b>⚠ SYNTHETIC PRIVATE DEMO</b> — {detail||"This resettable workspace contains fictional people, aircraft and records only."}<br/><span style={{color:"var(--sr-warning-text-soft)"}}>Do not enter real personal, medical, training, maintenance or operational information.</span></div>
+        {onReset&&<button className="demo-data-notice-reset" onClick={onReset} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-warning-border)",borderRadius:6,padding:"6px 8px",color:"var(--sr-warning-text)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:8,whiteSpace:"nowrap"}}>↺ RESET DEMO DATA</button>}
       </div>
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:persistenceState?.status==="error"?"#FF8F8F":"#8FA09A",letterSpacing:"0.06em",marginTop:7}}>{saveText}</div>
-      {persistenceState?.error&&<div style={{fontSize:9,color:"#FF9A9A",marginTop:5}}>{persistenceState.error}</div>}
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:persistenceState?.status==="error"?"var(--sr-danger-text)":"var(--sr-text-muted)",letterSpacing:"0.06em",marginTop:7,textAlign:"center"}}>{saveText}</div>
+      {persistenceState?.error&&<div style={{fontSize:9,color:"var(--sr-danger-text)",marginTop:5,textAlign:"center"}}>{persistenceState.error}</div>}
     </div>
   );
 }
@@ -2106,8 +2107,8 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
   const types=[...new Set(aircraftList.map(a=>a.type))];
   const statusMeta={
     current:{label:"CURRENT",color:"var(--sr-success)",icon:"🟢"},
-    due:{label:"DUE SOON",color:"var(--sr-gold)",icon:"🟡"},
-    noncurrent:{label:"ACTION REQUIRED",color:"#FF5B5B",icon:"🔴"},
+    due:{label:"DUE SOON",color:"var(--sr-warning-text)",icon:"🟡"},
+    noncurrent:{label:"ACTION REQUIRED",color:"var(--sr-danger-text)",icon:"🔴"},
   };
   const counts={
     current:people.filter(p=>p.trainingStatus==="current").length,
@@ -2133,11 +2134,15 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
         <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="Fictional CFI changes persist and update the pilot record used by the Pilot / Ops workspace."/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
           {[
-            ["🟢","Current",counts.current,"var(--sr-success)",false],
-            ["🟡","Due soon",counts.due,"var(--sr-gold)",false],
-            ["🔴","Action required",counts.noncurrent,"#FF5B5B",true],
-            ["🔵","Awaiting sign-off",counts.signoff,"var(--sr-accent)",false],
-          ].map(([icon,label,value,color,urgent])=><div key={label} style={{background:urgent?"rgba(255,91,91,0.12)":"var(--sr-surface-soft)",border:`1px solid ${urgent?"rgba(255,91,91,0.5)":"var(--sr-border)"}`,borderRadius:10,padding:"14px",boxShadow:urgent&&value>0?"0 0 0 1px rgba(255,91,91,0.08), 0 0 18px rgba(255,91,91,0.08)":"none"}}><div style={{fontSize:10,color:urgent?"#FF7C7C":"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontWeight:urgent?700:400}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
+            ["🟢","Current",counts.current,"var(--sr-success)","neutral"],
+            ["🟡","Due soon",counts.due,"var(--sr-warning-text-strong)","warning"],
+            ["🔴","Action required",counts.noncurrent,"var(--sr-danger-text-strong)","danger"],
+            ["🔵","Awaiting sign-off",counts.signoff,"var(--sr-accent)","neutral"],
+          ].map(([icon,label,value,color,tone])=>{
+            const warning=tone==="warning";
+            const urgent=tone==="danger";
+            return <div key={label} style={{background:urgent?"var(--sr-danger-bg)":warning?"var(--sr-warning-bg)":"var(--sr-surface-soft)",border:`1px solid ${urgent?"var(--sr-danger-border)":warning?"var(--sr-warning-border)":"var(--sr-border)"}`,borderRadius:10,padding:"14px",boxShadow:urgent&&value>0?"0 0 0 1px rgba(255,91,91,0.08), 0 0 18px rgba(255,91,91,0.08)":"none"}}><div style={{fontSize:10,color:urgent?"var(--sr-danger-text)":warning?"var(--sr-warning-text)":"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontWeight:(urgent||warning)?700:400}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>;
+          })}
         </div>
 
         <div className="cfi-workspace-grid" style={{gap:16,alignItems:"start"}}>
@@ -2146,10 +2151,11 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
             {people.map(p=>{
               const meta=statusMeta[p.trainingStatus]||statusMeta.current;
               const urgent=p.trainingStatus==="noncurrent";
+              const warning=p.trainingStatus==="due";
               const selected=selectedId===p.id;
-              return <button key={p.id} onClick={()=>setSelectedId(p.id)} style={{width:"100%",textAlign:"left",background:urgent?(selected?"rgba(255,91,91,0.19)":"rgba(255,91,91,0.10)"):(selected?"rgba(0,180,255,0.12)":"var(--sr-surface-soft)"),border:`1px solid ${urgent?"rgba(255,91,91,0.55)":selected?"rgba(0,180,255,0.42)":"var(--sr-border)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)",boxShadow:urgent?"inset 3px 0 0 #FF5B5B":"none"}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong>{p.name}</strong><span style={{color:meta.color,fontSize:10,fontWeight:urgent?800:500,background:urgent?"rgba(255,91,91,0.14)":"transparent",border:urgent?"1px solid rgba(255,91,91,0.45)":"1px solid transparent",borderRadius:5,padding:urgent?"4px 6px":"0"}}>{meta.icon} {meta.label}</span></div>
-                <div style={{fontSize:10,color:urgent?"#FF9A9A":"var(--sr-text-muted-2)",marginTop:3}}>{p.role} · {p.hrs90} hrs / 90d{urgent?` · ${p.clubCurrency}`:""}</div>
+              return <button key={p.id} onClick={()=>setSelectedId(p.id)} style={{width:"100%",textAlign:"left",background:urgent?(selected?"var(--sr-danger-bg-strong)":"var(--sr-danger-bg)"):warning?(selected?"var(--sr-warning-bg-strong)":"var(--sr-warning-bg)"):(selected?"rgba(0,180,255,0.12)":"var(--sr-surface-soft)"),border:`1px solid ${urgent?"var(--sr-danger-border)":warning?"var(--sr-warning-border)":selected?"rgba(0,180,255,0.42)":"var(--sr-border)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)",boxShadow:urgent?"inset 3px 0 0 var(--sr-danger-text)":warning?"inset 3px 0 0 var(--sr-warning-text)":"none"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong>{p.name}</strong><span style={{color:meta.color,fontSize:10,fontWeight:(urgent||warning)?800:500,background:urgent?"var(--sr-danger-bg-strong)":warning?"var(--sr-warning-bg-strong)":"transparent",border:`1px solid ${urgent?"var(--sr-danger-border)":warning?"var(--sr-warning-border)":"transparent"}`,borderRadius:5,padding:(urgent||warning)?"4px 6px":"0"}}>{meta.icon} {meta.label}</span></div>
+                <div style={{fontSize:10,color:urgent?"var(--sr-danger-text-strong)":warning?"var(--sr-warning-text-strong)":"var(--sr-text-muted-2)",marginTop:3}}>{p.role} · {p.hrs90} hrs / 90d{urgent?` · ${p.clubCurrency}`:""}</div>
               </button>;
             })}
           </div>
@@ -2157,7 +2163,7 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
           {person && <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
               <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:29,letterSpacing:"0.07em",color:"var(--sr-text-strong)"}}>{person.name}</div><div style={{fontSize:12,color:"var(--sr-text-muted)"}}>{person.role}</div></div>
-              <div style={{background:person.trainingStatus==="noncurrent"?"rgba(255,91,91,0.16)":`${statusMeta[person.trainingStatus].color}16`,border:`1px solid ${person.trainingStatus==="noncurrent"?"rgba(255,91,91,0.6)":statusMeta[person.trainingStatus].color+"55"}`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:statusMeta[person.trainingStatus].color,fontWeight:person.trainingStatus==="noncurrent"?800:500,boxShadow:person.trainingStatus==="noncurrent"?"0 0 16px rgba(255,91,91,0.1)":"none"}}>{statusMeta[person.trainingStatus].icon} {statusMeta[person.trainingStatus].label}</div>
+              <div style={{background:person.trainingStatus==="noncurrent"?"var(--sr-danger-bg-strong)":person.trainingStatus==="due"?"var(--sr-warning-bg-strong)":`${statusMeta[person.trainingStatus].color}16`,border:`1px solid ${person.trainingStatus==="noncurrent"?"var(--sr-danger-border)":person.trainingStatus==="due"?"var(--sr-warning-border)":statusMeta[person.trainingStatus].color+"55"}`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:statusMeta[person.trainingStatus].color,fontWeight:person.trainingStatus==="noncurrent"||person.trainingStatus==="due"?800:500,boxShadow:person.trainingStatus==="noncurrent"?"0 0 16px rgba(255,91,91,0.1)":"none"}}>{statusMeta[person.trainingStatus].icon} {statusMeta[person.trainingStatus].label}</div>
             </div>
 
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:9,marginTop:18}}>
@@ -2172,9 +2178,9 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
                   (label==="NEXT CHECK" && (text.includes("due") || text.includes("soon"))) ||
                   (label==="MEDICAL" && (text.includes("expires in") || text.includes("expiring")))
                 );
-                return <div key={label} style={{background:isCritical?"rgba(255,91,91,0.14)":isWarning?"rgba(255,215,0,0.10)":"rgba(0,180,255,0.055)",border:`1px solid ${isCritical?"rgba(255,91,91,0.58)":isWarning?"rgba(255,215,0,0.42)":"rgba(0,180,255,0.14)"}`,borderRadius:8,padding:"10px",boxShadow:isCritical?"inset 3px 0 0 #FF5B5B":"none"}}>
-                  <div style={{fontSize:8,color:isCritical?"#FF8F8F":isWarning?"#FFD75A":"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontWeight:(isCritical||isWarning)?700:400}}>{label}</div>
-                  <div style={{fontSize:12,color:isCritical?"#FFB0B0":isWarning?"#FFE38A":"var(--sr-text-strong)",marginTop:4,lineHeight:1.35,fontWeight:isCritical?700:400}}>{isCritical?"🔴 ":isWarning?"🟡 ":""}{value}</div>
+                return <div key={label} style={{background:isCritical?"var(--sr-danger-bg)":isWarning?"var(--sr-warning-bg)":"rgba(0,180,255,0.055)",border:`1px solid ${isCritical?"var(--sr-danger-border)":isWarning?"var(--sr-warning-border)":"rgba(0,180,255,0.14)"}`,borderRadius:8,padding:"10px",boxShadow:isCritical?"inset 3px 0 0 var(--sr-danger-text)":isWarning?"inset 3px 0 0 var(--sr-warning-text)":"none"}}>
+                  <div style={{fontSize:8,color:isCritical?"var(--sr-danger-text)":isWarning?"var(--sr-warning-text)":"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontWeight:(isCritical||isWarning)?700:400}}>{label}</div>
+                  <div style={{fontSize:12,color:isCritical?"var(--sr-danger-text-strong)":isWarning?"var(--sr-warning-text-strong)":"var(--sr-text-strong)",marginTop:4,lineHeight:1.35,fontWeight:(isCritical||isWarning)?700:400}}>{isCritical?"🔴 ":isWarning?"🟡 ":""}{value}</div>
                 </div>;
               })}
             </div>
@@ -2191,8 +2197,8 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
             {person.pendingSignoff && <div style={{background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-accent)",marginBottom:10}}>🔵 A completed training item is awaiting CFI sign-off.</div>}
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <button onClick={completeCheck} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"var(--sr-success)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>✓ RECORD CHECK / SIGN OFF</button>
-              <button onClick={()=>updatePerson({trainingStatus:"due",clubCurrency:"Check due soon"})} style={{background:"rgba(255,215,0,0.1)",border:"1px solid rgba(255,215,0,0.3)",color:"var(--sr-gold)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>MARK DUE SOON</button>
-              <button onClick={()=>updatePerson({trainingStatus:"noncurrent",clubCurrency:"Expired — instructor check required"})} style={{background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.3)",color:"#FF7C7C",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>REQUIRE TRAINING</button>
+              <button onClick={()=>updatePerson({trainingStatus:"due",clubCurrency:"Check due soon"})} style={{background:"var(--sr-warning-bg)",border:"1px solid var(--sr-warning-border)",color:"var(--sr-warning-text)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700}}>MARK DUE SOON</button>
+              <button onClick={()=>updatePerson({trainingStatus:"noncurrent",clubCurrency:"Expired — instructor check required"})} style={{background:"var(--sr-danger-bg)",border:"1px solid var(--sr-danger-border)",color:"var(--sr-danger-text)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700}}>REQUIRE TRAINING</button>
             </div>
             <div style={{marginTop:18,padding:"11px 12px",background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.55}}>These actions are saved to synthetic demo records only. Step 4 will add identity-linked permission enforcement; Step 5 will add the immutable operational audit trail.</div>
           </div>}

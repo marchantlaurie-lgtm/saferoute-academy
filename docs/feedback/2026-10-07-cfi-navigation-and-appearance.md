@@ -35,3 +35,15 @@ Production and `main`: unchanged
 - Browser-console check on the tested paths reported no warnings or errors.
 
 This is a controlled-beta usability response. It does not start Step 4 authentication/roles and does not authorise production promotion.
+
+## Follow-up display refinement
+
+Additional feedback received on 7 October 2026 identified three presentation issues in the new display modes:
+
+1. The **Synthetic Private Demo** message did not appear optically centred because the reset control occupied only the right side of the banner.
+2. Yellow **Due Soon** text did not have enough contrast against the yellow-tinted boxes in Light mode.
+3. Red **Action Required** text did not have enough contrast against the red-tinted boxes in Light mode.
+
+The notice now uses a balanced three-column desktop layout, keeping the warning copy centred independently of the reset control. On phone-width screens it becomes a centred single-column layout. Warning and danger states now use theme-specific backgrounds, borders and text colours, with substantially darker yellow and red lettering in Light mode while retaining bright lettering in Dark mode.
+
+The revised CFI dashboard was visually checked in Light and Dark modes, including Due Soon and Action Required summary cards, pilot rows, status labels, record fields and action buttons. The centred notice and controls were also checked at a 390 × 844 viewport. The full 34-test suite, lint and production build passed, and the tested browser path reported no console warnings or errors.
