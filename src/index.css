@@ -25,9 +25,64 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
+  --sr-bg: #050d18;
+  --sr-bg-elevated: #06101c;
+  --sr-bg-input: #071321;
+  --sr-bg-popover: #0d1e32;
+  --sr-header: rgba(3, 10, 22, 0.97);
+  --sr-hero: linear-gradient(135deg, rgba(0, 30, 60, 0.9), rgba(0, 15, 35, 0.9));
+  --sr-blue-panel: rgba(0, 20, 45, 0.8);
+  --sr-green-panel: rgba(0, 40, 25, 0.6);
+  --sr-text-strong: #fff;
+  --sr-text: #d0dce8;
+  --sr-text-subtle: #aab8c6;
+  --sr-text-muted: #8899aa;
+  --sr-text-muted-2: #667788;
+  --sr-text-muted-3: #445566;
+  --sr-surface-soft: rgba(255, 255, 255, 0.025);
+  --sr-surface: rgba(255, 255, 255, 0.04);
+  --sr-surface-hover: rgba(255, 255, 255, 0.06);
+  --sr-border: rgba(255, 255, 255, 0.08);
+  --sr-border-strong: rgba(255, 255, 255, 0.12);
+  --sr-overlay: rgba(0, 0, 0, 0.7);
+  --sr-accent: #00b4ff;
+  --sr-gold: #ffd700;
+  --sr-success: #00c896;
+
   @media (max-width: 1024px) {
     font-size: 16px;
   }
+}
+
+:root[data-sr-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-sr-theme="light"] {
+  color-scheme: light;
+  --sr-bg: #f3f6fa;
+  --sr-bg-elevated: #fff;
+  --sr-bg-input: #fff;
+  --sr-bg-popover: #fff;
+  --sr-header: rgba(255, 255, 255, 0.97);
+  --sr-hero: linear-gradient(135deg, #e9f6ff, #f8fbff);
+  --sr-blue-panel: #edf7ff;
+  --sr-green-panel: #eefaf5;
+  --sr-text-strong: #102337;
+  --sr-text: #263e54;
+  --sr-text-subtle: #3f566c;
+  --sr-text-muted: #536b80;
+  --sr-text-muted-2: #667d91;
+  --sr-text-muted-3: #7b8fa1;
+  --sr-surface-soft: rgba(18, 55, 88, 0.035);
+  --sr-surface: rgba(18, 55, 88, 0.055);
+  --sr-surface-hover: rgba(18, 55, 88, 0.08);
+  --sr-border: rgba(18, 55, 88, 0.13);
+  --sr-border-strong: rgba(18, 55, 88, 0.2);
+  --sr-overlay: rgba(16, 35, 55, 0.42);
+  --sr-accent: #0079ad;
+  --sr-gold: #8a6200;
+  --sr-success: #087b5b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -52,6 +107,8 @@
 
 body {
   margin: 0;
+  background: var(--sr-bg);
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 #root {
@@ -64,6 +121,7 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  background: var(--sr-bg);
 }
 
 h1,
@@ -71,6 +129,17 @@ h2 {
   font-family: var(--heading);
   font-weight: 500;
   color: var(--text-h);
+}
+
+.cfi-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.8fr) minmax(0, 2fr);
+}
+
+@media (max-width: 700px) {
+  .cfi-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 h1 {

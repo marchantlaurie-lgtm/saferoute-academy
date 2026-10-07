@@ -28,8 +28,52 @@ import {
   createConfiguredWorkspaceRepository,
   loadBrowserWorkspaceSnapshot,
 } from "./lib/workspace-repository.js";
+import {
+  APPEARANCE_STORAGE_KEY,
+  normaliseAppearance,
+  resolveAppearance,
+} from "./lib/appearance.js";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "https://saferoute-backend-production.up.railway.app";
+
+function AppearanceShell({ appearance, resolvedAppearance, onAppearanceChange, showLogout=false, onLogout, children }) {
+  const [settingsOpen,setSettingsOpen] = useState(false);
+  const options = [
+    {id:"system",icon:"◐",label:"System",detail:"Match this device"},
+    {id:"light",icon:"☀",label:"Light",detail:"Bright display"},
+    {id:"dark",icon:"☾",label:"Dark",detail:"Low-light display"},
+  ];
+
+  return (
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",color:"var(--sr-text)"}}>
+      {children}
+      <div style={{position:"fixed",right:14,bottom:14,zIndex:5000,display:"flex",gap:8,alignItems:"center"}}>
+        {showLogout&&<button aria-label="Log out to the Flight School and Club role selection" title="Log out to role selection" onClick={onLogout} style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(255,91,91,0.65)",borderRadius:999,padding:"10px 13px",color:"#E64444",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,boxShadow:"0 8px 26px rgba(0,0,0,0.22)"}}>⏻ LOG OUT</button>}
+        <button aria-label="Open display settings" title="Display settings" onClick={()=>setSettingsOpen(true)} style={{background:"var(--sr-bg-elevated)",border:"1px solid var(--sr-border-strong)",borderRadius:999,padding:"10px 13px",color:"var(--sr-text-strong)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,boxShadow:"0 8px 26px rgba(0,0,0,0.22)"}}>⚙ DISPLAY</button>
+      </div>
+      {settingsOpen&&<div role="dialog" aria-modal="true" aria-labelledby="appearance-title" onClick={()=>setSettingsOpen(false)} style={{position:"fixed",inset:0,zIndex:6000,display:"flex",alignItems:"center",justifyContent:"center",padding:18,background:"var(--sr-overlay)",backdropFilter:"blur(8px)"}}>
+        <div onClick={event=>event.stopPropagation()} style={{width:"100%",maxWidth:430,background:"var(--sr-bg-elevated)",border:"1px solid var(--sr-border-strong)",borderRadius:18,padding:20,boxShadow:"0 24px 70px rgba(0,0,0,0.32)",fontFamily:"'Inter',sans-serif"}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,marginBottom:18}}>
+            <div><div id="appearance-title" style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:25,letterSpacing:"0.08em",color:"var(--sr-text-strong)"}}>DISPLAY APPEARANCE</div><div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:3}}>Choose how SafeRoute Academy looks on this device.</div></div>
+            <button aria-label="Close display settings" onClick={()=>setSettingsOpen(false)} style={{width:34,height:34,borderRadius:"50%",background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border)",color:"var(--sr-text-strong)",cursor:"pointer",fontSize:18}}>×</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:9}}>
+            {options.map(option=>{
+              const selected=appearance===option.id;
+              return <button key={option.id} aria-pressed={selected} onClick={()=>onAppearanceChange(option.id)} style={{position:"relative",background:selected?"rgba(0,180,255,0.12)":"var(--sr-surface-soft)",border:`1px solid ${selected?"rgba(0,180,255,0.55)":"var(--sr-border)"}`,borderRadius:12,padding:"15px 8px 12px",color:selected?"#008AC1":"var(--sr-text-strong)",cursor:"pointer",minHeight:112}}>
+                <div style={{fontSize:26,lineHeight:1,marginBottom:9}}>{option.icon}</div>
+                <div style={{fontWeight:700,fontSize:12}}>{option.label}</div>
+                <div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:4,lineHeight:1.35}}>{option.detail}</div>
+                {selected&&<span aria-hidden="true" style={{position:"absolute",top:7,right:8,color:"#00A5DF",fontSize:14}}>✓</span>}
+              </button>;
+            })}
+          </div>
+          <div style={{fontSize:10,color:"var(--sr-text-muted-2)",lineHeight:1.5,marginTop:14}}>Currently displaying <b style={{color:"var(--sr-text-strong)"}}>{resolvedAppearance}</b> mode. Your selection is saved only on this device.</div>
+        </div>
+      </div>}
+    </div>
+  );
+}
 
 async function fetchLiveWeather(icao) {
   try {
@@ -1154,8 +1198,8 @@ const FIELD_COORDS = {
 const SEV = {
   critical:{ color:"#FF3B3B", bg:"rgba(255,59,59,0.15)", border:"rgba(255,59,59,0.45)", label:"CRITICAL" },
   high:    { color:"#FF8C00", bg:"rgba(255,140,0,0.15)", border:"rgba(255,140,0,0.45)", label:"HIGH" },
-  medium:  { color:"#FFD700", bg:"rgba(255,215,0,0.15)", border:"rgba(255,215,0,0.45)", label:"MEDIUM" },
-  low:     { color:"#00C896", bg:"rgba(0,200,150,0.15)", border:"rgba(0,200,150,0.45)", label:"LOW" },
+  medium:  { color:"var(--sr-gold)", bg:"rgba(255,215,0,0.15)", border:"rgba(255,215,0,0.45)", label:"MEDIUM" },
+  low:     { color:"var(--sr-success)", bg:"rgba(0,200,150,0.15)", border:"rgba(0,200,150,0.45)", label:"LOW" },
 };
 
 const PHASES = [{id:"all",label:"ALL PHASES"},{id:"taxi",label:"TAXI"},{id:"pattern",label:"PATTERN"},{id:"takeoff",label:"TAKEOFF"},{id:"landing",label:"LANDING"},{id:"departure",label:"DEPARTURE"}];
@@ -1209,34 +1253,34 @@ function DAWidget({ airfield, liveWx }) {
   const [altim,setAltim] = useState(liveAlt??29.92);
   const [useLive,setUseLive] = useState(!!liveTemp);
   const da = calcDA(airfield.elevation,tempC,altim);
-  const [daColor,daLabel,daRisk] = da>5000?["#FF3B3B","EXTREME","Recalculate ALL performance. Significant reductions in climb rate and extended takeoff roll."]:da>3500?["#FF8C00","HIGH","Significant performance loss. Review POH numbers at field elevation before engine start."]:da>2000?["#FFD700","MODERATE","Performance affected. Recalculate takeoff roll and climb rate."]:["#00C896","NORMAL","Standard performance expected. Continue with normal planning."];
+  const [daColor,daLabel,daRisk] = da>5000?["#FF3B3B","EXTREME","Recalculate ALL performance. Significant reductions in climb rate and extended takeoff roll."]:da>3500?["#FF8C00","HIGH","Significant performance loss. Review POH numbers at field elevation before engine start."]:da>2000?["var(--sr-gold)","MODERATE","Performance affected. Recalculate takeoff roll and climb rate."]:["var(--sr-success)","NORMAL","Standard performance expected. Continue with normal planning."];
   return (
-    <div style={{background:"#0A1828",border:`2px solid ${daColor}55`,borderRadius:10,padding:"16px 18px",marginBottom:14}}>
+    <div style={{background:"var(--sr-bg-elevated)",border:`2px solid ${daColor}55`,borderRadius:10,padding:"16px 18px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>⬆ DENSITY ALTITUDE</div>
-        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:useLive?"#00C896":"#FFD700",background:useLive?"rgba(0,200,150,0.15)":"rgba(255,215,0,0.1)",border:`1px solid ${useLive?"rgba(0,200,150,0.4)":"rgba(255,215,0,0.3)"}`,padding:"2px 7px",borderRadius:3}}>{useLive?"● LIVE METAR":"MANUAL"}</span>
+        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.12em",fontWeight:"bold"}}>⬆ DENSITY ALTITUDE</div>
+        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:useLive?"var(--sr-success)":"var(--sr-gold)",background:useLive?"rgba(0,200,150,0.15)":"rgba(255,215,0,0.1)",border:`1px solid ${useLive?"rgba(0,200,150,0.4)":"rgba(255,215,0,0.3)"}`,padding:"2px 7px",borderRadius:3}}>{useLive?"● LIVE METAR":"MANUAL"}</span>
       </div>
       <div style={{display:"flex",gap:16,marginBottom:14,flexWrap:"wrap"}}>
         <div style={{flex:1,minWidth:130}}>
-          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.1em"}}>OUTSIDE AIR TEMP (°C)</div>
-          <input type="range" min={-10} max={55} value={tempC} onChange={e=>{setTempC(parseInt(e.target.value));setUseLive(false);}} style={{width:"100%",accentColor:"#00B4FF"}}/>
+          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-2)",marginBottom:5,letterSpacing:"0.1em"}}>OUTSIDE AIR TEMP (°C)</div>
+          <input type="range" min={-10} max={55} value={tempC} onChange={e=>{setTempC(parseInt(e.target.value));setUseLive(false);}} style={{width:"100%",accentColor:"var(--sr-accent)"}}/>
           <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:"#FFFFFF",fontWeight:"bold"}}>{tempC}°C</span>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#445566"}}>{(tempC*9/5+32).toFixed(0)}°F</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:"var(--sr-text-strong)",fontWeight:"bold"}}>{tempC}°C</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-3)"}}>{(tempC*9/5+32).toFixed(0)}°F</span>
           </div>
         </div>
         <div style={{flex:1,minWidth:130}}>
-          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.1em"}}>ALTIMETER (inHg)</div>
-          <input type="range" min={28.00} max={31.00} step={0.01} value={altim} onChange={e=>{setAltim(parseFloat(e.target.value));setUseLive(false);}} style={{width:"100%",accentColor:"#00B4FF"}}/>
-          <div style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:"#FFFFFF",fontWeight:"bold",marginTop:4}}>{altim.toFixed(2)}"</div>
+          <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-2)",marginBottom:5,letterSpacing:"0.1em"}}>ALTIMETER (inHg)</div>
+          <input type="range" min={28.00} max={31.00} step={0.01} value={altim} onChange={e=>{setAltim(parseFloat(e.target.value));setUseLive(false);}} style={{width:"100%",accentColor:"var(--sr-accent)"}}/>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:"var(--sr-text-strong)",fontWeight:"bold",marginTop:4}}>{altim.toFixed(2)}"</div>
         </div>
       </div>
       <div style={{background:"rgba(0,0,0,0.4)",borderRadius:8,padding:"14px 16px",border:`1px solid ${daColor}44`,textAlign:"center"}}>
-        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#445566",letterSpacing:"0.15em",marginBottom:4}}>DENSITY ALTITUDE</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-3)",letterSpacing:"0.15em",marginBottom:4}}>DENSITY ALTITUDE</div>
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:36,color:daColor,fontWeight:"bold",lineHeight:1}}>{da.toLocaleString()} ft</div>
         <div style={{fontSize:11,color:daColor,fontWeight:"bold",marginTop:6,letterSpacing:"0.05em"}}>{daLabel} RISK</div>
-        <div style={{fontSize:11,color:"#8899AA",marginTop:6,lineHeight:1.5}}>{daRisk}</div>
-        <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:8,fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566"}}>
+        <div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:6,lineHeight:1.5}}>{daRisk}</div>
+        <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:8,fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)"}}>
           <span>Field: {airfield.elevation.toLocaleString()}ft</span>
           <span>ISA dev: {(tempC-(15-(airfield.elevation/1000)*1.98)).toFixed(1)}°C</span>
         </div>
@@ -1262,35 +1306,35 @@ function UkWeatherWidget({ airfield, liveWx }) {
   const cloudBaseAgl = Math.max(0, cloudBaseAmsl - airfield.elevation);
   const freezingLevel = estimateFreezingLevel(tempC, airfield.elevation);
   const icingRisk = tempC<=0 ? "LIKELY" : (freezingLevel < cloudBaseAmsl+2000 ? "POSSIBLE" : "NOT INDICATED");
-  const riskColor = icingRisk==="LIKELY" ? "#FF3B3B" : icingRisk==="POSSIBLE" ? "#FFD700" : "#00C896";
+  const riskColor = icingRisk==="LIKELY" ? "#FF3B3B" : icingRisk==="POSSIBLE" ? "var(--sr-gold)" : "var(--sr-success)";
   return (
-    <div style={{background:"#0A1828",border:`2px solid ${riskColor}55`,borderRadius:8,padding:"11px 13px",marginBottom:10}}>
+    <div style={{background:"var(--sr-bg-elevated)",border:`2px solid ${riskColor}55`,borderRadius:8,padding:"11px 13px",marginBottom:10}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
-        <div style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold"}}>☁ CLOUD BASE & ICING</div>
-        <span style={{fontSize:7,fontFamily:"'DM Mono',monospace",color:useLive?"#00C896":"#FFD700",background:useLive?"rgba(0,200,150,0.15)":"rgba(255,215,0,0.15)",border:`1px solid ${useLive?"rgba(0,200,150,0.4)":"rgba(255,215,0,0.3)"}`,padding:"2px 5px",borderRadius:3}}>{useLive?"● LIVE METAR":"MANUAL"}</span>
+        <div style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",fontWeight:"bold"}}>☁ CLOUD BASE & ICING</div>
+        <span style={{fontSize:7,fontFamily:"'DM Mono',monospace",color:useLive?"var(--sr-success)":"var(--sr-gold)",background:useLive?"rgba(0,200,150,0.15)":"rgba(255,215,0,0.15)",border:`1px solid ${useLive?"rgba(0,200,150,0.4)":"rgba(255,215,0,0.3)"}`,padding:"2px 5px",borderRadius:3}}>{useLive?"● LIVE METAR":"MANUAL"}</span>
       </div>
       <div style={{display:"flex",gap:11,marginBottom:10,flexWrap:"wrap"}}>
         <div style={{flex:1,minWidth:100}}>
-          <div style={{fontSize:7,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:4,letterSpacing:"0.08em"}}>TEMPERATURE (°C)</div>
-          <input type="range" min={-10} max={35} value={tempC} onChange={e=>{setTempC(parseInt(e.target.value));setUseLive(false);}} style={{width:"100%",accentColor:"#00B4FF"}}/>
-          <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"#FFFFFF",fontWeight:"bold",marginTop:3}}>{tempC}°C</div>
+          <div style={{fontSize:7,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-2)",marginBottom:4,letterSpacing:"0.08em"}}>TEMPERATURE (°C)</div>
+          <input type="range" min={-10} max={35} value={tempC} onChange={e=>{setTempC(parseInt(e.target.value));setUseLive(false);}} style={{width:"100%",accentColor:"var(--sr-accent)"}}/>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--sr-text-strong)",fontWeight:"bold",marginTop:3}}>{tempC}°C</div>
         </div>
         <div style={{flex:1,minWidth:100}}>
-          <div style={{fontSize:7,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:4,letterSpacing:"0.08em"}}>DEWPOINT (°C)</div>
-          <input type="range" min={-15} max={30} value={dewC} onChange={e=>{setDewC(parseInt(e.target.value));setUseLive(false);}} style={{width:"100%",accentColor:"#8899AA"}}/>
-          <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"#FFFFFF",fontWeight:"bold",marginTop:3}}>{dewC}°C</div>
+          <div style={{fontSize:7,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-2)",marginBottom:4,letterSpacing:"0.08em"}}>DEWPOINT (°C)</div>
+          <input type="range" min={-15} max={30} value={dewC} onChange={e=>{setDewC(parseInt(e.target.value));setUseLive(false);}} style={{width:"100%",accentColor:"var(--sr-text-muted)"}}/>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--sr-text-strong)",fontWeight:"bold",marginTop:3}}>{dewC}°C</div>
         </div>
       </div>
       <div style={{background:"rgba(0,0,0,0.4)",borderRadius:6,padding:"10px 12px",border:`1px solid ${riskColor}44`,textAlign:"center"}}>
-        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:"#445566",letterSpacing:"0.12em",marginBottom:3}}>ESTIMATED CLOUD BASE</div>
-        <div style={{fontFamily:"'DM Mono',monospace",fontSize:25,color:"#FFFFFF",fontWeight:"bold",lineHeight:1}}>{cloudBaseAgl.toLocaleString()} ft AGL</div>
-        <div style={{fontSize:8,color:"#8899AA",marginTop:3}}>({cloudBaseAmsl.toLocaleString()}ft AMSL)</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:"var(--sr-text-muted-3)",letterSpacing:"0.12em",marginBottom:3}}>ESTIMATED CLOUD BASE</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:25,color:"var(--sr-text-strong)",fontWeight:"bold",lineHeight:1}}>{cloudBaseAgl.toLocaleString()} ft AGL</div>
+        <div style={{fontSize:8,color:"var(--sr-text-muted)",marginTop:3}}>({cloudBaseAmsl.toLocaleString()}ft AMSL)</div>
         <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:7,borderTop:"1px solid rgba(255,255,255,0.08)",textAlign:"left"}}>
-          <span style={{fontSize:8,color:"#8899AA"}}>Freezing level: <b style={{color:"#C0D0E0"}}>~{freezingLevel.toLocaleString()}ft AMSL</b></span>
+          <span style={{fontSize:8,color:"var(--sr-text-muted)"}}>Freezing level: <b style={{color:"var(--sr-text)"}}>~{freezingLevel.toLocaleString()}ft AMSL</b></span>
           <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:riskColor,fontWeight:"bold"}}>ICING: {icingRisk}</span>
         </div>
       </div>
-      <div style={{fontSize:7,color:"#556677",marginTop:7,lineHeight:1.4}}>Estimates only. Always confirm against the actual TAF/METAR and F214/F215 charts before flight.</div>
+      <div style={{fontSize:7,color:"var(--sr-text-muted-2)",marginTop:7,lineHeight:1.4}}>Estimates only. Always confirm against the actual TAF/METAR and F214/F215 charts before flight.</div>
     </div>
   );
 }
@@ -1340,7 +1384,7 @@ function IcingPanel({ airfield, icao, liveWx }) {
         : calculatedStatus;
   const statusColor = status === "OFFICIAL ADVISORY ACTIVE" || status === "ICING REPORTED NEARBY"
     ? "#FF3B3B"
-    : status === "POTENTIAL" ? "#FFD700" : status.startsWith("ESTIMATE UNAVAILABLE") ? "#8899AA" : "#00C896";
+    : status === "POTENTIAL" ? "var(--sr-gold)" : status.startsWith("ESTIMATE UNAVAILABLE") ? "var(--sr-text-muted)" : "var(--sr-success)";
   const officialUrl = airfield.region === "uk"
     ? "https://mavis.metoffice.gov.uk/"
     : "https://aviationweather.gov/gfa/#ice";
@@ -1361,60 +1405,60 @@ function IcingPanel({ airfield, icao, liveWx }) {
   }, [airfield.region, coords, icao]);
 
   return (
-    <div style={{background:"#0A1828",border:`1px solid ${statusColor}55`,borderRadius:10,padding:"16px 18px",marginBottom:14}}>
+    <div style={{background:"var(--sr-bg-elevated)",border:`1px solid ${statusColor}55`,borderRadius:10,padding:"16px 18px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:12}}>
-        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>❄ ICING / FREEZING LEVEL</div>
+        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.12em",fontWeight:"bold"}}>❄ ICING / FREEZING LEVEL</div>
         <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:statusColor,border:`1px solid ${statusColor}66`,background:`${statusColor}18`,padding:"3px 7px",borderRadius:4,fontWeight:"bold"}}>{status}</span>
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:12}}>
         <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
-          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>{metarTooOld?"STALE METAR — ESTIMATE DISABLED":metarRetained?"LAST-VALID METAR ESTIMATE":"METAR-BASED ESTIMATE"}</div>
-          <div style={{fontSize:21,color:"#FFFFFF",fontWeight:"bold"}}>{freezingLevel === null ? "—" : `~${freezingLevel.toLocaleString()}ft`}</div>
-          <div style={{fontSize:8,color:"#8899AA",marginTop:3}}>{metarTooOld?"Stale observation excluded":metarUnavailable?"No current METAR":freezingLevel === null?"METAR temperature missing":"MSL · surface lapse-rate estimate"}</div>
+          <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>{metarTooOld?"STALE METAR — ESTIMATE DISABLED":metarRetained?"LAST-VALID METAR ESTIMATE":"METAR-BASED ESTIMATE"}</div>
+          <div style={{fontSize:21,color:"var(--sr-text-strong)",fontWeight:"bold"}}>{freezingLevel === null ? "—" : `~${freezingLevel.toLocaleString()}ft`}</div>
+          <div style={{fontSize:8,color:"var(--sr-text-muted)",marginTop:3}}>{metarTooOld?"Stale observation excluded":metarUnavailable?"No current METAR":freezingLevel === null?"METAR temperature missing":"MSL · surface lapse-rate estimate"}</div>
         </div>
         <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
-          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>PLANNED ALTITUDE</div>
-          <div style={{fontSize:21,color:"#FFFFFF",fontWeight:"bold"}}>{plannedAltitude.toLocaleString()}ft</div>
-          <div style={{fontSize:8,color:"#8899AA",marginTop:3}}>MSL · selectable below</div>
+          <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>PLANNED ALTITUDE</div>
+          <div style={{fontSize:21,color:"var(--sr-text-strong)",fontWeight:"bold"}}>{plannedAltitude.toLocaleString()}ft</div>
+          <div style={{fontSize:8,color:"var(--sr-text-muted)",marginTop:3}}>MSL · selectable below</div>
         </div>
         <div style={{background:"rgba(0,0,0,0.3)",borderRadius:7,padding:"10px 12px"}}>
-          <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>VISIBLE-MOISTURE SIGNAL</div>
-          <div style={{fontSize:14,color:visibleMoisture?"#FFD700":"#00C896",fontWeight:"bold",marginTop:5}}>{visibleMoisture?"INDICATED":"NOT INDICATED"}</div>
-          <div style={{fontSize:8,color:"#8899AA",marginTop:5}}>{metarTooOld?"Current TAF only · stale METAR excluded":metarUnavailable?"Current TAF only · METAR unavailable":metarRetained?"Last-valid METAR and current TAF":"Current METAR and TAF only"}</div>
+          <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:4}}>VISIBLE-MOISTURE SIGNAL</div>
+          <div style={{fontSize:14,color:visibleMoisture?"var(--sr-gold)":"var(--sr-success)",fontWeight:"bold",marginTop:5}}>{visibleMoisture?"INDICATED":"NOT INDICATED"}</div>
+          <div style={{fontSize:8,color:"var(--sr-text-muted)",marginTop:5}}>{metarTooOld?"Current TAF only · stale METAR excluded":metarUnavailable?"Current TAF only · METAR unavailable":metarRetained?"Last-valid METAR and current TAF":"Current METAR and TAF only"}</div>
         </div>
       </div>
 
       <div style={{marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",marginBottom:5}}><span>FIELD {airfield.elevation.toLocaleString()}ft</span><span>17,500ft MSL</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",marginBottom:5}}><span>FIELD {airfield.elevation.toLocaleString()}ft</span><span>17,500ft MSL</span></div>
         <input aria-label="Planned altitude for icing comparison" type="range" min={Math.max(0,Math.floor(airfield.elevation/500)*500)} max={17500} step={500} value={plannedAltitude} onChange={event=>setPlannedAltitude(Number(event.target.value))} style={{width:"100%",accentColor:statusColor}}/>
       </div>
 
       {airfield.region !== "uk" && (
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:8,marginBottom:12}}>
           <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:7,padding:"10px 12px"}}>
-            <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:6}}>G-AIRMET ZULU · SELECTED AIRFIELD</div>
-            {icingLoad ? <div style={{fontSize:10,color:"#8899AA"}}>Checking official advisory…</div> : advisoryActive ? (
+            <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:6}}>G-AIRMET ZULU · SELECTED AIRFIELD</div>
+            {icingLoad ? <div style={{fontSize:10,color:"var(--sr-text-muted)"}}>Checking official advisory…</div> : advisoryActive ? (
               (icingData.advisories || []).map((advisory,index)=><div key={`${advisory.validTime}-${index}`} style={{fontSize:10,color:"#FF8C00",lineHeight:1.55,fontWeight:"bold"}}>{advisory.severity || "MOD"} icing · {formatIcingLevel(advisory.base)} to {formatIcingLevel(advisory.top)}</div>)
-            ) : <div style={{fontSize:10,color:icingError?"#8899AA":"#00C896",lineHeight:1.5}}>{icingError?"Official advisory feed unavailable.":"No current G-AIRMET icing area intersects this airfield."}</div>}
-            {icingData?.validTime && <div style={{fontSize:8,color:"#556677",marginTop:5}}>Snapshot valid {new Date(icingData.validTime).toLocaleString([], {timeZone:"UTC",hour:"2-digit",minute:"2-digit",day:"numeric",month:"short",timeZoneName:"short"})}</div>}
+            ) : <div style={{fontSize:10,color:icingError?"var(--sr-text-muted)":"var(--sr-success)",lineHeight:1.5}}>{icingError?"Official advisory feed unavailable.":"No current G-AIRMET icing area intersects this airfield."}</div>}
+            {icingData?.validTime && <div style={{fontSize:8,color:"var(--sr-text-muted-2)",marginTop:5}}>Snapshot valid {new Date(icingData.validTime).toLocaleString([], {timeZone:"UTC",hour:"2-digit",minute:"2-digit",day:"numeric",month:"short",timeZoneName:"short"})}</div>}
           </div>
           <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:7,padding:"10px 12px"}}>
-            <div style={{fontSize:8,color:"#556677",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:6}}>ICING PIREPS · 100 NM / 6 HOURS</div>
-            {icingLoad ? <div style={{fontSize:10,color:"#8899AA"}}>Checking recent pilot reports…</div> : (
+            <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:6}}>ICING PIREPS · 100 NM / 6 HOURS</div>
+            {icingLoad ? <div style={{fontSize:10,color:"var(--sr-text-muted)"}}>Checking recent pilot reports…</div> : (
               <>
-                <div style={{fontSize:10,color:positivePireps.length?"#FF8C00":"#C0D4E8",lineHeight:1.5}}>{positivePireps.length} positive · {negativePireps.length} negative</div>
-                {positivePireps.slice(0,3).map((report,index)=><div key={`${report.observedAt}-${index}`} style={{fontSize:9,color:"#C0D4E8",lineHeight:1.5,marginTop:4}}>{report.layers.map(layer=>`${layer.intensity}${layer.type?` ${layer.type}`:""}`).join(" / ")} · {report.flightLevelFt?`${report.flightLevelFt.toLocaleString()}ft`:"altitude not reported"}{report.distanceNm!==null?` · ${report.distanceNm} NM`:""}</div>)}
-                {!icingError && !positivePireps.length && <div style={{fontSize:8,color:"#556677",marginTop:5,lineHeight:1.4}}>No positive icing reports returned. Absence of PIREPs is not evidence of no icing.</div>}
-                {icingError && <div style={{fontSize:8,color:"#8899AA",marginTop:5}}>Official PIREP feed unavailable.</div>}
+                <div style={{fontSize:10,color:positivePireps.length?"#FF8C00":"var(--sr-text)",lineHeight:1.5}}>{positivePireps.length} positive · {negativePireps.length} negative</div>
+                {positivePireps.slice(0,3).map((report,index)=><div key={`${report.observedAt}-${index}`} style={{fontSize:9,color:"var(--sr-text)",lineHeight:1.5,marginTop:4}}>{report.layers.map(layer=>`${layer.intensity}${layer.type?` ${layer.type}`:""}`).join(" / ")} · {report.flightLevelFt?`${report.flightLevelFt.toLocaleString()}ft`:"altitude not reported"}{report.distanceNm!==null?` · ${report.distanceNm} NM`:""}</div>)}
+                {!icingError && !positivePireps.length && <div style={{fontSize:8,color:"var(--sr-text-muted-2)",marginTop:5,lineHeight:1.4}}>No positive icing reports returned. Absence of PIREPs is not evidence of no icing.</div>}
+                {icingError && <div style={{fontSize:8,color:"var(--sr-text-muted)",marginTop:5}}>Official PIREP feed unavailable.</div>}
               </>
             )}
           </div>
         </div>
       )}
 
-      <a href={officialUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",background:"rgba(0,180,255,0.15)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:6,padding:"7px 13px",color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:9,textDecoration:"none",fontWeight:"bold",marginBottom:10}}>{officialLabel} →</a>
-      <div style={{fontSize:8,color:"#556677",lineHeight:1.5}}>Training awareness only. The freezing level is estimated from one surface observation and can miss inversions or multiple freezing layers. Icing requires below-freezing temperatures and visible moisture; use the full official forecast, advisories, PIREPs, aircraft limitations, and an approved weather briefing. “Not indicated locally” never means “no icing.”</div>
+      <a href={officialUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",background:"rgba(0,180,255,0.15)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:6,padding:"7px 13px",color:"var(--sr-accent)",fontFamily:"'DM Mono',monospace",fontSize:9,textDecoration:"none",fontWeight:"bold",marginBottom:10}}>{officialLabel} →</a>
+      <div style={{fontSize:8,color:"var(--sr-text-muted-2)",lineHeight:1.5}}>Training awareness only. The freezing level is estimated from one surface observation and can miss inversions or multiple freezing layers. Icing requires below-freezing temperatures and visible moisture; use the full official forecast, advisories, PIREPs, aircraft limitations, and an approved weather briefing. “Not indicated locally” never means “no icing.”</div>
     </div>
   );
 }
@@ -1424,7 +1468,7 @@ function WeatherLayerWidget({ airfield, icao, liveWx }) {
   return (
     <>
       <div style={{display:"flex",gap:5,marginBottom:8,position:"relative",zIndex:1}} role="tablist" aria-label="Weather display">
-        {[["radar","🗺 RADAR"],["icing","❄ ICING / FREEZING LEVEL"]].map(([id,label])=><button key={id} role="tab" aria-selected={layer===id} onClick={()=>setLayer(id)} style={{background:layer===id?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${layer===id?"rgba(0,180,255,0.45)":"rgba(255,255,255,0.08)"}`,borderRadius:6,padding:"7px 12px",color:layer===id?"#00B4FF":"#8899AA",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",letterSpacing:"0.05em"}}>{label}</button>)}
+        {[["radar","🗺 RADAR"],["icing","❄ ICING / FREEZING LEVEL"]].map(([id,label])=><button key={id} role="tab" aria-selected={layer===id} onClick={()=>setLayer(id)} style={{background:layer===id?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${layer===id?"rgba(0,180,255,0.45)":"var(--sr-border)"}`,borderRadius:6,padding:"7px 12px",color:layer===id?"var(--sr-accent)":"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",letterSpacing:"0.05em"}}>{label}</button>)}
       </div>
       {layer === "radar" ? <MapWidget airfield={airfield} icao={icao}/> : <IcingPanel key={icao} airfield={airfield} icao={icao} liveWx={liveWx}/>}
     </>
@@ -1501,25 +1545,25 @@ function MapWidget({ airfield, icao }) {
   const currentFrameTime = frames[frameIndex] ? new Date(frames[frameIndex].time * 1000).toUTCString() : null;
 
   return (
-    <div style={{background:"#0A1828",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:14}}>
+    <div style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>🗺 WEATHER MAP</div>
-        {currentFrameTime && <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"#8899AA"}}>{currentFrameTime}</span>}
+        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.12em",fontWeight:"bold"}}>🗺 WEATHER MAP</div>
+        {currentFrameTime && <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted)"}}>{currentFrameTime}</span>}
       </div>
       <div ref={mapContainerRef} style={{height:280,width:"100%",borderRadius:8,overflow:"hidden",position:"relative",zIndex:0}}/>
-      <div style={{fontSize:9,color:"#556677",marginTop:6}}>Click the map to enable scroll-wheel zoom. Capped at zoom 12 (RainViewer radar tile limit).</div>
+      <div style={{fontSize:9,color:"var(--sr-text-muted-2)",marginTop:6}}>Click the map to enable scroll-wheel zoom. Capped at zoom 12 (RainViewer radar tile limit).</div>
       {loadError && <div style={{fontSize:10,color:"#FF8C00",marginTop:8}}>{loadError}</div>}
       {!loadError && frames.length>0 && (
         <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10}}>
-          <button onClick={()=>setIsPlaying(p=>!p)} style={{background:"rgba(0,180,255,0.15)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:5,padding:"5px 12px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>{isPlaying?"⏸":"▶"}</button>
-          <input type="range" min={0} max={frames.length-1} value={frameIndex} onChange={e=>{setIsPlaying(false);setFrameIndex(Number(e.target.value));}} style={{flex:1,accentColor:"#00B4FF"}}/>
+          <button onClick={()=>setIsPlaying(p=>!p)} style={{background:"rgba(0,180,255,0.15)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:5,padding:"5px 12px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>{isPlaying?"⏸":"▶"}</button>
+          <input type="range" min={0} max={frames.length-1} value={frameIndex} onChange={e=>{setIsPlaying(false);setFrameIndex(Number(e.target.value));}} style={{flex:1,accentColor:"var(--sr-accent)"}}/>
         </div>
       )}
-      <div style={{fontSize:9,color:"#556677",marginTop:10,lineHeight:1.5}}>
+      <div style={{fontSize:9,color:"var(--sr-text-muted-2)",marginTop:10,lineHeight:1.5}}>
         {airfield.region === "uk" ? <>
-          Radar from <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>RainViewer</a>. Not a substitute for the Met Office Aviation Briefing Service — check <a href="https://mavis.metoffice.gov.uk/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>MAVIS</a> for regulated TAFs, SIGMETs, and F215 charts before flight.
+          Radar from <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" style={{color:"var(--sr-accent)"}}>RainViewer</a>. Not a substitute for the Met Office Aviation Briefing Service — check <a href="https://mavis.metoffice.gov.uk/" target="_blank" rel="noreferrer" style={{color:"var(--sr-accent)"}}>MAVIS</a> for regulated TAFs, SIGMETs, and F215 charts before flight.
         </> : <>
-          Radar from <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>RainViewer</a>. For official US aviation weather and a complete briefing, use <a href="https://aviationweather.gov/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>AviationWeather.gov</a> and <a href="https://www.1800wxbrief.com/" target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>Flight Service</a>.
+          Radar from <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" style={{color:"var(--sr-accent)"}}>RainViewer</a>. For official US aviation weather and a complete briefing, use <a href="https://aviationweather.gov/" target="_blank" rel="noreferrer" style={{color:"var(--sr-accent)"}}>AviationWeather.gov</a> and <a href="https://www.1800wxbrief.com/" target="_blank" rel="noreferrer" style={{color:"var(--sr-accent)"}}>Flight Service</a>.
         </>}
       </div>
     </div>
@@ -1529,17 +1573,17 @@ function MapWidget({ airfield, icao }) {
 // ── TAF Display Component ─────────────────────────────────────────────────
 function TAFDisplay({ tafs }) {
   if (!tafs || !tafs.length) return (
-    <div style={{fontSize:11,color:"#334455",fontFamily:"'DM Mono',monospace",padding:"12px 0"}}>No TAF available for this field.</div>
+    <div style={{fontSize:11,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace",padding:"12px 0"}}>No TAF available for this field.</div>
   );
   const tafRaw = tafs[0];
   const periods = parseTAFPeriods(tafRaw);
-  const periodColors = { BASE:"#00B4FF", BECMG:"#00C896", TEMPO:"#FFD700", "PROB TEMPO":"#FF8C00", PROB:"#FF8C00", FROM:"#8899AA", PERIOD:"#8899AA" };
+  const periodColors = { BASE:"var(--sr-accent)", BECMG:"var(--sr-success)", TEMPO:"var(--sr-gold)", "PROB TEMPO":"#FF8C00", PROB:"#FF8C00", FROM:"var(--sr-text-muted)", PERIOD:"var(--sr-text-muted)" };
 
   return (
     <div>
       {periods.map((p,i)=>{
         const hasCB = /\b(?:FEW|SCT|BKN|OVC)\d{3}CB\b|\bTSRA\b|(?:^|\s)\+TS\b/.test(p.raw);
-        const color = periodColors[p.type] || "#8899AA";
+        const color = periodColors[p.type] || "var(--sr-text-muted)";
         return (
           <div key={i} style={{display:"flex",gap:10,marginBottom:8,padding:"10px 12px",background:"rgba(0,0,0,0.3)",borderRadius:7,borderLeft:`3px solid ${hasCB?"#FF3B3B":color}`}}>
             <div style={{flexShrink:0,minWidth:80}}>
@@ -1547,21 +1591,21 @@ function TAFDisplay({ tafs }) {
               {hasCB && <div style={{fontSize:9,color:"#FF3B3B",marginTop:3}}>⛈ CB/TS</div>}
             </div>
             <div style={{flex:1}}>
-              <div style={{fontSize:12,color:"#FFFFFF",fontWeight:500,lineHeight:1.6}}>{parsePeriodSummary(p.raw)}</div>
-              <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#334455",marginTop:4,lineHeight:1.5,wordBreak:"break-all"}}>{p.raw.slice(0,120)}{p.raw.length>120?"…":""}</div>
+              <div style={{fontSize:12,color:"var(--sr-text-strong)",fontWeight:500,lineHeight:1.6}}>{parsePeriodSummary(p.raw)}</div>
+              <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",marginTop:4,lineHeight:1.5,wordBreak:"break-all"}}>{p.raw.slice(0,120)}{p.raw.length>120?"…":""}</div>
             </div>
           </div>
         );
       })}
-      <div style={{fontSize:8,color:"#334455",marginTop:8,lineHeight:1.5,fontFamily:"'DM Mono',monospace"}}>TAF IS A FORECAST — NOT A CURRENT OBSERVATION. ALWAYS OBTAIN AN OFFICIAL WEATHER BRIEFING BEFORE FLIGHT.</div>
+      <div style={{fontSize:8,color:"var(--sr-text-muted-3)",marginTop:8,lineHeight:1.5,fontFamily:"'DM Mono',monospace"}}>TAF IS A FORECAST — NOT A CURRENT OBSERVATION. ALWAYS OBTAIN AN OFFICIAL WEATHER BRIEFING BEFORE FLIGHT.</div>
     </div>
   );
 }
 
 function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
   const [wxTab, setWxTab] = useState("metar");
-  if (wxLoad) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>Loading live weather…</div>;
-  if (!liveWx) return <div style={{background:"#0A1828",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"#334455",fontFamily:"'DM Mono',monospace"}}>No live weather data available for this field.</div>;
+  if (wxLoad) return <div style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace"}}>Loading live weather…</div>;
+  if (!liveWx) return <div style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace"}}>No live weather data available for this field.</div>;
   const metarStatus = liveWx.metarStatus || (liveWx.metar ? "current" : "unavailable");
   const metarRetained = metarStatus === "last-known-good";
   const metarTooOld = metarStatus === "stale";
@@ -1581,27 +1625,27 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
   const hasCB = !metarTooOld && liveWx.metar && /\b(?:FEW|SCT|BKN|OVC)\d{3}CB\b|\bTSRA\b|(?:^|\s)\+TS\b/.test(liveWx.metar);
   const usesNearbyStation = requestedIcao !== weatherIcao;
   return (
-    <div style={{background:"#0A1828",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
+    <div style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold"}}>🌤 LIVE WEATHER</div>
-        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:metarRetained||metarTooOld||metarUnavailable?"#FFD700":"#00C896"}}>{metarRetained?"◷ LAST VALID METAR":metarTooOld?"⚠ STALE METAR":metarUnavailable?"⚠ METAR UNAVAILABLE":"● LIVE"}</span>
+        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.12em",fontWeight:"bold"}}>🌤 LIVE WEATHER</div>
+        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:metarRetained||metarTooOld||metarUnavailable?"var(--sr-gold)":"var(--sr-success)"}}>{metarRetained?"◷ LAST VALID METAR":metarTooOld?"⚠ STALE METAR":metarUnavailable?"⚠ METAR UNAVAILABLE":"● LIVE"}</span>
       </div>
-      {usesNearbyStation && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ Weather shown is from nearby station <b>{weatherIcao}</b>, not an on-airport observation for {requestedIcao}. Allow for local differences.</div>}
-      {metarRetained && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ The current METAR feed is temporarily unavailable. Academy is showing the last valid observation{observedLabel?` from ${observedLabel}`:""} and will recheck the official feed.</div>}
+      {usesNearbyStation && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"var(--sr-gold)",lineHeight:1.5}}>⚠ Weather shown is from nearby station <b>{weatherIcao}</b>, not an on-airport observation for {requestedIcao}. Allow for local differences.</div>}
+      {metarRetained && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"var(--sr-gold)",lineHeight:1.5}}>⚠ The current METAR feed is temporarily unavailable. Academy is showing the last valid observation{observedLabel?` from ${observedLabel}`:""} and will recheck the official feed.</div>}
       {metarTooOld && <div style={{background:"rgba(255,59,59,0.08)",border:"1px solid rgba(255,59,59,0.35)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FF8C00",lineHeight:1.5}}>⚠ The latest METAR is {ageLabel?`${ageLabel} old`:"not time-verifiable"}{observedLabel?` (${observedLabel})`:""}. It is shown for context only; Academy has disabled METAR-dependent calculations.</div>}
-      {metarUnavailable && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FFD700",lineHeight:1.5}}>⚠ No current or retained METAR is available. METAR-dependent estimates are unavailable; use the TAF and official weather sources while Academy retries the feed.</div>}
+      {metarUnavailable && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"var(--sr-gold)",lineHeight:1.5}}>⚠ No current or retained METAR is available. METAR-dependent estimates are unavailable; use the TAF and official weather sources while Academy retries the feed.</div>}
       {/* Weather sub-tabs */}
       <div style={{display:"flex",gap:2,marginBottom:12,borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
         {[["metar","METAR"],["taf","TAF FORECAST"]].map(([tid,label])=>(
-          <button key={tid} onClick={()=>setWxTab(tid)} style={{background:"none",border:"none",cursor:"pointer",padding:"6px 12px",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.08em",color:wxTab===tid?"#00B4FF":"#556677",borderBottom:wxTab===tid?"2px solid #00B4FF":"2px solid transparent",marginBottom:"-1px",transition:"all 0.15s"}}>{label}</button>
+          <button key={tid} onClick={()=>setWxTab(tid)} style={{background:"none",border:"none",cursor:"pointer",padding:"6px 12px",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.08em",color:wxTab===tid?"var(--sr-accent)":"var(--sr-text-muted-2)",borderBottom:wxTab===tid?"2px solid #00B4FF":"2px solid transparent",marginBottom:"-1px",transition:"all 0.15s"}}>{label}</button>
         ))}
       </div>
       {wxTab==="metar" && (
         <div>
-          <div style={{background:"rgba(255,255,255,0.04)",borderRadius:6,padding:"10px 12px",marginBottom:10}}>
-            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",marginBottom:4,letterSpacing:"0.1em"}}>{metarTooOld?"STALE CONDITIONS — CONTEXT ONLY":metarRetained?"LAST VALID CONDITIONS":"CURRENT CONDITIONS"}</div>
+          <div style={{background:"var(--sr-surface)",borderRadius:6,padding:"10px 12px",marginBottom:10}}>
+            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",marginBottom:4,letterSpacing:"0.1em"}}>{metarTooOld?"STALE CONDITIONS — CONTEXT ONLY":metarRetained?"LAST VALID CONDITIONS":"CURRENT CONDITIONS"}</div>
             {/* CHANGE 2: METAR interpretation text now white */}
-            <div style={{fontSize:13,color:metarUnavailable?"#8899AA":"#FFFFFF",fontWeight:"500",lineHeight:1.6}}>{metarUnavailable?"METAR temporarily unavailable.":interpretMetarShort(liveWx.metar)}</div>
+            <div style={{fontSize:13,color:metarUnavailable?"var(--sr-text-muted)":"var(--sr-text-strong)",fontWeight:"500",lineHeight:1.6}}>{metarUnavailable?"METAR temporarily unavailable.":interpretMetarShort(liveWx.metar)}</div>
             {hasCB && <div style={{marginTop:6,fontSize:11,color:"#FF3B3B",fontWeight:"bold"}}>⛈ ACTIVE THUNDERSTORM / CB DETECTED IN METAR</div>}
           </div>
           {tafThreats.length>0 && (
@@ -1610,7 +1654,7 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
               {tafThreats.map((t,i)=><div key={i} style={{fontSize:12,color:t.color,marginBottom:3,fontWeight:"500"}}>{t.icon}  {t.text}</div>)}
             </div>
           )}
-          {!metarUnavailable && <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#FFFFFF",lineHeight:1.6,wordBreak:"break-all"}}>{liveWx.metar}</div>}
+          {!metarUnavailable && <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-strong)",lineHeight:1.6,wordBreak:"break-all"}}>{liveWx.metar}</div>}
         </div>
       )}
       {wxTab==="taf" && <TAFDisplay tafs={liveWx.tafs}/>}
@@ -1621,13 +1665,13 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
 function HazardCard({ h, expanded, onToggle }) {
   const sc = SEV[h.sev];
   return (
-    <div onClick={onToggle} style={{background:expanded?sc.bg:"rgba(15,25,40,0.9)",border:`1px solid ${expanded?sc.border:"rgba(255,255,255,0.1)"}`,borderRadius:9,marginBottom:8,cursor:"pointer",overflow:"hidden",transition:"all 0.2s",boxShadow:expanded?`0 0 20px ${sc.bg}`:"none"}}>
+    <div onClick={onToggle} style={{background:expanded?sc.bg:"var(--sr-bg-elevated)",border:`1px solid ${expanded?sc.border:"var(--sr-border-strong)"}`,borderRadius:9,marginBottom:8,cursor:"pointer",overflow:"hidden",transition:"all 0.2s",boxShadow:expanded?`0 0 20px ${sc.bg}`:"none"}}>
       <div style={{padding:"13px 15px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{width:36,height:36,background:sc.bg,border:`1px solid ${sc.border}`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{h.icon}</div>
           <div>
-            <div style={{fontSize:13,color:"#FFFFFF",fontWeight:600,lineHeight:1.3}}>{h.title}</div>
-            <div style={{fontSize:9,color:"#556677",fontFamily:"'DM Mono',monospace",marginTop:2,letterSpacing:"0.08em"}}>{h.phase.join(" · ").toUpperCase()}</div>
+            <div style={{fontSize:13,color:"var(--sr-text-strong)",fontWeight:600,lineHeight:1.3}}>{h.title}</div>
+            <div style={{fontSize:9,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",marginTop:2,letterSpacing:"0.08em"}}>{h.phase.join(" · ").toUpperCase()}</div>
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
@@ -1638,7 +1682,7 @@ function HazardCard({ h, expanded, onToggle }) {
       {expanded && (
         <div style={{padding:"0 15px 14px 15px",borderTop:`1px solid ${sc.border}55`}}>
           {h.why && <div style={{fontSize:11,color:sc.color,fontWeight:"600",fontStyle:"italic",marginBottom:8,marginTop:10,padding:"6px 10px",background:sc.bg,borderRadius:5,borderLeft:`3px solid ${sc.color}`}}>Why this matters: {h.why}</div>}
-          <div style={{fontSize:12,color:"#C0D0E0",lineHeight:1.8,marginTop:h.why?0:10}}>{h.detail}</div>
+          <div style={{fontSize:12,color:"var(--sr-text)",lineHeight:1.8,marginTop:h.why?0:10}}>{h.detail}</div>
         </div>
       )}
     </div>
@@ -1659,29 +1703,29 @@ const MOCK_OPS_AIRCRAFT = INITIAL_DEMO_WORKSPACE.aircraft;
 
 function AccountTypeScreen({ onSelect }) {
   return (
-    <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}`}</style>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
         <div style={{width:34,height:34,background:"linear-gradient(135deg,#0055DD,#00B4FF)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>✈</div>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.15em",color:"#FFFFFF"}}>SAFEROUTE <span style={{color:"#00B4FF"}}>ACADEMY</span></div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.15em",color:"var(--sr-text-strong)"}}>SAFEROUTE <span style={{color:"var(--sr-accent)"}}>ACADEMY</span></div>
       </div>
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#556677",letterSpacing:"0.15em",marginBottom:40}}>STUDENT PILOT SAFETY INTELLIGENCE</div>
-      <div style={{fontSize:12,fontFamily:"'DM Mono',monospace",color:"#8899AA",letterSpacing:"0.12em",marginBottom:18}}>HOW ARE YOU USING SAFEROUTE ACADEMY?</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-text-muted-2)",letterSpacing:"0.15em",marginBottom:40}}>STUDENT PILOT SAFETY INTELLIGENCE</div>
+      <div style={{fontSize:12,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted)",letterSpacing:"0.12em",marginBottom:18}}>HOW ARE YOU USING SAFEROUTE ACADEMY?</div>
       <div style={{display:"flex",gap:18,flexWrap:"wrap",justifyContent:"center",maxWidth:700}}>
         <button onClick={()=>onSelect("personal")} style={{width:280,textAlign:"left",background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:12,padding:"24px 22px",cursor:"pointer"}}
           onMouseEnter={e=>{e.currentTarget.style.background="rgba(0,180,255,0.14)";e.currentTarget.style.borderColor="rgba(0,180,255,0.5)";}}
           onMouseLeave={e=>{e.currentTarget.style.background="rgba(0,180,255,0.06)";e.currentTarget.style.borderColor="rgba(0,180,255,0.25)";}}>
           <div style={{fontSize:30,marginBottom:12}}>🧑‍✈️</div>
-          <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#00B4FF",fontWeight:"bold",letterSpacing:"0.08em",marginBottom:8}}>PERSONAL</div>
-          <div style={{fontSize:12,color:"#8899AA",lineHeight:1.6}}>Use SafeRoute Academy on your own — airfield intel, live weather, the E6B, and the FRAT tool, exactly as it works today.</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"var(--sr-accent)",fontWeight:"bold",letterSpacing:"0.08em",marginBottom:8}}>PERSONAL</div>
+          <div style={{fontSize:12,color:"var(--sr-text-muted)",lineHeight:1.6}}>Use SafeRoute Academy on your own — airfield intel, live weather, the E6B, and the FRAT tool, exactly as it works today.</div>
         </button>
         <button onClick={()=>onSelect("flightschool")} style={{width:280,textAlign:"left",background:"rgba(255,180,0,0.06)",border:"1px solid rgba(255,180,0,0.25)",borderRadius:12,padding:"24px 22px",cursor:"pointer"}}
           onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,180,0,0.14)";e.currentTarget.style.borderColor="rgba(255,180,0,0.5)";}}
           onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,180,0,0.06)";e.currentTarget.style.borderColor="rgba(255,180,0,0.25)";}}>
           <div style={{fontSize:30,marginBottom:12}}>🏫</div>
-          <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#FFD700",fontWeight:"bold",letterSpacing:"0.08em",marginBottom:8}}>FLIGHT SCHOOL / CLUB</div>
-          <div style={{fontSize:12,color:"#8899AA",lineHeight:1.6}}>Preview a planned integration — an ops system feeding student/instructor currency and aircraft status directly into the FRAT.</div>
-          <div style={{marginTop:10,fontSize:9,fontFamily:"'DM Mono',monospace",color:"#FFD700",letterSpacing:"0.06em"}}>⚠ DEMO — NOT A LIVE SYSTEM</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"var(--sr-gold)",fontWeight:"bold",letterSpacing:"0.08em",marginBottom:8}}>FLIGHT SCHOOL / CLUB</div>
+          <div style={{fontSize:12,color:"var(--sr-text-muted)",lineHeight:1.6}}>Preview a planned integration — an ops system feeding student/instructor currency and aircraft status directly into the FRAT.</div>
+          <div style={{marginTop:10,fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-gold)",letterSpacing:"0.06em"}}>⚠ DEMO — NOT A LIVE SYSTEM</div>
         </button>
       </div>
     </div>
@@ -1691,10 +1735,10 @@ function AccountTypeScreen({ onSelect }) {
 function DemoDataNotice({ persistenceState, onReset, detail }) {
   const saveText=persistenceState?.status==="saving"?"Saving changes…":persistenceState?.status==="error"?"Save needs attention":persistenceState?.label||"PRIVATE SYNTHETIC DEMO";
   return (
-    <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:18}}>
+    <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:18}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
         <div><b>⚠ SYNTHETIC PRIVATE DEMO</b> — {detail||"This resettable workspace contains fictional people, aircraft and records only."}<br/><span style={{color:"#C9B56A"}}>Do not enter real personal, medical, training, maintenance or operational information.</span></div>
-        {onReset&&<button onClick={onReset} style={{background:"rgba(255,255,255,0.055)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"6px 8px",color:"#FFD700",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:8,whiteSpace:"nowrap"}}>↺ RESET DEMO DATA</button>}
+        {onReset&&<button onClick={onReset} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"6px 8px",color:"var(--sr-gold)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:8,whiteSpace:"nowrap"}}>↺ RESET DEMO DATA</button>}
       </div>
       <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:persistenceState?.status==="error"?"#FF8F8F":"#8FA09A",letterSpacing:"0.06em",marginTop:7}}>{saveText}</div>
       {persistenceState?.error&&<div style={{fontSize:9,color:"#FF9A9A",marginTop:5}}>{persistenceState.error}</div>}
@@ -1705,18 +1749,18 @@ function DemoDataNotice({ persistenceState, onReset, detail }) {
 function FlightSchoolLoginScreen({ onLogin, onBack, persistenceState, onReset, workspaceName=DEFAULT_DEMO_WORKSPACE_NAME }) {
   const secondaryButton = {
     width:"100%",background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.28)",borderRadius:8,padding:"12px",
-    color:"#00B4FF",fontWeight:"bold",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.04em",marginTop:9
+    color:"var(--sr-accent)",fontWeight:"bold",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.04em",marginTop:9
   };
   return (
-    <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}`}</style>
       <div style={{width:"100%",maxWidth:380}}>
-        <button onClick={onBack} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:13,marginBottom:24}}>← BACK</button>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.1em",color:"#FFFFFF",marginBottom:4}}>🏫 FLIGHT SCHOOL / CLUB LOGIN</div>
-        <div style={{fontSize:11,color:"#8899AA",lineHeight:1.6,marginBottom:20}}>Independent CFIs and invited school reviewers can explore the same resettable fictional flight school. Choose the role you want to test.</div>
+        <button onClick={onBack} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:13,marginBottom:24}}>← BACK</button>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.1em",color:"var(--sr-text-strong)",marginBottom:4}}>🏫 FLIGHT SCHOOL / CLUB LOGIN</div>
+        <div style={{fontSize:11,color:"var(--sr-text-muted)",lineHeight:1.6,marginBottom:20}}>Independent CFIs and invited school reviewers can explore the same resettable fictional flight school. Choose the role you want to test.</div>
         <DemoDataNotice persistenceState={persistenceState} onReset={onReset}/>
-        <button onClick={()=>onLogin(workspaceName,"ops")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"#050D18",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>PILOT / OPS LOGIN</button>
-        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.1em",margin:"18px 0 4px"}}>SPECIALIST WORKSPACES</div>
+        <button onClick={()=>onLogin(workspaceName,"ops")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"var(--sr-bg)",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>PILOT / OPS LOGIN</button>
+        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.1em",margin:"18px 0 4px"}}>SPECIALIST WORKSPACES</div>
         <button onClick={()=>onLogin(workspaceName,"admin")} style={secondaryButton}>🏛 CLUB ADMIN</button>
         <button onClick={()=>onLogin(workspaceName,"cfi")} style={secondaryButton}>🎓 INDEPENDENT CFI / TRAINING TRIAL</button>
         <button onClick={()=>onLogin(workspaceName,"engineering")} style={secondaryButton}>🔧 ENGINEERING LOGIN</button>
@@ -1727,12 +1771,12 @@ function FlightSchoolLoginScreen({ onLogin, onBack, persistenceState, onReset, w
 
 function OpsPersonCard({ person, selected, onSelect }) {
   return (
-    <button onClick={()=>onSelect(person)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:selected?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.03)",border:`1px solid ${selected?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"11px 14px",cursor:"pointer",marginBottom:8}}>
+    <button onClick={()=>onSelect(person)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:selected?"rgba(0,180,255,0.14)":"var(--sr-surface-soft)",border:`1px solid ${selected?"rgba(0,180,255,0.5)":"var(--sr-border)"}`,borderRadius:8,padding:"11px 14px",cursor:"pointer",marginBottom:8}}>
       <div>
-        <div style={{fontSize:13,color:"#FFFFFF",fontWeight:600}}>{person.name}</div>
-        <div style={{fontSize:10,color:"#8899AA",marginTop:2}}>{person.role} · {person.hrs90}hrs/90d · {person.currency}</div>
+        <div style={{fontSize:13,color:"var(--sr-text-strong)",fontWeight:600}}>{person.name}</div>
+        <div style={{fontSize:10,color:"var(--sr-text-muted)",marginTop:2}}>{person.role} · {person.hrs90}hrs/90d · {person.currency}</div>
       </div>
-      {selected && <div style={{color:"#00B4FF",fontSize:16}}>✓</div>}
+      {selected && <div style={{color:"var(--sr-accent)",fontSize:16}}>✓</div>}
     </button>
   );
 }
@@ -1743,16 +1787,16 @@ function OpsAircraftCard({ ac, person, selected, onSelect }) {
   const disabled = unavailable || unauthorised;
   const restricted = ac.status === "restricted";
   const stateText = unavailable ? (ac.status==="maintenance"?"MAINTENANCE":"GROUNDED") : restricted ? "RESTRICTED" : "SERVICEABLE";
-  const stateColor = unavailable || unauthorised ? "#FF6B6B" : restricted || ac.squawk ? "#FFD700" : "#00C896";
+  const stateColor = unavailable || unauthorised ? "#FF6B6B" : restricted || ac.squawk ? "var(--sr-gold)" : "var(--sr-success)";
   return (
-    <button disabled={disabled} onClick={()=>!disabled && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:disabled?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.03)",border:`1px solid ${disabled?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"11px 14px",cursor:disabled?"not-allowed":"pointer",marginBottom:8,opacity:disabled?0.75:1}}>
+    <button disabled={disabled} onClick={()=>!disabled && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:disabled?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"var(--sr-surface-soft)",border:`1px solid ${disabled?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"var(--sr-border)"}`,borderRadius:8,padding:"11px 14px",cursor:disabled?"not-allowed":"pointer",marginBottom:8,opacity:disabled?0.75:1}}>
       <div>
-        <div style={{fontSize:13,color:"#FFFFFF",fontWeight:600}}>{ac.tail} <span style={{color:"#8899AA",fontWeight:400}}>· {ac.type}</span></div>
+        <div style={{fontSize:13,color:"var(--sr-text-strong)",fontWeight:600}}>{ac.tail} <span style={{color:"var(--sr-text-muted)",fontWeight:400}}>· {ac.type}</span></div>
         <div style={{fontSize:10,color:stateColor,marginTop:2}}>
           {unavailable ? <>🔴 {stateText} — blocked from FRAT selection{ac.squawk?` · ${ac.squawk}`:""}</> : unauthorised ? `🔴 CFI AUTHORISATION REQUIRED — ${person.name} is not authorised for this type` : <>{restricted||ac.squawk?"🟡":"🟢"} {stateText}{ac.squawk?` — ${ac.squawk}`:" — no open defects"} · {ac.nextMaintenanceHours!=null?`${ac.nextMaintenanceHours} hrs to scheduled maintenance`:`Last 100hr: ${ac.last100}`}</>}
         </div>
       </div>
-      {selected && !disabled && <div style={{color:"#00B4FF",fontSize:16}}>✓</div>}
+      {selected && !disabled && <div style={{color:"var(--sr-accent)",fontSize:16}}>✓</div>}
     </button>
   );
 }
@@ -1769,19 +1813,19 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
   }
 
   return (
-    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
-      <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(255,180,0,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
-        <button onClick={onBack} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:14}}>← BACK</button>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"#FFFFFF",marginLeft:6}}>🏫 {orgName || "OPS SYSTEM"} — DEMO</div>
+      <div style={{background:"var(--sr-header)",borderBottom:"1px solid rgba(255,180,0,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
+        <button aria-label="Log out to role selection" title="Log out to role selection" onClick={onBack} style={{background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.55)",borderRadius:7,padding:"7px 12px",color:"#FF7C7C",cursor:"pointer",fontSize:12,fontWeight:700}}>⏻ LOG OUT</button>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"var(--sr-text-strong)",marginLeft:6}}>🏫 {orgName || "OPS SYSTEM"} — DEMO</div>
       </div>
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
         <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="This roster and fleet are fabricated examples illustrating the Academy integration."/>
 
-        <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",marginBottom:10}}>SELECT PILOT</div>
+        <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",marginBottom:10}}>SELECT PILOT</div>
         {people.map(p=><OpsPersonCard key={p.id} person={p} selected={person?.id===p.id} onSelect={selectPerson}/>)}
 
-        <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",margin:"22px 0 10px"}}>SELECT AIRCRAFT</div>
+        <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",margin:"22px 0 10px"}}>SELECT AIRCRAFT</div>
         {aircraftList.map(a=><OpsAircraftCard key={a.id} ac={a} person={person} selected={aircraft?.id===a.id} onSelect={setAircraft}/>)}
 
         {person && !aircraft && <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"9px 11px",fontSize:10,color:"#8DCBEA",lineHeight:1.5}}>Only serviceable aircraft types currently authorised on {person.name}'s shared CFI record can be selected. Synthetic Engineering and CFI changes apply immediately and persist in this private demo workspace.</div>}
@@ -1791,10 +1835,10 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
         {eligibility.blockers.map(blocker=><div key={blocker.code} style={{background:"rgba(255,59,59,0.09)",border:"1px solid rgba(255,59,59,0.38)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FF9A9A",lineHeight:1.55,marginTop:10}}><b>BLOCKED — {blocker.title}</b><br/>{blocker.detail}</div>)}
 
         <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:24}}>
-          <button disabled={!canStart} onClick={()=>canStart && onStartBriefing(person,aircraft)} style={{width:"100%",background:canStart?"linear-gradient(135deg,#00B4FF,#0090DD)":"rgba(255,255,255,0.06)",border:"none",borderRadius:8,padding:"13px",color:canStart?"#050D18":"#556677",fontWeight:"bold",fontSize:13,cursor:canStart?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>
+          <button disabled={!canStart} onClick={()=>canStart && onStartBriefing(person,aircraft)} style={{width:"100%",background:canStart?"linear-gradient(135deg,#00B4FF,#0090DD)":"var(--sr-surface-hover)",border:"none",borderRadius:8,padding:"13px",color:canStart?"var(--sr-bg)":"var(--sr-text-muted-2)",fontWeight:"bold",fontSize:13,cursor:canStart?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>
             🛡 {person?.trainingStatus === "noncurrent" && person && aircraft ? `START RISK REVIEW — CFI INTERVENTION REQUIRED (${person.name.split(" ")[0]} / ${aircraft.tail})` : `START PRE-FLIGHT RISK ASSESSMENT ${person&&aircraft?`— ${person.name.split(" ")[0]} / ${aircraft.tail}`:"(select pilot & aircraft)"}`}
           </button>
-          <button onClick={onContinueToApp} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,padding:"11px",color:"#8899AA",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>Continue to SafeRoute Academy →</button>
+          <button onClick={onContinueToApp} style={{width:"100%",background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,padding:"11px",color:"var(--sr-text-muted)",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>Continue to SafeRoute Academy →</button>
         </div>
       </div>
     </div>
@@ -1802,13 +1846,13 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
 }
 
 
-function DemoWorkspaceHeader({ icon, title, orgName, onBack, accent="#00B4FF" }) {
+function DemoWorkspaceHeader({ icon, title, orgName, onBack, accent="var(--sr-accent)" }) {
   return (
-    <div style={{background:"rgba(3,10,22,0.97)",borderBottom:`1px solid ${accent}33`,padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
-      <button onClick={onBack} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:14}}>← LOG OUT</button>
-      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"#FFFFFF",marginLeft:6}}>{icon} {title}</div>
+    <div style={{background:"var(--sr-header)",borderBottom:`1px solid ${accent}33`,padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
+      <button aria-label="Log out to role selection" title="Log out to role selection" onClick={onBack} style={{background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.55)",borderRadius:7,padding:"7px 12px",color:"#FF7C7C",cursor:"pointer",fontSize:12,fontWeight:700}}>⏻ LOG OUT</button>
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"var(--sr-text-strong)",marginLeft:6}}>{icon} {title}</div>
       <div style={{flex:1}}/>
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#667788"}}>{orgName || "DEMO FLIGHT SCHOOL"} · DEMO</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-2)"}}>{orgName || "DEMO FLIGHT SCHOOL"} · DEMO</div>
     </div>
   );
 }
@@ -1854,13 +1898,13 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
   }
 
   const statusMeta={
-    current:{label:"CURRENT",color:"#00C896"},
-    due:{label:"DUE SOON",color:"#FFD700"},
+    current:{label:"CURRENT",color:"var(--sr-success)"},
+    due:{label:"DUE SOON",color:"var(--sr-gold)"},
     noncurrent:{label:"ACTION REQUIRED",color:"#FF5B5B"},
   };
 
   return (
-    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
       <DemoWorkspaceHeader icon="🏛" title="CLUB ADMIN" orgName={orgName} onBack={onBack} accent="#A78BFA"/>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
@@ -1870,64 +1914,64 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
           {[
             ["👥","Active users",summary.activeUsers,"#A78BFA"],
             ["🔴","Pilots requiring action",summary.attentionPilots,"#FF5B5B"],
-            ["🟡","Checks due soon",summary.dueSoonPilots,"#FFD700"],
-            ["✈","Aircraft available",summary.availableAircraft,"#00C896"],
+            ["🟡","Checks due soon",summary.dueSoonPilots,"var(--sr-gold)"],
+            ["✈","Aircraft available",summary.availableAircraft,"var(--sr-success)"],
             ["⛔","Aircraft unavailable",summary.unavailableAircraft,"#FF6B6B"],
-            ["🛠","Open defects",summary.openDefects,"#00B4FF"],
-          ].map(([icon,label,value,color])=><div key={label} style={{background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:9,color:"#778899",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:27,color,fontWeight:700,marginTop:4}}>{value}</div>{label==="Aircraft available"&&summary.restrictedAircraft>0&&<div style={{fontSize:9,color:"#FFD700",marginTop:2}}>{summary.restrictedAircraft} restricted</div>}</div>)}
+            ["🛠","Open defects",summary.openDefects,"var(--sr-accent)"],
+          ].map(([icon,label,value,color])=><div key={label} style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:9,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:27,color,fontWeight:700,marginTop:4}}>{value}</div>{label==="Aircraft available"&&summary.restrictedAircraft>0&&<div style={{fontSize:9,color:"var(--sr-gold)",marginTop:2}}>{summary.restrictedAircraft} restricted</div>}</div>)}
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16,alignItems:"start",marginBottom:18}}>
-          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:10}}>USERS & ACCESS</div>
             {users.map(user=>{
               const selected=user.id===selectedId;
-              return <button key={user.id} onClick={()=>{setSelectedId(user.id);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selected?"rgba(167,139,250,0.13)":"rgba(255,255,255,0.025)",border:`1px solid ${selected?"rgba(167,139,250,0.45)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"10px 11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF",opacity:user.status==="suspended"?0.62:1}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong style={{fontSize:11.5}}>{user.name}</strong><span style={{fontSize:8,color:user.status==="active"?"#00C896":"#FF7C7C",fontFamily:"'DM Mono',monospace"}}>{user.status.toUpperCase()}</span></div>
-                <div style={{fontSize:9,color:"#778899",marginTop:4,lineHeight:1.4}}>{user.roles.map(role=>roleLabels[role]).join(" · ") || "No workspace access"}</div>
+              return <button key={user.id} onClick={()=>{setSelectedId(user.id);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selected?"rgba(167,139,250,0.13)":"var(--sr-surface-soft)",border:`1px solid ${selected?"rgba(167,139,250,0.45)":"var(--sr-border)"}`,borderRadius:8,padding:"10px 11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)",opacity:user.status==="suspended"?0.62:1}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong style={{fontSize:11.5}}>{user.name}</strong><span style={{fontSize:8,color:user.status==="active"?"var(--sr-success)":"#FF7C7C",fontFamily:"'DM Mono',monospace"}}>{user.status.toUpperCase()}</span></div>
+                <div style={{fontSize:9,color:"var(--sr-text-muted-2)",marginTop:4,lineHeight:1.4}}>{user.roles.map(role=>roleLabels[role]).join(" · ") || "No workspace access"}</div>
               </button>;
             })}
           </div>
 
-          {selectedUser&&<div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
+          {selectedUser&&<div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
-              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:"0.07em",color:"#FFFFFF"}}>{selectedUser.name}</div><div style={{fontSize:10,color:"#778899",marginTop:2}}>{selectedUser.email}</div></div>
-              <button onClick={changeStatus} style={{background:selectedUser.status==="active"?"rgba(0,200,150,0.1)":"rgba(255,91,91,0.1)",border:`1px solid ${selectedUser.status==="active"?"rgba(0,200,150,0.35)":"rgba(255,91,91,0.35)"}`,color:selectedUser.status==="active"?"#00C896":"#FF7C7C",borderRadius:7,padding:"8px 10px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9}}>{selectedUser.status==="active"?"● ACTIVE — SUSPEND ACCESS":"● SUSPENDED — RESTORE ACCESS"}</button>
+              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:"0.07em",color:"var(--sr-text-strong)"}}>{selectedUser.name}</div><div style={{fontSize:10,color:"var(--sr-text-muted-2)",marginTop:2}}>{selectedUser.email}</div></div>
+              <button onClick={changeStatus} style={{background:selectedUser.status==="active"?"rgba(0,200,150,0.1)":"rgba(255,91,91,0.1)",border:`1px solid ${selectedUser.status==="active"?"rgba(0,200,150,0.35)":"rgba(255,91,91,0.35)"}`,color:selectedUser.status==="active"?"var(--sr-success)":"#FF7C7C",borderRadius:7,padding:"8px 10px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9}}>{selectedUser.status==="active"?"● ACTIVE — SUSPEND ACCESS":"● SUSPENDED — RESTORE ACCESS"}</button>
             </div>
 
-            {linkedPilot&&<div style={{marginTop:14,background:"rgba(0,180,255,0.055)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"10px 11px",display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}><div><div style={{fontSize:8,color:"#667788",fontFamily:"'DM Mono',monospace"}}>LINKED PILOT RECORD</div><div style={{fontSize:11,color:"#FFFFFF",marginTop:3}}>{linkedPilot.role} · {linkedPilot.hrs90} hrs / 90d</div></div><div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:statusMeta[linkedPilot.trainingStatus].color}}>{statusMeta[linkedPilot.trainingStatus].label}</div></div>}
-            {!linkedPilot&&<div style={{marginTop:14,background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,padding:"10px 11px",fontSize:10,color:"#778899"}}>No pilot record is linked to this Engineering-only demo account.</div>}
+            {linkedPilot&&<div style={{marginTop:14,background:"rgba(0,180,255,0.055)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"10px 11px",display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}><div><div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>LINKED PILOT RECORD</div><div style={{fontSize:11,color:"var(--sr-text-strong)",marginTop:3}}>{linkedPilot.role} · {linkedPilot.hrs90} hrs / 90d</div></div><div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:statusMeta[linkedPilot.trainingStatus].color}}>{statusMeta[linkedPilot.trainingStatus].label}</div></div>}
+            {!linkedPilot&&<div style={{marginTop:14,background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,padding:"10px 11px",fontSize:10,color:"var(--sr-text-muted-2)"}}>No pilot record is linked to this Engineering-only demo account.</div>}
 
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",margin:"20px 0 9px"}}>WORKSPACE ACCESS</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
               {CLUB_ACCESS_ROLES.map(role=>{
                 const enabled=selectedUser.roles.includes(role.id);
-                return <button key={role.id} onClick={()=>changeRole(role.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,textAlign:"left",background:enabled?"rgba(167,139,250,0.13)":"rgba(255,255,255,0.025)",border:`1px solid ${enabled?"rgba(167,139,250,0.45)":"rgba(255,255,255,0.08)"}`,borderRadius:7,padding:"9px 10px",color:enabled?"#E4DBFF":"#778899",cursor:"pointer",fontSize:10}}><span>{role.label}</span><span style={{color:enabled?"#A78BFA":"#445566"}}>{enabled?"✓":"+"}</span></button>;
+                return <button key={role.id} onClick={()=>changeRole(role.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,textAlign:"left",background:enabled?"rgba(167,139,250,0.13)":"var(--sr-surface-soft)",border:`1px solid ${enabled?"rgba(167,139,250,0.45)":"var(--sr-border)"}`,borderRadius:7,padding:"9px 10px",color:enabled?"#E4DBFF":"var(--sr-text-muted-2)",cursor:"pointer",fontSize:10}}><span>{role.label}</span><span style={{color:enabled?"#A78BFA":"var(--sr-text-muted-3)"}}>{enabled?"✓":"+"}</span></button>;
               })}
             </div>
-            <div style={{fontSize:9.5,color:"#778899",lineHeight:1.55,marginTop:10}}>These controls manage access only. They do not change pilot currency, aircraft authorisations, defect status or airworthiness.</div>
+            <div style={{fontSize:9.5,color:"var(--sr-text-muted-2)",lineHeight:1.55,marginTop:10}}>These controls manage access only. They do not change pilot currency, aircraft authorisations, defect status or airworthiness.</div>
             {notice&&<div style={{marginTop:12,background:notice.tone==="error"?"rgba(255,91,91,0.1)":"rgba(0,200,150,0.08)",border:`1px solid ${notice.tone==="error"?"rgba(255,91,91,0.35)":"rgba(0,200,150,0.28)"}`,borderRadius:7,padding:"9px 10px",fontSize:10,color:notice.tone==="error"?"#FF9A9A":"#7CE0C0"}}>{notice.text}</div>}
           </div>}
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16}}>
-          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"15px"}}>
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"15px"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:11}}>ORGANISATION / TEST SETTINGS</div>
             {[
-              ["Organisation",orgName||"Demo Flight School","#FFFFFF"],
-              ["Environment","FUNCTIONAL DEMO / TEST","#FFD700"],
-              ["Data storage",persistenceState?.label||"OPENING PRIVATE DEMO","#FFD700"],
-              ["External invitations","DISABLED","#8899AA"],
+              ["Organisation",orgName||"Demo Flight School","var(--sr-text-strong)"],
+              ["Environment","FUNCTIONAL DEMO / TEST","var(--sr-gold)"],
+              ["Data storage",persistenceState?.label||"OPENING PRIVATE DEMO","var(--sr-gold)"],
+              ["External invitations","DISABLED","var(--sr-text-muted)"],
               ["Official operational record","NO — PROTOTYPE ONLY","#FF7C7C"],
-            ].map(([label,value,color])=><div key={label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)",fontSize:10}}><span style={{color:"#778899"}}>{label}</span><strong style={{color,textAlign:"right",fontFamily:"'DM Mono',monospace",fontSize:9}}>{value}</strong></div>)}
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#667788",letterSpacing:"0.08em",margin:"15px 0 8px"}}>SAFETY POLICIES — LOCKED FOR TESTING</div>
-            {["Serviceable aircraft required","Pilot type authorisation required","Current training record required"].map(policy=><div key={policy} style={{fontSize:10,color:"#A9C8BE",marginTop:6}}>🔒 <span style={{color:"#00C896"}}>ENFORCED</span> · {policy}</div>)}
+            ].map(([label,value,color])=><div key={label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)",fontSize:10}}><span style={{color:"var(--sr-text-muted-2)"}}>{label}</span><strong style={{color,textAlign:"right",fontFamily:"'DM Mono',monospace",fontSize:9}}>{value}</strong></div>)}
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-2)",letterSpacing:"0.08em",margin:"15px 0 8px"}}>SAFETY POLICIES — LOCKED FOR TESTING</div>
+            {["Serviceable aircraft required","Pilot type authorisation required","Current training record required"].map(policy=><div key={policy} style={{fontSize:10,color:"#A9C8BE",marginTop:6}}>🔒 <span style={{color:"var(--sr-success)"}}>ENFORCED</span> · {policy}</div>)}
           </div>
 
-          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"15px"}}>
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"15px"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:11}}>RECENT PROTOTYPE ACTIVITY</div>
-            {activity.map((event,index)=><div key={`${event.time}-${index}`} style={{padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)"}}><div style={{display:"flex",justifyContent:"space-between",gap:8,fontFamily:"'DM Mono',monospace",fontSize:8,color:"#556677"}}><span>{event.source}</span><span>{event.time}</span></div><div style={{fontSize:10.5,color:"#AAB8C6",marginTop:4,lineHeight:1.45}}>{event.text}</div></div>)}
-            <div style={{fontSize:9.5,color:"#667788",lineHeight:1.55,marginTop:11}}>Read-only oversight view. A production beta would use immutable, identity-linked audit records.</div>
+            {activity.map((event,index)=><div key={`${event.time}-${index}`} style={{padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)"}}><div style={{display:"flex",justifyContent:"space-between",gap:8,fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted-2)"}}><span>{event.source}</span><span>{event.time}</span></div><div style={{fontSize:10.5,color:"var(--sr-text-subtle)",marginTop:4,lineHeight:1.45}}>{event.text}</div></div>)}
+            <div style={{fontSize:9.5,color:"var(--sr-text-muted-2)",lineHeight:1.55,marginTop:11}}>Read-only oversight view. A production beta would use immutable, identity-linked audit records.</div>
           </div>
         </div>
       </div>
@@ -1982,73 +2026,73 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
     defects:aircraftList.reduce((n,a)=>n+(a.defects||[]).filter(d=>d.status!=="Closed").length,0)
   };
   const stateMeta={
-    airworthy:{label:"SERVICEABLE",color:"#00C896",icon:"🟢"},
-    restricted:{label:"SERVICEABLE WITH RESTRICTIONS",color:"#FFD700",icon:"🟡"},
+    airworthy:{label:"SERVICEABLE",color:"var(--sr-success)",icon:"🟢"},
+    restricted:{label:"SERVICEABLE WITH RESTRICTIONS",color:"var(--sr-gold)",icon:"🟡"},
     maintenance:{label:"MAINTENANCE",color:"#FF8C42",icon:"🟠"},
     grounded:{label:"UNSERVICEABLE / GROUNDED",color:"#FF5B5B",icon:"🔴"},
   };
 
   return (
-    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
       <DemoWorkspaceHeader icon="🔧" title="ENGINEERING" orgName={orgName} onBack={onBack} accent="#FF8C42"/>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
         <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="Fictional fleet changes persist and update the Pilot / Ops view so the workflow can be tested end-to-end."/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
           {[
-            ["🟢","Serviceable",counts.serviceable,"#00C896"],
-            ["🟡","Restricted",counts.restricted,"#FFD700"],
+            ["🟢","Serviceable",counts.serviceable,"var(--sr-success)"],
+            ["🟡","Restricted",counts.restricted,"var(--sr-gold)"],
             ["🔴","Unavailable",counts.unavailable,"#FF5B5B"],
-            ["🛠","Open defects",counts.defects,"#00B4FF"],
-          ].map(([icon,label,value,color])=><div key={label} style={{background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:10,color:"#778899",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
+            ["🛠","Open defects",counts.defects,"var(--sr-accent)"],
+          ].map(([icon,label,value,color])=><div key={label} style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:10,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"minmax(250px,0.8fr) minmax(0,2fr)",gap:16,alignItems:"start"}}>
-          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
+        <div className="cfi-workspace-grid" style={{gap:16,alignItems:"start"}}>
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#FF8C42",letterSpacing:"0.1em",marginBottom:10}}>FLEET</div>
             {aircraftList.map(ac=>{
               const meta=stateMeta[ac.status]||stateMeta.airworthy;
-              return <button key={ac.id} onClick={()=>setSelectedId(ac.id)} style={{width:"100%",textAlign:"left",background:selectedId===ac.id?"rgba(255,140,66,0.12)":"rgba(255,255,255,0.025)",border:`1px solid ${selectedId===ac.id?"rgba(255,140,66,0.42)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF"}}>
+              return <button key={ac.id} onClick={()=>setSelectedId(ac.id)} style={{width:"100%",textAlign:"left",background:selectedId===ac.id?"rgba(255,140,66,0.12)":"var(--sr-surface-soft)",border:`1px solid ${selectedId===ac.id?"rgba(255,140,66,0.42)":"var(--sr-border)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:8}}><strong>{ac.tail}</strong><span style={{color:meta.color,fontSize:10}}>{meta.icon} {meta.label}</span></div>
-                <div style={{fontSize:10,color:"#778899",marginTop:3}}>{ac.type} · {ac.nextMaintenanceHours} hrs to maint.</div>
+                <div style={{fontSize:10,color:"var(--sr-text-muted-2)",marginTop:3}}>{ac.type} · {ac.nextMaintenanceHours} hrs to maint.</div>
               </button>;
             })}
           </div>
-          {aircraft && <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
+          {aircraft && <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
-              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.08em",color:"#FFFFFF"}}>{aircraft.tail}</div><div style={{fontSize:12,color:"#8899AA"}}>{aircraft.type} · {aircraft.airframeHours?.toLocaleString()} airframe hrs</div></div>
+              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.08em",color:"var(--sr-text-strong)"}}>{aircraft.tail}</div><div style={{fontSize:12,color:"var(--sr-text-muted)"}}>{aircraft.type} · {aircraft.airframeHours?.toLocaleString()} airframe hrs</div></div>
               <div style={{background:`${stateMeta[aircraft.status].color}16`,border:`1px solid ${stateMeta[aircraft.status].color}55`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:stateMeta[aircraft.status].color}}>{stateMeta[aircraft.status].icon} {stateMeta[aircraft.status].label}</div>
             </div>
 
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#667788",letterSpacing:"0.1em",margin:"22px 0 8px"}}>UPDATE AIRCRAFT STATE</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",margin:"22px 0 8px"}}>UPDATE AIRCRAFT STATE</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
-              {[["airworthy","🟢 SERVICEABLE"],["restricted","🟡 RESTRICTED"],["maintenance","🟠 MAINTENANCE"],["grounded","🔴 UNSERVICEABLE"]].map(([id,label])=><button key={id} onClick={()=>changeState(id)} style={{background:aircraft.status===id?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.04)",border:`1px solid ${aircraft.status===id?"rgba(0,180,255,0.45)":"rgba(255,255,255,0.1)"}`,borderRadius:6,padding:"8px 10px",color:"#D0DCE8",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>{label}</button>)}
+              {[["airworthy","🟢 SERVICEABLE"],["restricted","🟡 RESTRICTED"],["maintenance","🟠 MAINTENANCE"],["grounded","🔴 UNSERVICEABLE"]].map(([id,label])=><button key={id} onClick={()=>changeState(id)} style={{background:aircraft.status===id?"rgba(0,180,255,0.14)":"var(--sr-surface)",border:`1px solid ${aircraft.status===id?"rgba(0,180,255,0.45)":"var(--sr-border-strong)"}`,borderRadius:6,padding:"8px 10px",color:"var(--sr-text)",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>{label}</button>)}
             </div>
 
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:9,marginTop:18}}>
-              <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"#667788"}}>NEXT SCHEDULED MAINT.</div><div style={{fontSize:18,color:aircraft.nextMaintenanceHours<10?"#FFD700":"#FFFFFF",marginTop:3}}>{aircraft.nextMaintenanceHours} hrs</div></div>
-              <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"#667788"}}>ANNUAL / INSPECTION DUE</div><div style={{fontSize:15,color:"#FFFFFF",marginTop:5}}>{aircraft.annualDue}</div></div>
-              <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"#667788"}}>LAST 100-HOUR</div><div style={{fontSize:15,color:"#FFFFFF",marginTop:5}}>{aircraft.last100}</div></div>
+              <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"var(--sr-text-muted-2)"}}>NEXT SCHEDULED MAINT.</div><div style={{fontSize:18,color:aircraft.nextMaintenanceHours<10?"var(--sr-gold)":"var(--sr-text-strong)",marginTop:3}}>{aircraft.nextMaintenanceHours} hrs</div></div>
+              <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"var(--sr-text-muted-2)"}}>ANNUAL / INSPECTION DUE</div><div style={{fontSize:15,color:"var(--sr-text-strong)",marginTop:5}}>{aircraft.annualDue}</div></div>
+              <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"var(--sr-text-muted-2)"}}>LAST 100-HOUR</div><div style={{fontSize:15,color:"var(--sr-text-strong)",marginTop:5}}>{aircraft.last100}</div></div>
             </div>
 
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",margin:"22px 0 8px"}}>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#FF8C42",letterSpacing:"0.1em"}}>DEFECTS / WORK IN PROGRESS</div>
             </div>
-            {(aircraft.defects||[]).length===0 && <div style={{fontSize:11,color:"#00C896",padding:"10px 0"}}>✓ No recorded defects</div>}
-            {(aircraft.defects||[]).map(d=><div key={d.id} style={{background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"10px 11px",marginBottom:7}}>
-              <div style={{display:"flex",justifyContent:"space-between",gap:8}}><div><strong style={{fontSize:11,color:"#FFFFFF"}}>{d.id}</strong><div style={{fontSize:11,color:"#C5D0DC",marginTop:3}}>{d.text}</div><div style={{fontSize:9,color:"#8899AA",marginTop:3}}>{d.status} · {d.restriction}</div></div>{d.status!=="Closed"&&<button onClick={()=>closeDefect(d.id)} style={{alignSelf:"center",background:"rgba(0,200,150,0.1)",border:"1px solid rgba(0,200,150,0.3)",color:"#00C896",borderRadius:6,padding:"6px 8px",cursor:"pointer",fontSize:9}}>CLOSE</button>}</div>
+            {(aircraft.defects||[]).length===0 && <div style={{fontSize:11,color:"var(--sr-success)",padding:"10px 0"}}>✓ No recorded defects</div>}
+            {(aircraft.defects||[]).map(d=><div key={d.id} style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"10px 11px",marginBottom:7}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:8}}><div><strong style={{fontSize:11,color:"var(--sr-text-strong)"}}>{d.id}</strong><div style={{fontSize:11,color:"var(--sr-text)",marginTop:3}}>{d.text}</div><div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:3}}>{d.status} · {d.restriction}</div></div>{d.status!=="Closed"&&<button onClick={()=>closeDefect(d.id)} style={{alignSelf:"center",background:"rgba(0,200,150,0.1)",border:"1px solid rgba(0,200,150,0.3)",color:"var(--sr-success)",borderRadius:6,padding:"6px 8px",cursor:"pointer",fontSize:9}}>CLOSE</button>}</div>
             </div>)}
             <div style={{display:"flex",gap:7,marginTop:9}}>
-              <input value={newDefect} onChange={e=>setNewDefect(e.target.value)} placeholder="Enter new defect / discrepancy..." style={{flex:1,minWidth:0,background:"#071321",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"9px 10px",color:"#FFFFFF",outline:"none"}}/>
+              <input value={newDefect} onChange={e=>setNewDefect(e.target.value)} placeholder="Enter new defect / discrepancy..." style={{flex:1,minWidth:0,background:"var(--sr-bg-input)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"9px 10px",color:"var(--sr-text-strong)",outline:"none"}}/>
               <button onClick={addDefect} style={{background:"rgba(255,140,66,0.14)",border:"1px solid rgba(255,140,66,0.4)",color:"#FFAA65",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontWeight:700}}>ADD</button>
             </div>
 
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:18}}>
-              <button onClick={recordInspection} style={{background:"rgba(0,180,255,0.12)",border:"1px solid rgba(0,180,255,0.35)",color:"#00B4FF",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RECORD 100-HOUR COMPLETE</button>
-              <button onClick={()=>changeState("airworthy")} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"#00C896",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RETURN TO SERVICE</button>
+              <button onClick={recordInspection} style={{background:"rgba(0,180,255,0.12)",border:"1px solid rgba(0,180,255,0.35)",color:"var(--sr-accent)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RECORD 100-HOUR COMPLETE</button>
+              <button onClick={()=>changeState("airworthy")} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"var(--sr-success)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RETURN TO SERVICE</button>
             </div>
 
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#667788",letterSpacing:"0.1em",margin:"22px 0 8px"}}>AUDIT TRAIL</div>
-            {(aircraft.audit||[]).slice(0,5).map((a,i)=><div key={i} style={{fontSize:10,color:"#9AA8B7",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}><span style={{color:"#556677"}}>{a.time}</span> · {a.text}</div>)}
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",margin:"22px 0 8px"}}>AUDIT TRAIL</div>
+            {(aircraft.audit||[]).slice(0,5).map((a,i)=><div key={i} style={{fontSize:10,color:"var(--sr-text-subtle)",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}><span style={{color:"var(--sr-text-muted-2)"}}>{a.time}</span> · {a.text}</div>)}
           </div>}
         </div>
       </div>
@@ -2061,8 +2105,8 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
   const person=people.find(p=>p.id===selectedId) || people[0];
   const types=[...new Set(aircraftList.map(a=>a.type))];
   const statusMeta={
-    current:{label:"CURRENT",color:"#00C896",icon:"🟢"},
-    due:{label:"DUE SOON",color:"#FFD700",icon:"🟡"},
+    current:{label:"CURRENT",color:"var(--sr-success)",icon:"🟢"},
+    due:{label:"DUE SOON",color:"var(--sr-gold)",icon:"🟡"},
     noncurrent:{label:"ACTION REQUIRED",color:"#FF5B5B",icon:"🔴"},
   };
   const counts={
@@ -2082,37 +2126,37 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
     updatePerson({aircraftAuth:has?(person.aircraftAuth||[]).filter(x=>x!==type):[...(person.aircraftAuth||[]),type]});
   }
   return (
-    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
-      <DemoWorkspaceHeader icon="🎓" title="CFI / TRAINING" orgName={orgName} onBack={onBack} accent="#00B4FF"/>
+      <DemoWorkspaceHeader icon="🎓" title="CFI / TRAINING" orgName={orgName} onBack={onBack} accent="var(--sr-accent)"/>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
         <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="Fictional CFI changes persist and update the pilot record used by the Pilot / Ops workspace."/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
           {[
-            ["🟢","Current",counts.current,"#00C896",false],
-            ["🟡","Due soon",counts.due,"#FFD700",false],
+            ["🟢","Current",counts.current,"var(--sr-success)",false],
+            ["🟡","Due soon",counts.due,"var(--sr-gold)",false],
             ["🔴","Action required",counts.noncurrent,"#FF5B5B",true],
-            ["🔵","Awaiting sign-off",counts.signoff,"#00B4FF",false],
-          ].map(([icon,label,value,color,urgent])=><div key={label} style={{background:urgent?"rgba(255,91,91,0.12)":"rgba(255,255,255,0.035)",border:`1px solid ${urgent?"rgba(255,91,91,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:10,padding:"14px",boxShadow:urgent&&value>0?"0 0 0 1px rgba(255,91,91,0.08), 0 0 18px rgba(255,91,91,0.08)":"none"}}><div style={{fontSize:10,color:urgent?"#FF7C7C":"#778899",fontFamily:"'DM Mono',monospace",fontWeight:urgent?700:400}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
+            ["🔵","Awaiting sign-off",counts.signoff,"var(--sr-accent)",false],
+          ].map(([icon,label,value,color,urgent])=><div key={label} style={{background:urgent?"rgba(255,91,91,0.12)":"var(--sr-surface-soft)",border:`1px solid ${urgent?"rgba(255,91,91,0.5)":"var(--sr-border)"}`,borderRadius:10,padding:"14px",boxShadow:urgent&&value>0?"0 0 0 1px rgba(255,91,91,0.08), 0 0 18px rgba(255,91,91,0.08)":"none"}}><div style={{fontSize:10,color:urgent?"#FF7C7C":"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontWeight:urgent?700:400}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"minmax(250px,0.8fr) minmax(0,2fr)",gap:16,alignItems:"start"}}>
-          <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",marginBottom:10}}>PILOTS REQUIRING ATTENTION</div>
+        <div className="cfi-workspace-grid" style={{gap:16,alignItems:"start"}}>
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-accent)",letterSpacing:"0.1em",marginBottom:10}}>PILOTS REQUIRING ATTENTION</div>
             {people.map(p=>{
               const meta=statusMeta[p.trainingStatus]||statusMeta.current;
               const urgent=p.trainingStatus==="noncurrent";
               const selected=selectedId===p.id;
-              return <button key={p.id} onClick={()=>setSelectedId(p.id)} style={{width:"100%",textAlign:"left",background:urgent?(selected?"rgba(255,91,91,0.19)":"rgba(255,91,91,0.10)"):(selected?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.025)"),border:`1px solid ${urgent?"rgba(255,91,91,0.55)":selected?"rgba(0,180,255,0.42)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF",boxShadow:urgent?"inset 3px 0 0 #FF5B5B":"none"}}>
+              return <button key={p.id} onClick={()=>setSelectedId(p.id)} style={{width:"100%",textAlign:"left",background:urgent?(selected?"rgba(255,91,91,0.19)":"rgba(255,91,91,0.10)"):(selected?"rgba(0,180,255,0.12)":"var(--sr-surface-soft)"),border:`1px solid ${urgent?"rgba(255,91,91,0.55)":selected?"rgba(0,180,255,0.42)":"var(--sr-border)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)",boxShadow:urgent?"inset 3px 0 0 #FF5B5B":"none"}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong>{p.name}</strong><span style={{color:meta.color,fontSize:10,fontWeight:urgent?800:500,background:urgent?"rgba(255,91,91,0.14)":"transparent",border:urgent?"1px solid rgba(255,91,91,0.45)":"1px solid transparent",borderRadius:5,padding:urgent?"4px 6px":"0"}}>{meta.icon} {meta.label}</span></div>
-                <div style={{fontSize:10,color:urgent?"#FF9A9A":"#778899",marginTop:3}}>{p.role} · {p.hrs90} hrs / 90d{urgent?` · ${p.clubCurrency}`:""}</div>
+                <div style={{fontSize:10,color:urgent?"#FF9A9A":"var(--sr-text-muted-2)",marginTop:3}}>{p.role} · {p.hrs90} hrs / 90d{urgent?` · ${p.clubCurrency}`:""}</div>
               </button>;
             })}
           </div>
 
-          {person && <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
+          {person && <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:29,letterSpacing:"0.07em",color:"#FFFFFF"}}>{person.name}</div><div style={{fontSize:12,color:"#8899AA"}}>{person.role}</div></div>
+              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:29,letterSpacing:"0.07em",color:"var(--sr-text-strong)"}}>{person.name}</div><div style={{fontSize:12,color:"var(--sr-text-muted)"}}>{person.role}</div></div>
               <div style={{background:person.trainingStatus==="noncurrent"?"rgba(255,91,91,0.16)":`${statusMeta[person.trainingStatus].color}16`,border:`1px solid ${person.trainingStatus==="noncurrent"?"rgba(255,91,91,0.6)":statusMeta[person.trainingStatus].color+"55"}`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:statusMeta[person.trainingStatus].color,fontWeight:person.trainingStatus==="noncurrent"?800:500,boxShadow:person.trainingStatus==="noncurrent"?"0 0 16px rgba(255,91,91,0.1)":"none"}}>{statusMeta[person.trainingStatus].icon} {statusMeta[person.trainingStatus].label}</div>
             </div>
 
@@ -2129,28 +2173,28 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
                   (label==="MEDICAL" && (text.includes("expires in") || text.includes("expiring")))
                 );
                 return <div key={label} style={{background:isCritical?"rgba(255,91,91,0.14)":isWarning?"rgba(255,215,0,0.10)":"rgba(0,180,255,0.055)",border:`1px solid ${isCritical?"rgba(255,91,91,0.58)":isWarning?"rgba(255,215,0,0.42)":"rgba(0,180,255,0.14)"}`,borderRadius:8,padding:"10px",boxShadow:isCritical?"inset 3px 0 0 #FF5B5B":"none"}}>
-                  <div style={{fontSize:8,color:isCritical?"#FF8F8F":isWarning?"#FFD75A":"#667788",fontFamily:"'DM Mono',monospace",fontWeight:(isCritical||isWarning)?700:400}}>{label}</div>
-                  <div style={{fontSize:12,color:isCritical?"#FFB0B0":isWarning?"#FFE38A":"#FFFFFF",marginTop:4,lineHeight:1.35,fontWeight:isCritical?700:400}}>{isCritical?"🔴 ":isWarning?"🟡 ":""}{value}</div>
+                  <div style={{fontSize:8,color:isCritical?"#FF8F8F":isWarning?"#FFD75A":"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontWeight:(isCritical||isWarning)?700:400}}>{label}</div>
+                  <div style={{fontSize:12,color:isCritical?"#FFB0B0":isWarning?"#FFE38A":"var(--sr-text-strong)",marginTop:4,lineHeight:1.35,fontWeight:isCritical?700:400}}>{isCritical?"🔴 ":isWarning?"🟡 ":""}{value}</div>
                 </div>;
               })}
             </div>
 
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",margin:"22px 0 8px"}}>AIRCRAFT AUTHORISATIONS</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-accent)",letterSpacing:"0.1em",margin:"22px 0 8px"}}>AIRCRAFT AUTHORISATIONS</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
               {types.map(type=>{
                 const authorised=(person.aircraftAuth||[]).includes(type);
-                return <button key={type} onClick={()=>toggleAuth(type)} style={{background:authorised?"rgba(0,200,150,0.11)":"rgba(255,255,255,0.035)",border:`1px solid ${authorised?"rgba(0,200,150,0.35)":"rgba(255,255,255,0.1)"}`,borderRadius:7,padding:"8px 10px",color:authorised?"#00C896":"#778899",cursor:"pointer",fontSize:10}}>{authorised?"✓ ":""}{type}</button>;
+                return <button key={type} onClick={()=>toggleAuth(type)} style={{background:authorised?"rgba(0,200,150,0.11)":"var(--sr-surface-soft)",border:`1px solid ${authorised?"rgba(0,200,150,0.35)":"var(--sr-border-strong)"}`,borderRadius:7,padding:"8px 10px",color:authorised?"var(--sr-success)":"var(--sr-text-muted-2)",cursor:"pointer",fontSize:10}}>{authorised?"✓ ":""}{type}</button>;
               })}
             </div>
 
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",margin:"22px 0 8px"}}>CFI ACTIONS</div>
-            {person.pendingSignoff && <div style={{background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#7DD8FF",marginBottom:10}}>🔵 A completed training item is awaiting CFI sign-off.</div>}
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-accent)",letterSpacing:"0.1em",margin:"22px 0 8px"}}>CFI ACTIONS</div>
+            {person.pendingSignoff && <div style={{background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-accent)",marginBottom:10}}>🔵 A completed training item is awaiting CFI sign-off.</div>}
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              <button onClick={completeCheck} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"#00C896",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>✓ RECORD CHECK / SIGN OFF</button>
-              <button onClick={()=>updatePerson({trainingStatus:"due",clubCurrency:"Check due soon"})} style={{background:"rgba(255,215,0,0.1)",border:"1px solid rgba(255,215,0,0.3)",color:"#FFD700",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>MARK DUE SOON</button>
+              <button onClick={completeCheck} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"var(--sr-success)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>✓ RECORD CHECK / SIGN OFF</button>
+              <button onClick={()=>updatePerson({trainingStatus:"due",clubCurrency:"Check due soon"})} style={{background:"rgba(255,215,0,0.1)",border:"1px solid rgba(255,215,0,0.3)",color:"var(--sr-gold)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>MARK DUE SOON</button>
               <button onClick={()=>updatePerson({trainingStatus:"noncurrent",clubCurrency:"Expired — instructor check required"})} style={{background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.3)",color:"#FF7C7C",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>REQUIRE TRAINING</button>
             </div>
-            <div style={{marginTop:18,padding:"11px 12px",background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,fontSize:10,color:"#8899AA",lineHeight:1.55}}>These actions are saved to synthetic demo records only. Step 4 will add identity-linked permission enforcement; Step 5 will add the immutable operational audit trail.</div>
+            <div style={{marginTop:18,padding:"11px 12px",background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.55}}>These actions are saved to synthetic demo records only. Step 4 will add identity-linked permission enforcement; Step 5 will add the immutable operational audit trail.</div>
           </div>}
         </div>
       </div>
@@ -2169,26 +2213,26 @@ function WelcomeScreen({ onSelect }) {
     { id:"uk", label:"UNITED KINGDOM", icon:"🇬🇧", desc:`${count("uk")} training airfields across the UK — Class D/G operations, cloud base & icing, coastal weather, live radar.` },
   ];
   return (
-    <div style={{minHeight:"100vh",background:"#050D18",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}`}</style>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
         <div style={{width:34,height:34,background:"linear-gradient(135deg,#0055DD,#00B4FF)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>✈</div>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.15em",color:"#FFFFFF"}}>SAFEROUTE <span style={{color:"#00B4FF"}}>ACADEMY</span></div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.15em",color:"var(--sr-text-strong)"}}>SAFEROUTE <span style={{color:"var(--sr-accent)"}}>ACADEMY</span></div>
       </div>
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#556677",letterSpacing:"0.15em",marginBottom:40}}>STUDENT PILOT SAFETY INTELLIGENCE</div>
-      <div style={{fontSize:12,fontFamily:"'DM Mono',monospace",color:"#8899AA",letterSpacing:"0.12em",marginBottom:18}}>WHERE ARE YOU TRAINING?</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-text-muted-2)",letterSpacing:"0.15em",marginBottom:40}}>STUDENT PILOT SAFETY INTELLIGENCE</div>
+      <div style={{fontSize:12,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted)",letterSpacing:"0.12em",marginBottom:18}}>WHERE ARE YOU TRAINING?</div>
       <div style={{display:"flex",gap:16,flexWrap:"wrap",justifyContent:"center",maxWidth:900}}>
         {options.map(o=>(
           <button key={o.id} onClick={()=>onSelect(o.id)} style={{width:260,textAlign:"left",background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:12,padding:"22px 20px",cursor:"pointer",transition:"all 0.15s"}}
             onMouseEnter={e=>{e.currentTarget.style.background="rgba(0,180,255,0.14)";e.currentTarget.style.borderColor="rgba(0,180,255,0.5)";}}
             onMouseLeave={e=>{e.currentTarget.style.background="rgba(0,180,255,0.06)";e.currentTarget.style.borderColor="rgba(0,180,255,0.25)";}}>
             <div style={{fontSize:28,marginBottom:10}}>{o.icon}</div>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#00B4FF",fontWeight:"bold",letterSpacing:"0.08em",marginBottom:8}}>{o.label}</div>
-            <div style={{fontSize:12,color:"#8899AA",lineHeight:1.6}}>{o.desc}</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"var(--sr-accent)",fontWeight:"bold",letterSpacing:"0.08em",marginBottom:8}}>{o.label}</div>
+            <div style={{fontSize:12,color:"var(--sr-text-muted)",lineHeight:1.6}}>{o.desc}</div>
           </button>
         ))}
       </div>
-      <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#334455",marginTop:36,letterSpacing:"0.1em"}}>YOU CAN SWITCH LOCATIONS ANY TIME FROM THE APP</div>
+      <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",marginTop:36,letterSpacing:"0.1em"}}>YOU CAN SWITCH LOCATIONS ANY TIME FROM THE APP</div>
     </div>
   );
 }
@@ -2207,7 +2251,7 @@ function WelcomeScreen({ onSelect }) {
 
 const FRAT_SECTIONS = [
   {
-    id: "pilot", title: "PILOT", icon: "🧑‍✈️", color: "#00B4FF",
+    id: "pilot", title: "PILOT", icon: "🧑‍✈️", color: "var(--sr-accent)",
     questions: [
       { q: "Flight time in the last 90 days", options: [
         ["More than 20 hours", 0], ["10–20 hours", 1], ["3–10 hours", 2], ["Less than 3 hours", 3],
@@ -2227,7 +2271,7 @@ const FRAT_SECTIONS = [
     ],
   },
   {
-    id: "aircraft", title: "AIRCRAFT", icon: "✈", color: "#00C896",
+    id: "aircraft", title: "AIRCRAFT", icon: "✈", color: "var(--sr-success)",
     questions: [
       { q: "Familiarity with this specific aircraft", options: [
         ["Very familiar, fly it regularly", 0], ["Familiar", 1], ["Limited recent experience", 2], ["New to me or rarely flown", 3],
@@ -2244,7 +2288,7 @@ const FRAT_SECTIONS = [
     ],
   },
   {
-    id: "environment", title: "ENVIRONMENT", icon: "🌦", color: "#FFD700",
+    id: "environment", title: "ENVIRONMENT", icon: "🌦", color: "var(--sr-gold)",
     questions: [
       { q: "Weather relative to your personal minimums", options: [
         ["Well above", 0], ["Above", 1], ["Close to minimums", 2], ["At or below", 3],
@@ -2294,10 +2338,10 @@ const FRAT_QUESTION_ENTRIES = FRAT_SECTIONS.flatMap(section =>
 
 function fratRiskLevel(score) {
   const pct = score / FRAT_MAX;
-  if (pct <= 0.33) return { level: "GREEN", color: "#00C896", label: "Lower accumulated risk",
+  if (pct <= 0.33) return { level: "GREEN", color: "var(--sr-success)", label: "Lower accumulated risk",
     review: "Complete the normal PIC / CFI review",
     detail: "The combined score is in the lower range, but it is not a clearance to fly. Review the highest individual factors, current conditions, and any limits that a simple score cannot capture." };
-  if (pct <= 0.59) return { level: "YELLOW", color: "#FFD700", label: "Further review recommended",
+  if (pct <= 0.59) return { level: "YELLOW", color: "var(--sr-gold)", label: "Further review recommended",
     review: "Resolve or review the remaining material factors",
     detail: "Material risk remains. Work through the highest-scoring factors, apply specific controls where they genuinely change the situation, and involve a CFI or operator when appropriate before making the flight decision." };
   return { level: "RED", color: "#FF3B3B", label: "Further review strongly recommended",
@@ -2322,9 +2366,9 @@ function FRATFlow({ stage }) {
         const active = id === stage;
         const complete = index < activeIndex;
         return (
-          <div key={id} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 9px",borderRadius:7,background:active?"rgba(0,180,255,0.13)":complete?"rgba(0,200,150,0.08)":"rgba(255,255,255,0.03)",border:`1px solid ${active?"rgba(0,180,255,0.45)":complete?"rgba(0,200,150,0.25)":"rgba(255,255,255,0.08)"}`}}>
-            <span style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",color:active?"#050D18":complete?"#00C896":"#667788",background:active?"#00B4FF":complete?"rgba(0,200,150,0.12)":"rgba(255,255,255,0.05)"}}>{complete?"✓":number}</span>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:"0.06em",color:active?"#FFFFFF":complete?"#00C896":"#667788"}}>{label}</span>
+          <div key={id} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 9px",borderRadius:7,background:active?"rgba(0,180,255,0.13)":complete?"rgba(0,200,150,0.08)":"var(--sr-surface-soft)",border:`1px solid ${active?"rgba(0,180,255,0.45)":complete?"rgba(0,200,150,0.25)":"var(--sr-border)"}`}}>
+            <span style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",color:active?"var(--sr-bg)":complete?"var(--sr-success)":"var(--sr-text-muted-2)",background:active?"var(--sr-accent)":complete?"rgba(0,200,150,0.12)":"var(--sr-surface)"}}>{complete?"✓":number}</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:"0.06em",color:active?"var(--sr-text-strong)":complete?"var(--sr-success)":"var(--sr-text-muted-2)"}}>{label}</span>
           </div>
         );
       })}
@@ -2335,28 +2379,28 @@ function FRATFlow({ stage }) {
 function FRATQuestion({ q, options, value, onChange, color, isPrefilled, academyContext, link, onLinkClick }) {
   const hasAnswer = value !== undefined;
   const entryLabel = isPrefilled ? "🔗 ACADEMY AUTO-FILL" : hasAnswer ? "✎ PILOT ENTERED" : "✎ PILOT INPUT REQUIRED";
-  const entryColor = isPrefilled ? "#FFD700" : hasAnswer ? "#7DD8FF" : "#667788";
+  const entryColor = isPrefilled ? "var(--sr-gold)" : hasAnswer ? "var(--sr-accent)" : "var(--sr-text-muted-2)";
   return (
     <div style={{marginBottom:16}}>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8,flexWrap:"wrap"}}>
-        <div style={{fontSize:12,color:"#D0DCE8",lineHeight:1.4}}>{q}</div>
+        <div style={{fontSize:12,color:"var(--sr-text)",lineHeight:1.4}}>{q}</div>
         <div style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:entryColor,background:isPrefilled?"rgba(255,180,0,0.12)":"rgba(0,180,255,0.07)",border:`1px solid ${isPrefilled?"rgba(255,180,0,0.35)":"rgba(0,180,255,0.18)"}`,borderRadius:4,padding:"2px 6px",flexShrink:0,letterSpacing:"0.04em"}}>{entryLabel}</div>
         {link && (
-          <button onClick={()=>onLinkClick(link.action)} style={{background:"none",border:"none",padding:0,color:"#00B4FF",fontSize:10.5,fontFamily:"'DM Mono',monospace",cursor:"pointer",textDecoration:"underline",flexShrink:0}}>{link.label}</button>
+          <button onClick={()=>onLinkClick(link.action)} style={{background:"none",border:"none",padding:0,color:"var(--sr-accent)",fontSize:10.5,fontFamily:"'DM Mono',monospace",cursor:"pointer",textDecoration:"underline",flexShrink:0}}>{link.label}</button>
         )}
       </div>
-      {academyContext && <div style={{background:"rgba(255,180,0,0.055)",border:"1px solid rgba(255,180,0,0.18)",borderRadius:6,padding:"8px 10px",marginBottom:8,fontSize:10,color:"#B8A974",lineHeight:1.5}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#FFD700",letterSpacing:"0.06em"}}>{academyContext.source.toUpperCase()}</span><br/>{academyContext.detail}{!isPrefilled && hasAnswer && <><br/><span style={{color:"#7DD8FF"}}>Pilot override recorded; Academy context remains visible.</span></>}</div>}
+      {academyContext && <div style={{background:"rgba(255,180,0,0.055)",border:"1px solid rgba(255,180,0,0.18)",borderRadius:6,padding:"8px 10px",marginBottom:8,fontSize:10,color:"#B8A974",lineHeight:1.5}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-gold)",letterSpacing:"0.06em"}}>{academyContext.source.toUpperCase()}</span><br/>{academyContext.detail}{!isPrefilled && hasAnswer && <><br/><span style={{color:"var(--sr-accent)"}}>Pilot override recorded; Academy context remains visible.</span></>}</div>}
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {options.map(([label,pts],i)=>(
           <button key={i} onClick={()=>onChange(pts)} style={{
             display:"flex",alignItems:"center",justifyContent:"space-between",textAlign:"left",
-            background:value===pts?`${color}22`:"rgba(255,255,255,0.03)",
-            border:`1px solid ${value===pts?color:"rgba(255,255,255,0.08)"}`,
+            background:value===pts?`${color}22`:"var(--sr-surface-soft)",
+            border:`1px solid ${value===pts?color:"var(--sr-border)"}`,
             borderRadius:7,padding:"9px 12px",cursor:"pointer",
-            color:value===pts?"#FFFFFF":"#8899AA",fontSize:11.5,
+            color:value===pts?"var(--sr-text-strong)":"var(--sr-text-muted)",fontSize:11.5,
           }}>
             <span>{label}</span>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:value===pts?color:"#445566",marginLeft:10,flexShrink:0}}>+{pts}</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:value===pts?color:"var(--sr-text-muted-3)",marginLeft:10,flexShrink:0}}>+{pts}</span>
           </button>
         ))}
       </div>
@@ -2383,15 +2427,15 @@ function FRATSection({ section, answers, onAnswer, prefillKeys, academyContexts,
 
 function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score, reset, title="ASSESSMENT STATUS", onContinue }) {
   return (
-    <div style={{background:risk?`${risk.color}15`:"rgba(255,255,255,0.03)",border:`1px solid ${risk?risk.color:"rgba(255,255,255,0.1)"}55`,borderRadius:10,padding:"16px 18px",marginBottom:20}}>
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:risk?.color||"#556677",letterSpacing:"0.12em",marginBottom:9}}>{title}</div>
+    <div style={{background:risk?`${risk.color}15`:"var(--sr-surface-soft)",border:`1px solid ${risk?risk.color:"var(--sr-border-strong)"}55`,borderRadius:10,padding:"16px 18px",marginBottom:20}}>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:risk?.color||"var(--sr-text-muted-2)",letterSpacing:"0.12em",marginBottom:9}}>{title}</div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:allAnswered?10:0}}>
-        <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#8899AA",letterSpacing:"0.08em"}}>PROGRESS: {answeredCount}/{totalQuestions} ANSWERED</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-text-muted)",letterSpacing:"0.08em"}}>PROGRESS: {answeredCount}/{totalQuestions} ANSWERED</div>
         {allAnswered && <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:risk.color,fontWeight:"bold"}}>SCORE {score}/{FRAT_MAX}</div>}
       </div>
       {!allAnswered && (
-        <div style={{height:6,background:"rgba(255,255,255,0.08)",borderRadius:3,overflow:"hidden"}}>
-          <div style={{height:"100%",width:`${(answeredCount/totalQuestions)*100}%`,background:"#00B4FF",borderRadius:3}}/>
+        <div style={{height:6,background:"var(--sr-border)",borderRadius:3,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${(answeredCount/totalQuestions)*100}%`,background:"var(--sr-accent)",borderRadius:3}}/>
         </div>
       )}
       {allAnswered && (
@@ -2400,11 +2444,11 @@ function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score,
             <div style={{width:14,height:14,borderRadius:"50%",background:risk.color,flexShrink:0}}/>
             <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.08em",color:risk.color}}>{risk.level} — {risk.label}</div>
           </div>
-          <div style={{fontSize:11.5,color:"#B0BCC8",lineHeight:1.6}}>{risk.detail}</div>
+          <div style={{fontSize:11.5,color:"var(--sr-text-subtle)",lineHeight:1.6}}>{risk.detail}</div>
           {onContinue && <button onClick={onContinue} style={{width:"100%",marginTop:14,background:"linear-gradient(135deg,#00B4FF,#008FE0)",border:"none",borderRadius:7,padding:"11px 14px",color:"#04101C",cursor:"pointer",fontSize:11,fontWeight:"bold",fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em"}}>CONTINUE TO RISK CONTROLS →</button>}
         </>
       )}
-      {reset && <button onClick={reset} style={{marginTop:12,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 12px",color:"#8899AA",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>↺ START OVER</button>}
+      {reset && <button onClick={reset} style={{marginTop:12,background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>↺ START OVER</button>}
     </div>
   );
 }
@@ -2417,48 +2461,48 @@ function MitigationCard({ factor, initialPoints, control, residualValue, onToggl
   const canReduce = canControlReduce(question, control);
   const choices = [...question.mitigations, FRAT_RETAIN_CONTROL];
   return (
-    <div style={{background:"rgba(255,255,255,0.025)",border:`1px solid ${section.color}33`,borderRadius:10,padding:"17px 18px",marginBottom:14}}>
+    <div style={{background:"var(--sr-surface-soft)",border:`1px solid ${section.color}33`,borderRadius:10,padding:"17px 18px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",marginBottom:12}}>
         <div>
           <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:section.color,letterSpacing:"0.12em",marginBottom:5}}>{section.icon} {section.title}</div>
-          <div style={{fontSize:13,color:"#FFFFFF",fontWeight:600,lineHeight:1.4}}>{question.q}</div>
-          <div style={{fontSize:10.5,color:"#8899AA",marginTop:4,lineHeight:1.5}}>Initial: {fratAnswerLabel(question, initialPoints)}</div>
+          <div style={{fontSize:13,color:"var(--sr-text-strong)",fontWeight:600,lineHeight:1.4}}>{question.q}</div>
+          <div style={{fontSize:10.5,color:"var(--sr-text-muted)",marginTop:4,lineHeight:1.5}}>Initial: {fratAnswerLabel(question, initialPoints)}</div>
         </div>
-        <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:initialPoints===3?"#FF6B6B":"#FFD700",border:`1px solid ${initialPoints===3?"rgba(255,59,59,0.35)":"rgba(255,215,0,0.3)"}`,background:initialPoints===3?"rgba(255,59,59,0.09)":"rgba(255,215,0,0.07)",borderRadius:5,padding:"4px 7px",flexShrink:0}}>+{initialPoints}</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:initialPoints===3?"#FF6B6B":"var(--sr-gold)",border:`1px solid ${initialPoints===3?"rgba(255,59,59,0.35)":"rgba(255,215,0,0.3)"}`,background:initialPoints===3?"rgba(255,59,59,0.09)":"rgba(255,215,0,0.07)",borderRadius:5,padding:"4px 7px",flexShrink:0}}>+{initialPoints}</div>
       </div>
 
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#AAB8C6",letterSpacing:"0.08em",marginBottom:8}}>SELECT ONE OR MORE REAL CONTROLS</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-subtle)",letterSpacing:"0.08em",marginBottom:8}}>SELECT ONE OR MORE REAL CONTROLS</div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {choices.map(action => {
           const selected = actions.includes(action);
           const retain = action === FRAT_RETAIN_CONTROL;
           return (
-            <button key={action} onClick={()=>onToggleAction(action)} style={{display:"flex",alignItems:"flex-start",gap:9,textAlign:"left",background:selected?(retain?"rgba(255,215,0,0.09)":`${section.color}18`):"rgba(255,255,255,0.025)",border:`1px solid ${selected?(retain?"rgba(255,215,0,0.35)":section.color):"rgba(255,255,255,0.08)"}`,borderRadius:7,padding:"9px 11px",color:selected?"#FFFFFF":"#8899AA",fontSize:11,cursor:"pointer",lineHeight:1.45}}>
-              <span style={{width:15,height:15,borderRadius:3,border:`1px solid ${selected?(retain?"#FFD700":section.color):"#556677"}`,background:selected?(retain?"#FFD700":section.color):"transparent",color:"#05101A",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:"bold",flexShrink:0,marginTop:1}}>{selected?"✓":""}</span>
+            <button key={action} onClick={()=>onToggleAction(action)} style={{display:"flex",alignItems:"flex-start",gap:9,textAlign:"left",background:selected?(retain?"rgba(255,215,0,0.09)":`${section.color}18`):"var(--sr-surface-soft)",border:`1px solid ${selected?(retain?"rgba(255,215,0,0.35)":section.color):"var(--sr-border)"}`,borderRadius:7,padding:"9px 11px",color:selected?"var(--sr-text-strong)":"var(--sr-text-muted)",fontSize:11,cursor:"pointer",lineHeight:1.45}}>
+              <span style={{width:15,height:15,borderRadius:3,border:`1px solid ${selected?(retain?"var(--sr-gold)":section.color):"var(--sr-text-muted-2)"}`,background:selected?(retain?"var(--sr-gold)":section.color):"transparent",color:"#05101A",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:"bold",flexShrink:0,marginTop:1}}>{selected?"✓":""}</span>
               <span>{action}</span>
             </button>
           );
         })}
       </div>
 
-      <label style={{display:"block",fontFamily:"'DM Mono',monospace",fontSize:9,color:"#AAB8C6",letterSpacing:"0.08em",margin:"13px 0 6px"}}>CONTROL NOTES / CUSTOM MITIGATION</label>
-      <textarea value={note} onChange={event=>onNoteChange(event.target.value)} placeholder="Record what will actually change before the flight…" rows={3} style={{width:"100%",resize:"vertical",background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"9px 10px",color:"#FFFFFF",fontFamily:"'Inter',sans-serif",fontSize:11.5,lineHeight:1.5,outline:"none"}}/>
+      <label style={{display:"block",fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-subtle)",letterSpacing:"0.08em",margin:"13px 0 6px"}}>CONTROL NOTES / CUSTOM MITIGATION</label>
+      <textarea value={note} onChange={event=>onNoteChange(event.target.value)} placeholder="Record what will actually change before the flight…" rows={3} style={{width:"100%",resize:"vertical",background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"9px 10px",color:"var(--sr-text-strong)",fontFamily:"'Inter',sans-serif",fontSize:11.5,lineHeight:1.5,outline:"none"}}/>
 
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#AAB8C6",letterSpacing:"0.08em",margin:"14px 0 4px"}}>REASSESS AFTER THE CONTROL IS ACTUALLY APPLIED</div>
-      <div style={{fontSize:10,color:"#667788",lineHeight:1.5,marginBottom:8}}>Choose the condition that will genuinely exist after mitigation. Selecting a control does not automatically reduce the score.</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-subtle)",letterSpacing:"0.08em",margin:"14px 0 4px"}}>REASSESS AFTER THE CONTROL IS ACTUALLY APPLIED</div>
+      <div style={{fontSize:10,color:"var(--sr-text-muted-2)",lineHeight:1.5,marginBottom:8}}>Choose the condition that will genuinely exist after mitigation. Selecting a control does not automatically reduce the score.</div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {question.options.map(([label, points]) => {
           const reductionBlocked = points < initialPoints && !canReduce;
           const disabled = !recorded || reductionBlocked;
           return (
-            <button key={points} disabled={disabled} onClick={()=>onResidualChange(points)} style={{display:"flex",justifyContent:"space-between",gap:10,textAlign:"left",background:residualValue===points?`${section.color}20`:"rgba(255,255,255,0.025)",border:`1px solid ${residualValue===points?section.color:"rgba(255,255,255,0.08)"}`,borderRadius:7,padding:"8px 10px",color:disabled?"#3F4D5A":residualValue===points?"#FFFFFF":"#8899AA",fontSize:11,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.65:1}}>
+            <button key={points} disabled={disabled} onClick={()=>onResidualChange(points)} style={{display:"flex",justifyContent:"space-between",gap:10,textAlign:"left",background:residualValue===points?`${section.color}20`:"var(--sr-surface-soft)",border:`1px solid ${residualValue===points?section.color:"var(--sr-border)"}`,borderRadius:7,padding:"8px 10px",color:disabled?"#3F4D5A":residualValue===points?"var(--sr-text-strong)":"var(--sr-text-muted)",fontSize:11,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.65:1}}>
               <span>{label}</span><span style={{fontFamily:"'DM Mono',monospace",fontSize:9,flexShrink:0}}>+{points}</span>
             </button>
           );
         })}
       </div>
-      {!recorded && <div style={{fontSize:10,color:"#FFD700",marginTop:8,lineHeight:1.5}}>Record a control (or state that none is effective) before entering the residual assessment.</div>}
-      {recorded && !canReduce && <div style={{fontSize:10,color:"#FFD700",marginTop:8,lineHeight:1.5}}>This selection supports review but does not change the underlying factor on its own, so it cannot reduce this factor's residual score.</div>}
+      {!recorded && <div style={{fontSize:10,color:"var(--sr-gold)",marginTop:8,lineHeight:1.5}}>Record a control (or state that none is effective) before entering the residual assessment.</div>}
+      {recorded && !canReduce && <div style={{fontSize:10,color:"var(--sr-gold)",marginTop:8,lineHeight:1.5}}>This selection supports review but does not change the underlying factor on its own, so it cannot reduce this factor's residual score.</div>}
     </div>
   );
 }
@@ -2474,13 +2518,13 @@ function FRATComparison({ initialScore, residualScore, initialRisk, residualRisk
       <div style={{display:"flex",alignItems:"stretch",gap:9,flexWrap:"wrap"}}>
         {resultCards.map(([title, score, risk], index) => (
           <div key={title} style={{flex:"1 1 210px",background:`${risk.color}12`,border:`1px solid ${risk.color}55`,borderRadius:9,padding:"14px 15px"}}>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#8899AA",letterSpacing:"0.12em",marginBottom:7}}>{title}</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted)",letterSpacing:"0.12em",marginBottom:7}}>{title}</div>
             <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",gap:8}}>
               <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:23,color:risk.color,letterSpacing:"0.08em"}}>{risk.level}</div>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:risk.color}}>{score}/{FRAT_MAX}</div>
             </div>
-            <div style={{fontSize:10.5,color:"#B0BCC8",marginTop:3}}>{risk.label}</div>
-            {index===1 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:delta<0?"#00C896":delta>0?"#FF6B6B":"#8899AA",marginTop:8}}>{delta<0?`−${Math.abs(delta)} points after controls`:delta>0?`+${delta} points after reassessment`:"No score change"}</div>}
+            <div style={{fontSize:10.5,color:"var(--sr-text-subtle)",marginTop:3}}>{risk.label}</div>
+            {index===1 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:delta<0?"var(--sr-success)":delta>0?"#FF6B6B":"var(--sr-text-muted)",marginTop:8}}>{delta<0?`−${Math.abs(delta)} points after controls`:delta>0?`+${delta} points after reassessment`:"No score change"}</div>}
           </div>
         ))}
       </div>
@@ -2496,36 +2540,36 @@ function FRATFinalReview({ materialFactors, initialAnswers, controls, residualAn
       <div style={{background:`${residualRisk.color}10`,border:`1px solid ${residualRisk.color}55`,borderRadius:10,padding:"17px 18px",marginBottom:16}}>
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:residualRisk.color,letterSpacing:"0.12em",marginBottom:7}}>FINAL RISK REVIEW</div>
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,letterSpacing:"0.08em",color:residualRisk.color,marginBottom:5}}>{residualRisk.label}</div>
-        <div style={{fontSize:12,color:"#D0DCE8",lineHeight:1.65}}>{residualRisk.detail}</div>
+        <div style={{fontSize:12,color:"var(--sr-text)",lineHeight:1.65}}>{residualRisk.detail}</div>
         <div style={{fontSize:10.5,color:residualRisk.color,fontWeight:600,marginTop:9}}>{residualRisk.review}</div>
       </div>
       <FRATComparison initialScore={initialScore} residualScore={residualScore} initialRisk={initialRisk} residualRisk={residualRisk}/>
 
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#8899AA",letterSpacing:"0.1em",margin:"20px 0 9px"}}>CONTROL RECORD</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted)",letterSpacing:"0.1em",margin:"20px 0 9px"}}>CONTROL RECORD</div>
       {materialFactors.length===0 && <div style={{background:"rgba(0,200,150,0.06)",border:"1px solid rgba(0,200,150,0.2)",borderRadius:8,padding:"12px 13px",fontSize:11,color:"#A9C8BE",lineHeight:1.6,marginBottom:14}}>No individual factor scored 2 or 3, so no material-factor control was generated. The residual score remains the same; normal pre-flight review still applies.</div>}
       {materialFactors.map(factor => {
         const initialValue = initialAnswers[factor.key];
         const residualValue = residualAnswers[factor.key] ?? initialValue;
         const control = controls[factor.key] || { actions: [], note: "" };
         return (
-          <div key={factor.key} style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"13px 14px",marginBottom:9}}>
-            <div style={{fontSize:12,color:"#FFFFFF",fontWeight:600,marginBottom:7}}>{factor.question.q}</div>
+          <div key={factor.key} style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"13px 14px",marginBottom:9}}>
+            <div style={{fontSize:12,color:"var(--sr-text-strong)",fontWeight:600,marginBottom:7}}>{factor.question.q}</div>
             <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto minmax(0,1fr)",gap:8,alignItems:"center",fontSize:10.5}}>
-              <div style={{color:"#8899AA"}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#556677"}}>INITIAL</span><br/>{fratAnswerLabel(factor.question, initialValue)} <span style={{color:"#FFD700"}}>+{initialValue}</span></div>
-              <div style={{color:"#556677"}}>→</div>
-              <div style={{color:"#D0DCE8"}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#556677"}}>RESIDUAL</span><br/>{fratAnswerLabel(factor.question, residualValue)} <span style={{color:residualValue<initialValue?"#00C896":residualValue>initialValue?"#FF6B6B":"#FFD700"}}>+{residualValue}</span></div>
+              <div style={{color:"var(--sr-text-muted)"}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted-2)"}}>INITIAL</span><br/>{fratAnswerLabel(factor.question, initialValue)} <span style={{color:"var(--sr-gold)"}}>+{initialValue}</span></div>
+              <div style={{color:"var(--sr-text-muted-2)"}}>→</div>
+              <div style={{color:"var(--sr-text)"}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted-2)"}}>RESIDUAL</span><br/>{fratAnswerLabel(factor.question, residualValue)} <span style={{color:residualValue<initialValue?"var(--sr-success)":residualValue>initialValue?"#FF6B6B":"var(--sr-gold)"}}>+{residualValue}</span></div>
             </div>
             <div style={{marginTop:9,paddingTop:8,borderTop:"1px solid rgba(255,255,255,0.06)",fontSize:10.5,color:"#8FA1B2",lineHeight:1.55}}>
-              <b style={{color:"#B9C7D4"}}>Controls:</b> {control.actions.join("; ") || "Custom control recorded"}{control.note?.trim() && <><br/><b style={{color:"#B9C7D4"}}>Notes:</b> {control.note.trim()}</>}
+              <b style={{color:"var(--sr-text-subtle)"}}>Controls:</b> {control.actions.join("; ") || "Custom control recorded"}{control.note?.trim() && <><br/><b style={{color:"var(--sr-text-subtle)"}}>Notes:</b> {control.note.trim()}</>}
             </div>
           </div>
         );
       })}
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:18}}>
-        <button onClick={onBackToControls} style={{flex:"1 1 170px",background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,padding:"10px 12px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>← EDIT CONTROLS</button>
-        <button onClick={onEditInitial} style={{flex:"1 1 170px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"#AAB8C6",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>EDIT INITIAL ASSESSMENT</button>
-        <button onClick={onReset} style={{flex:"1 1 120px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"10px 12px",color:"#778899",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>↺ START OVER</button>
+        <button onClick={onBackToControls} style={{flex:"1 1 170px",background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,padding:"10px 12px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>← EDIT CONTROLS</button>
+        <button onClick={onEditInitial} style={{flex:"1 1 170px",background:"var(--sr-surface)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"var(--sr-text-subtle)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>EDIT INITIAL ASSESSMENT</button>
+        <button onClick={onReset} style={{flex:"1 1 120px",background:"var(--sr-surface)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"10px 12px",color:"var(--sr-text-muted-2)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>↺ START OVER</button>
       </div>
     </>
   );
@@ -2610,25 +2654,25 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
   }
 
   return (
-    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
-      <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
-        <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:14}}>← BACK</button>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"#FFFFFF",marginLeft:6}}>🛡 FLIGHT RISK ASSESSMENT{opsPrefill ? " — DEMO" : ""}</div>
+      <div style={{background:"var(--sr-header)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
+        <button onClick={onClose} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>← BACK</button>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"var(--sr-text-strong)",marginLeft:6}}>🛡 FLIGHT RISK ASSESSMENT{opsPrefill ? " — DEMO" : ""}</div>
       </div>
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
         <FRATFlow stage={stage}/>
-        <div style={{fontSize:12,color:"#8899AA",marginBottom:16,lineHeight:1.6}}>Structured around the FAA's PAVE checklist (Pilot, Aircraft, enVironment, External pressures). The workflow records initial risk, specific controls, and residual risk; it supports the PIC / CFI decision and never makes the go/no-go decision.</div>
+        <div style={{fontSize:12,color:"var(--sr-text-muted)",marginBottom:16,lineHeight:1.6}}>Structured around the FAA's PAVE checklist (Pilot, Aircraft, enVironment, External pressures). The workflow records initial risk, specific controls, and residual risk; it supports the PIC / CFI decision and never makes the go/no-go decision.</div>
 
         {stage==="assessment" && opsPrefill && (opsPrefill.person || opsPrefill.aircraft) && (
-          <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"11px 13px",fontSize:11,color:"#FFD700",lineHeight:1.6,marginBottom:16}}>
+          <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"11px 13px",fontSize:11,color:"var(--sr-gold)",lineHeight:1.6,marginBottom:16}}>
             🔗 <b>{opsPrefill.person?.name}{opsPrefill.person && opsPrefill.aircraft ? " / " : ""}{opsPrefill.aircraft?.tail}</b> — {Object.keys(prefillKeys).length} answer{Object.keys(prefillKeys).length===1?"":"s"} below auto-filled from shared simulated Academy records. Anything you change yourself is marked as pilot-entered while the source context stays visible.<br/><span style={{color:"#C0A95C"}}>Sleep, IMSAFE, weather, performance, fuel and external-pressure answers remain manual.</span>
           </div>
         )}
 
         {stage==="assessment" && academySeed.advisories.map(advisory=>{
           const requiresAction = advisory.level === "action";
-          return <div key={advisory.id} style={{background:requiresAction?"rgba(255,59,59,0.09)":"rgba(255,215,0,0.055)",border:`1px solid ${requiresAction?"rgba(255,59,59,0.38)":"rgba(255,215,0,0.22)"}`,borderRadius:8,padding:"10px 12px",fontSize:10.5,color:requiresAction?"#FF9A9A":"#C8B76E",lineHeight:1.55,marginBottom:9}}><b style={{color:requiresAction?"#FF7C7C":"#FFD700"}}>{requiresAction?"🔴 ACTION REQUIRED":"🟡 ADVISORY"} — {advisory.title}</b><br/>{advisory.detail}</div>;
+          return <div key={advisory.id} style={{background:requiresAction?"rgba(255,59,59,0.09)":"rgba(255,215,0,0.055)",border:`1px solid ${requiresAction?"rgba(255,59,59,0.38)":"rgba(255,215,0,0.22)"}`,borderRadius:8,padding:"10px 12px",fontSize:10.5,color:requiresAction?"#FF9A9A":"#C8B76E",lineHeight:1.55,marginBottom:9}}><b style={{color:requiresAction?"#FF7C7C":"var(--sr-gold)"}}>{requiresAction?"🔴 ACTION REQUIRED":"🟡 ADVISORY"} — {advisory.title}</b><br/>{advisory.detail}</div>;
         })}
 
         {stage==="assessment" && <>
@@ -2642,17 +2686,17 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
         {stage==="controls" && <>
           <FRATScoreBox answeredCount={totalQuestions} totalQuestions={totalQuestions} allAnswered risk={fratRiskLevel(initialScore)} score={initialScore} title="INITIAL ASSESSMENT — LOCKED"/>
           <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"12px 13px",fontSize:11,color:"#9DB2C5",lineHeight:1.6,marginBottom:16}}>
-            <b style={{color:"#D0E2F2"}}>{materialFactors.length} material factor{materialFactors.length===1?"":"s"}</b> scored 2 or 3. Record a real control and then reassess the condition that will exist after that control is applied. Initial answers stay locked for comparison.
+            <b style={{color:"var(--sr-text)"}}>{materialFactors.length} material factor{materialFactors.length===1?"":"s"}</b> scored 2 or 3. Record a real control and then reassess the condition that will exist after that control is applied. Initial answers stay locked for comparison.
           </div>
           <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#8899AA",letterSpacing:"0.1em"}}>CONTROL PROGRESS {completedControls}/{materialFactors.length}</div>
-            <button onClick={editInitial} style={{background:"none",border:"none",padding:0,color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:9,cursor:"pointer",textDecoration:"underline"}}>EDIT INITIAL ANSWERS</button>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted)",letterSpacing:"0.1em"}}>CONTROL PROGRESS {completedControls}/{materialFactors.length}</div>
+            <button onClick={editInitial} style={{background:"none",border:"none",padding:0,color:"var(--sr-accent)",fontFamily:"'DM Mono',monospace",fontSize:9,cursor:"pointer",textDecoration:"underline"}}>EDIT INITIAL ANSWERS</button>
           </div>
           {materialFactors.length===0 && <div style={{background:"rgba(0,200,150,0.06)",border:"1px solid rgba(0,200,150,0.2)",borderRadius:8,padding:"13px",fontSize:11,color:"#A9C8BE",lineHeight:1.6,marginBottom:14}}>No individual answer scored 2 or 3. There are no generated material-factor controls, but the final review will still preserve the initial and residual result.</div>}
           {materialFactors.map(factor=><MitigationCard key={factor.key} factor={factor} initialPoints={initialAnswers[factor.key]} control={controls[factor.key]} residualValue={residualAnswers[factor.key]} onToggleAction={action=>toggleAction(factor.key,action)} onNoteChange={note=>setControlNote(factor.key,note)} onResidualChange={value=>setResidualAnswer(factor.key,value)}/>)}
-          <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,padding:"14px 15px",marginTop:18}}>
-            <div style={{fontSize:10.5,color:"#8899AA",lineHeight:1.55,marginBottom:10}}>{allControlsComplete?"Every material factor has a recorded control and residual assessment.":`Complete ${materialFactors.length-completedControls} remaining factor${materialFactors.length-completedControls===1?"":"s"} to produce the final comparison.`}</div>
-            <button disabled={!allControlsComplete} onClick={()=>{setReviewComplete(true);window.scrollTo({top:0,behavior:"smooth"});}} style={{width:"100%",background:allControlsComplete?"linear-gradient(135deg,#00C896,#00A879)":"rgba(255,255,255,0.06)",border:"none",borderRadius:7,padding:"11px 14px",color:allControlsComplete?"#04120E":"#556677",cursor:allControlsComplete?"pointer":"not-allowed",fontSize:11,fontWeight:"bold",fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em"}}>VIEW INITIAL → RESIDUAL SUMMARY →</button>
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,padding:"14px 15px",marginTop:18}}>
+            <div style={{fontSize:10.5,color:"var(--sr-text-muted)",lineHeight:1.55,marginBottom:10}}>{allControlsComplete?"Every material factor has a recorded control and residual assessment.":`Complete ${materialFactors.length-completedControls} remaining factor${materialFactors.length-completedControls===1?"":"s"} to produce the final comparison.`}</div>
+            <button disabled={!allControlsComplete} onClick={()=>{setReviewComplete(true);window.scrollTo({top:0,behavior:"smooth"});}} style={{width:"100%",background:allControlsComplete?"linear-gradient(135deg,#00C896,#00A879)":"var(--sr-surface-hover)",border:"none",borderRadius:7,padding:"11px 14px",color:allControlsComplete?"#04120E":"var(--sr-text-muted-2)",cursor:allControlsComplete?"pointer":"not-allowed",fontSize:11,fontWeight:"bold",fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em"}}>VIEW INITIAL → RESIDUAL SUMMARY →</button>
           </div>
         </>}
 
@@ -2668,25 +2712,25 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
 function LabeledNumberInput({ label, value, onChange, suffix }) {
   return (
     <div style={{flex:1,minWidth:130}}>
-      <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#556677",marginBottom:5,letterSpacing:"0.08em"}}>{label}</div>
+      <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-2)",marginBottom:5,letterSpacing:"0.08em"}}>{label}</div>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
         <input
           type="number"
           value={value}
           onChange={e=>onChange(e.target.value)}
-          style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:6,padding:"9px 10px",color:"#FFFFFF",fontSize:14,fontFamily:"'DM Mono',monospace",outline:"none"}}
+          style={{width:"100%",background:"var(--sr-surface-hover)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:6,padding:"9px 10px",color:"var(--sr-text-strong)",fontSize:14,fontFamily:"'DM Mono',monospace",outline:"none"}}
         />
-        {suffix && <span style={{fontSize:10,color:"#556677",fontFamily:"'DM Mono',monospace",flexShrink:0}}>{suffix}</span>}
+        {suffix && <span style={{fontSize:10,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",flexShrink:0}}>{suffix}</span>}
       </div>
     </div>
   );
 }
 
 function E6BResultBox(props) {
-  const { label, value, color="#00B4FF" } = props;
+  const { label, value, color="var(--sr-accent)" } = props;
   return (
     <div style={{background:"rgba(0,0,0,0.35)",border:`1px solid ${color}44`,borderRadius:8,padding:"12px 14px",textAlign:"center",flex:1,minWidth:110}}>
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#556677",letterSpacing:"0.1em",marginBottom:4}}>{label}</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",marginBottom:4}}>{label}</div>
       <div style={{fontFamily:"'DM Mono',monospace",fontSize:20,color,fontWeight:"bold"}}>{value}</div>
     </div>
   );
@@ -2695,7 +2739,7 @@ function E6BResultBox(props) {
 function E6BCard({ title, icon, children }) {
   return (
     <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"18px 20px",marginBottom:16}}>
-      <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.12em",fontWeight:"bold",marginBottom:14}}>{icon} {title}</div>
+      <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.12em",fontWeight:"bold",marginBottom:14}}>{icon} {title}</div>
       {children}
     </div>
   );
@@ -2722,15 +2766,15 @@ function WindTASCard() {
       {result ? (
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
           <E6BResultBox label="WIND CORR. ANGLE" value={`${result.wca>=0?"+":""}${result.wca.toFixed(1)}°`} />
-          <E6BResultBox label="TRUE HEADING" value={`${result.trueHeading.toFixed(0).padStart(3,"0")}°`} color="#00C896" />
-          <E6BResultBox label="GROUNDSPEED" value={`${result.groundspeed.toFixed(0)} kt`} color="#FFD700" />
+          <E6BResultBox label="TRUE HEADING" value={`${result.trueHeading.toFixed(0).padStart(3,"0")}°`} color="var(--sr-success)" />
+          <E6BResultBox label="GROUNDSPEED" value={`${result.groundspeed.toFixed(0)} kt`} color="var(--sr-gold)" />
         </div>
       ) : (
         <div style={{fontSize:11,color:"#FF8C00",fontFamily:"'DM Mono',monospace"}}>
           {valid ? "Wind speed exceeds what's resolvable at this airspeed/course — check your numbers." : "Enter all four values."}
         </div>
       )}
-      <div style={{fontSize:9,color:"#556677",marginTop:12,lineHeight:1.5}}>Wind FROM direction, standard wind-triangle trigonometric solution. True heading — apply magnetic variation separately for your compass heading.</div>
+      <div style={{fontSize:9,color:"var(--sr-text-muted-2)",marginTop:12,lineHeight:1.5}}>Wind FROM direction, standard wind-triangle trigonometric solution. True heading — apply magnetic variation separately for your compass heading.</div>
     </E6BCard>
   );
 }
@@ -2752,9 +2796,9 @@ function TASCard() {
         <LabeledNumberInput label="OUTSIDE AIR TEMP" value={oat} onChange={setOat} suffix="°C" />
       </div>
       {tas !== null && (
-        <E6BResultBox label="TRUE AIRSPEED" value={`${tas.toFixed(0)} kt`} color="#00C896" />
+        <E6BResultBox label="TRUE AIRSPEED" value={`${tas.toFixed(0)} kt`} color="var(--sr-success)" />
       )}
-      <div style={{fontSize:9,color:"#556677",marginTop:12,lineHeight:1.5}}>Uses the standard density-altitude approximation (≈2% per 1,000ft of density altitude) — the same method a mechanical E6B computes.</div>
+      <div style={{fontSize:9,color:"var(--sr-text-muted-2)",marginTop:12,lineHeight:1.5}}>Uses the standard density-altitude approximation (≈2% per 1,000ft of density altitude) — the same method a mechanical E6B computes.</div>
     </E6BCard>
   );
 }
@@ -2780,7 +2824,7 @@ function TimeSpeedDistanceCard() {
     <E6BCard title="TIME · SPEED · DISTANCE" icon="⏱">
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {["time","speed","distance"].map(f=>(
-          <button key={f} onClick={()=>setSolveFor(f)} style={{flex:1,padding:"6px 8px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.06em",background:solveFor===f?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${solveFor===f?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:solveFor===f?"#00B4FF":"#8899AA"}}>SOLVE FOR {f.toUpperCase()}</button>
+          <button key={f} onClick={()=>setSolveFor(f)} style={{flex:1,padding:"6px 8px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.06em",background:solveFor===f?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${solveFor===f?"rgba(0,180,255,0.4)":"var(--sr-border)"}`,color:solveFor===f?"var(--sr-accent)":"var(--sr-text-muted)"}}>SOLVE FOR {f.toUpperCase()}</button>
         ))}
       </div>
       <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}>
@@ -2789,7 +2833,7 @@ function TimeSpeedDistanceCard() {
         {solveFor !== "distance" && <LabeledNumberInput label="DISTANCE" value={distance} onChange={setDistance} suffix="nm" />}
       </div>
       {computed !== null ? (
-        <E6BResultBox label={label} value={`${computed.toFixed(1)} ${unit}`} color="#FFD700" />
+        <E6BResultBox label={label} value={`${computed.toFixed(1)} ${unit}`} color="var(--sr-gold)" />
       ) : (
         <div style={{fontSize:11,color:"#FF8C00",fontFamily:"'DM Mono',monospace"}}>Enter the other two values.</div>
       )}
@@ -2799,18 +2843,18 @@ function TimeSpeedDistanceCard() {
 
 function E6BScreen({ onClose }) {
   return (
-    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8"}}>
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}input[type=number]::-webkit-inner-spin-button{opacity:0.5;}`}</style>
-      <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
-        <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"#8899AA",cursor:"pointer",fontSize:14}}>← BACK</button>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"#FFFFFF",marginLeft:6}}>🧮 E6B FLIGHT COMPUTER</div>
+      <div style={{background:"var(--sr-header)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
+        <button onClick={onClose} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>← BACK</button>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"var(--sr-text-strong)",marginLeft:6}}>🧮 E6B FLIGHT COMPUTER</div>
       </div>
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <div style={{fontSize:12,color:"#8899AA",marginBottom:20,lineHeight:1.6}}>Standard flight-planning calculations, worked the same way a mechanical E6B does. Results update as you type.</div>
+        <div style={{fontSize:12,color:"var(--sr-text-muted)",marginBottom:20,lineHeight:1.6}}>Standard flight-planning calculations, worked the same way a mechanical E6B does. Results update as you type.</div>
         <WindTASCard />
         <TASCard />
         <TimeSpeedDistanceCard />
-        <div style={{fontSize:9,color:"#334455",fontFamily:"'DM Mono',monospace",marginTop:20,lineHeight:1.6}}>Educational planning tool — always cross-check critical numbers against your POH/AFM and official flight-planning materials before flight.</div>
+        <div style={{fontSize:9,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace",marginTop:20,lineHeight:1.6}}>Educational planning tool — always cross-check critical numbers against your POH/AFM and official flight-planning materials before flight.</div>
       </div>
     </div>
   );
@@ -2820,6 +2864,13 @@ export default function App() {
   const width = useWindowWidth();
   const isMobile = width<640;
   const isDesktop = width>=1024;
+  const [appearance,setAppearance] = useState(()=>{
+    if(typeof window==="undefined") return "system";
+    try { return normaliseAppearance(window.localStorage.getItem(APPEARANCE_STORAGE_KEY)); }
+    catch { return "system"; }
+  });
+  const [systemPrefersDark,setSystemPrefersDark] = useState(()=>typeof window!=="undefined" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches);
+  const resolvedAppearance = resolveAppearance(appearance,systemPrefersDark);
   const initialWorkspaceRef = useRef(null);
   if (!initialWorkspaceRef.current) {
     const seed = createDemoWorkspaceSnapshot();
@@ -2884,6 +2935,21 @@ export default function App() {
   const [briefing,setBrief] = useState("");
   const [briefLoad,setBriefLoad] = useState(false);
   const airfield = AIRFIELDS[selected];
+
+  useEffect(()=>{
+    if(typeof window==="undefined" || !window.matchMedia) return undefined;
+    const media=window.matchMedia("(prefers-color-scheme: dark)");
+    const update=event=>setSystemPrefersDark(event.matches);
+    setSystemPrefersDark(media.matches);
+    media.addEventListener?.("change",update);
+    return ()=>media.removeEventListener?.("change",update);
+  },[]);
+
+  useEffect(()=>{
+    document.documentElement.dataset.srTheme=resolvedAppearance;
+    document.documentElement.style.colorScheme=resolvedAppearance;
+    try { window.localStorage.setItem(APPEARANCE_STORAGE_KEY,appearance); } catch { /* device preference remains session-only */ }
+  },[appearance,resolvedAppearance]);
 
   const applyWorkspaceSnapshot = useCallback((snapshot)=>{
     setWorkspaceMeta({
@@ -2991,6 +3057,26 @@ export default function App() {
     } catch (error) {
       setPersistenceState(previous=>({...previous,status:"error",error:error.message}));
     }
+  }
+
+  function logOutToRoleSelection() {
+    setOpsLoggedIn(false);
+    setOpsWorkspace(null);
+    setShowOpsDashboard(false);
+    setShowFRAT(false);
+    setShowE6B(false);
+    setOpsPrefill(null);
+    setMenuOpen(false);
+  }
+
+  function withAppearance(content,{showLogout=false}={}) {
+    return <AppearanceShell
+      appearance={appearance}
+      resolvedAppearance={resolvedAppearance}
+      onAppearanceChange={value=>setAppearance(normaliseAppearance(value))}
+      showLogout={showLogout}
+      onLogout={logOutToRoleSelection}
+    >{content}</AppearanceShell>;
   }
 
   function handleSearch(val) {
@@ -3121,14 +3207,14 @@ export default function App() {
   }
 
   const sidebar = (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",background:"#06101C"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",background:"var(--sr-bg-elevated)"}}>
       <div style={{padding:"14px 12px 10px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
-        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.15em",marginBottom:8}}>SEARCH AIRFIELD</div>
+        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.15em",marginBottom:8}}>SEARCH AIRFIELD</div>
         <div style={{position:"relative",marginBottom:10}}>
           <input value={query} onChange={e=>handleSearch(e.target.value)} placeholder="ICAO code or name…"
-            style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,padding:"10px 12px",color:"#FFFFFF",fontSize:13,fontFamily:"'DM Mono',monospace",outline:"none",letterSpacing:"0.05em"}}/>
+            style={{width:"100%",background:"var(--sr-border)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,padding:"10px 12px",color:"var(--sr-text-strong)",fontSize:13,fontFamily:"'DM Mono',monospace",outline:"none",letterSpacing:"0.05em"}}/>
           {suggestions.length > 0 && (
-            <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:300,background:"#0D1E32",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,marginTop:4,overflow:"hidden",boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
+            <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:300,background:"var(--sr-bg-popover)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,marginTop:4,overflow:"hidden",boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
               {suggestions.map(([code,a])=>{
                 const critCount = a.hazards.filter(h=>h.sev==="critical").length;
                 return (
@@ -3137,9 +3223,9 @@ export default function App() {
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#00B4FF",fontWeight:"bold",marginRight:8}}>{code}</span>
-                        <span style={{fontSize:11,color:"#8BCCF0"}}>{a.name}</span>
-                        <div style={{fontSize:9,color:"#445566",marginTop:2}}>{a.city} · {a.class}</div>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"var(--sr-accent)",fontWeight:"bold",marginRight:8}}>{code}</span>
+                        <span style={{fontSize:11,color:"var(--sr-accent)"}}>{a.name}</span>
+                        <div style={{fontSize:9,color:"var(--sr-text-muted-3)",marginTop:2}}>{a.city} · {a.class}</div>
                       </div>
                       {critCount>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#FF3B3B",background:"rgba(255,59,59,0.12)",border:"1px solid rgba(255,59,59,0.3)",padding:"2px 6px",borderRadius:3,flexShrink:0}}>⚠ {critCount}</span>}
                     </div>
@@ -3153,10 +3239,10 @@ export default function App() {
           <div style={{background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:7,padding:"10px 12px",marginBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:15,color:"#00B4FF",fontWeight:"bold"}}>{selected}</div>
-                <div style={{fontSize:11,color:"#FFFFFF",marginTop:2}}>{airfield.name}</div>
-                <div style={{fontSize:9,color:"#8899AA",marginTop:2}}>{airfield.city}</div>
-                <div style={{fontSize:9,color:"#445566",marginTop:2}}>{airfield.class} · {airfield.type} · {airfield.elevation.toLocaleString()}ft</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:15,color:"var(--sr-accent)",fontWeight:"bold"}}>{selected}</div>
+                <div style={{fontSize:11,color:"var(--sr-text-strong)",marginTop:2}}>{airfield.name}</div>
+                <div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:2}}>{airfield.city}</div>
+                <div style={{fontSize:9,color:"var(--sr-text-muted-3)",marginTop:2}}>{airfield.class} · {airfield.type} · {airfield.elevation.toLocaleString()}ft</div>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"flex-end"}}>
                 {["critical","high"].map(s=>{
@@ -3169,20 +3255,20 @@ export default function App() {
             </div>
           </div>
         )}
-        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.12em",marginBottom:6}}>QUICK ACCESS</div>
+        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.12em",marginBottom:6}}>QUICK ACCESS</div>
         <div style={{display:"flex",gap:6,marginBottom:8}}>
           {["florida","phoenix","texas","socal","colorado","uk"].map(r=>(
-            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 3px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:8,background:region===r?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:region===r?"#00B4FF":"#8899AA"}}>{r==="florida"?"🌴FL":r==="phoenix"?"☀AZ":r==="texas"?"🤠TX":r==="socal"?"🏙CA":r==="colorado"?"⛰CO":"🇬🇧UK"}</button>
+            <button key={r} onClick={()=>setRegion(r)} style={{flex:1,padding:"5px 3px",borderRadius:5,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:8,background:region===r?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${region===r?"rgba(0,180,255,0.4)":"var(--sr-border)"}`,color:region===r?"var(--sr-accent)":"var(--sr-text-muted)"}}>{r==="florida"?"🌴FL":r==="phoenix"?"☀AZ":r==="texas"?"🤠TX":r==="socal"?"🏙CA":r==="colorado"?"⛰CO":"🇬🇧UK"}</button>
           ))}
         </div>
         <div style={{overflowY:"auto",maxHeight:220}}>
           {fieldsForRegion(region).map(([code,a])=>{
             const critCount=a.hazards.filter(h=>h.sev==="critical").length;
             return (
-              <div key={code} onClick={()=>selectAirfield(code)} style={{padding:"7px 10px",borderRadius:6,marginBottom:3,cursor:"pointer",background:selected===code?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.02)",border:`1px solid ${selected===code?"rgba(0,180,255,0.35)":"rgba(255,255,255,0.05)"}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div key={code} onClick={()=>selectAirfield(code)} style={{padding:"7px 10px",borderRadius:6,marginBottom:3,cursor:"pointer",background:selected===code?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.02)",border:`1px solid ${selected===code?"rgba(0,180,255,0.35)":"var(--sr-surface)"}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:selected===code?"#00B4FF":"#FFFFFF",fontWeight:"bold",marginRight:6}}>{code}</span>
-                  <span style={{fontSize:9,color:"#556677"}}>{a.name.split(" ").slice(0,2).join(" ")}</span>
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:selected===code?"var(--sr-accent)":"var(--sr-text-strong)",fontWeight:"bold",marginRight:6}}>{code}</span>
+                  <span style={{fontSize:9,color:"var(--sr-text-muted-2)"}}>{a.name.split(" ").slice(0,2).join(" ")}</span>
                 </div>
                 {critCount>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#FF3B3B",background:"rgba(255,59,59,0.1)",border:"1px solid rgba(255,59,59,0.25)",padding:"1px 5px",borderRadius:2}}>⚠{critCount}</span>}
               </div>
@@ -3191,33 +3277,33 @@ export default function App() {
         </div>
       </div>
       <div style={{padding:"10px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
-        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.12em",marginBottom:7}}>FLIGHT PHASE</div>
+        <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.12em",marginBottom:7}}>FLIGHT PHASE</div>
         <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
           {PHASES.map(p=>(
-            <button key={p.id} onClick={()=>setPhase(p.id)} style={{fontSize:8,fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em",padding:"4px 8px",borderRadius:4,cursor:"pointer",background:phase===p.id?"rgba(0,180,255,0.18)":"rgba(255,255,255,0.04)",border:`1px solid ${phase===p.id?"rgba(0,180,255,0.4)":"rgba(255,255,255,0.07)"}`,color:phase===p.id?"#00B4FF":"#FFFFFF"}}>{p.label}</button>
+            <button key={p.id} onClick={()=>setPhase(p.id)} style={{fontSize:8,fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em",padding:"4px 8px",borderRadius:4,cursor:"pointer",background:phase===p.id?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${phase===p.id?"rgba(0,180,255,0.4)":"var(--sr-border)"}`,color:phase===p.id?"var(--sr-accent)":"var(--sr-text-strong)"}}>{p.label}</button>
           ))}
         </div>
       </div>
       <div style={{padding:"12px"}}>
-        <button onClick={()=>setShowE6B(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"linear-gradient(135deg,rgba(255,215,0,0.16),rgba(255,180,0,0.1))",border:"1px solid rgba(255,215,0,0.4)",borderRadius:8,padding:"12px 10px",color:"#FFD700",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:"bold",letterSpacing:"0.08em"}}>
+        <button onClick={()=>setShowE6B(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"linear-gradient(135deg,rgba(255,215,0,0.16),rgba(255,180,0,0.1))",border:"1px solid rgba(255,215,0,0.4)",borderRadius:8,padding:"12px 10px",color:"var(--sr-gold)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:"bold",letterSpacing:"0.08em"}}>
           🧮 E6B FLIGHT COMPUTER
         </button>
-        <button onClick={()=>setShowFRAT(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"linear-gradient(135deg,rgba(0,180,255,0.16),rgba(0,150,255,0.1))",border:"1px solid rgba(0,180,255,0.4)",borderRadius:8,padding:"12px 10px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:"bold",letterSpacing:"0.08em",marginTop:8}}>
+        <button onClick={()=>setShowFRAT(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"linear-gradient(135deg,rgba(0,180,255,0.16),rgba(0,150,255,0.1))",border:"1px solid rgba(0,180,255,0.4)",borderRadius:8,padding:"12px 10px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:"bold",letterSpacing:"0.08em",marginTop:8}}>
           🛡 FLIGHT RISK ASSESSMENT
         </button>
       </div>
     </div>
   );
 
-  if (accountType === null) return <AccountTypeScreen onSelect={setAccountType}/>;
-  if (accountType === "flightschool" && !opsLoggedIn) return <FlightSchoolLoginScreen
+  if (accountType === null) return withAppearance(<AccountTypeScreen onSelect={setAccountType}/>);
+  if (accountType === "flightschool" && !opsLoggedIn) return withAppearance(<FlightSchoolLoginScreen
     onLogin={(org,workspace)=>{setOrgName(org);setOpsWorkspace(workspace||"ops");setOpsLoggedIn(true);setShowOpsDashboard((workspace||"ops")==="ops");}}
     onBack={()=>setAccountType(null)}
     persistenceState={persistenceState}
     onReset={resetDemoWorkspace}
     workspaceName={workspaceMeta.name}
-  />;
-  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "admin") return <ClubAdminDashboardScreen
+  />);
+  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "admin") return withAppearance(<ClubAdminDashboardScreen
     orgName={orgName}
     people={opsPeople}
     aircraftList={opsAircraftList}
@@ -3227,26 +3313,26 @@ export default function App() {
     setAdminAudit={setOpsAdminAudit}
     persistenceState={persistenceState}
     onReset={resetDemoWorkspace}
-    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
-  />;
-  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "engineering") return <EngineeringDashboardScreen
+    onBack={logOutToRoleSelection}
+  />);
+  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "engineering") return withAppearance(<EngineeringDashboardScreen
     orgName={orgName}
     aircraftList={opsAircraftList}
     setAircraftList={setOpsAircraftList}
     persistenceState={persistenceState}
     onReset={resetDemoWorkspace}
-    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
-  />;
-  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "cfi") return <CfiDashboardScreen
+    onBack={logOutToRoleSelection}
+  />);
+  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "cfi") return withAppearance(<CfiDashboardScreen
     orgName={orgName}
     people={opsPeople}
     setPeople={setOpsPeople}
     aircraftList={opsAircraftList}
     persistenceState={persistenceState}
     onReset={resetDemoWorkspace}
-    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
-  />;
-  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "ops" && showOpsDashboard) return <OpsDashboardScreen orgName={orgName}
+    onBack={logOutToRoleSelection}
+  />);
+  if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "ops" && showOpsDashboard) return withAppearance(<OpsDashboardScreen orgName={orgName}
     people={opsPeople}
     aircraftList={opsAircraftList}
     persistenceState={persistenceState}
@@ -3260,10 +3346,10 @@ export default function App() {
       setShowOpsDashboard(false);setShowWelcome(false);setShowFRAT(true);
     }}
     onContinueToApp={()=>setShowOpsDashboard(false)}
-    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}} />;
-  if (showWelcome) return <WelcomeScreen onSelect={chooseRegion}/>;
-  if (showE6B) return <E6BScreen onClose={()=>{setShowE6B(false);setMenuOpen(false);}}/>;
-  if (showFRAT) return <FRATScreen
+    onBack={logOutToRoleSelection} />);
+  if (showWelcome) return withAppearance(<WelcomeScreen onSelect={chooseRegion}/>,{showLogout:opsLoggedIn});
+  if (showE6B) return withAppearance(<E6BScreen onClose={()=>{setShowE6B(false);setMenuOpen(false);}}/>,{showLogout:opsLoggedIn});
+  if (showFRAT) return withAppearance(<FRATScreen
     onClose={()=>{setShowFRAT(false);setOpsPrefill(null);setMenuOpen(false);}}
     opsPrefill={opsPrefill}
     answers={fratAnswers} setAnswers={setFratAnswers}
@@ -3272,45 +3358,45 @@ export default function App() {
     controls={fratControls} setControls={setFratControls}
     residualAnswers={fratResidualAnswers} setResidualAnswers={setFratResidualAnswers}
     reviewComplete={fratReviewComplete} setReviewComplete={setFratReviewComplete}
-    onOpenDA={()=>{setShowFRAT(false);setMenuOpen(false);}} />;
+    onOpenDA={()=>{setShowFRAT(false);setMenuOpen(false);}} />,{showLogout:opsLoggedIn});
 
-  return (
-    <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8",display:"flex",flexDirection:"column"}}>
+  return withAppearance(
+    <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)",display:"flex",flexDirection:"column"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:#08121E;}::-webkit-scrollbar-thumb{background:#1A3050;border-radius:2px;}input[type=range]{-webkit-appearance:none;height:5px;border-radius:3px;background:rgba(255,255,255,0.12);}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#00B4FF;cursor:pointer;border:2px solid #050D18;}button{touch-action:manipulation;}`}</style>
-      <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:`0 ${isMobile?8:20}px`,display:"flex",alignItems:"center",gap:isMobile?6:10,height:56,backdropFilter:"blur(12px)",position:"sticky",top:0,zIndex:100,flexShrink:0}}>
-        {!isDesktop&&<button onClick={()=>setMenuOpen(o=>!o)} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 10px",color:"#8899AA",cursor:"pointer",fontSize:14}}>☰</button>}
+      <div style={{background:"var(--sr-header)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:`0 ${isMobile?8:20}px`,display:"flex",alignItems:"center",gap:isMobile?6:10,height:56,backdropFilter:"blur(12px)",position:"sticky",top:0,zIndex:100,flexShrink:0}}>
+        {!isDesktop&&<button onClick={()=>setMenuOpen(o=>!o)} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 10px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>☰</button>}
         <div style={{display:"flex",alignItems:"center",gap:isMobile?5:9,minWidth:0}}>
           {!isMobile&&<div style={{width:28,height:28,background:"linear-gradient(135deg,#0055DD,#00B4FF)",borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>✈</div>}
           <div style={{display:"flex",flexDirection:"column",lineHeight:1}}>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:isMobile?15:21,letterSpacing:isMobile?"0.08em":"0.15em",color:"#FFFFFF",whiteSpace:"nowrap"}}>SAFEROUTE <span style={{color:"#00B4FF"}}>ACADEMY</span></div>
-            {!isMobile&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:"#334455",letterSpacing:"0.15em",marginTop:1}}>STUDENT PILOT SAFETY INTELLIGENCE</div>}
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:isMobile?15:21,letterSpacing:isMobile?"0.08em":"0.15em",color:"var(--sr-text-strong)",whiteSpace:"nowrap"}}>SAFEROUTE <span style={{color:"var(--sr-accent)"}}>ACADEMY</span></div>
+            {!isMobile&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:"var(--sr-text-muted-3)",letterSpacing:"0.15em",marginTop:1}}>STUDENT PILOT SAFETY INTELLIGENCE</div>}
           </div>
-          <span style={{fontFamily:"'DM Mono',monospace",fontSize:isMobile?7:8,color:"#00C896",background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",padding:isMobile?"1px 4px":"2px 6px",borderRadius:3,letterSpacing:"0.1em"}}>BETA</span>
+          <span style={{fontFamily:"'DM Mono',monospace",fontSize:isMobile?7:8,color:"var(--sr-success)",background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",padding:isMobile?"1px 4px":"2px 6px",borderRadius:3,letterSpacing:"0.1em"}}>BETA</span>
         </div>
         <div style={{flex:1}}/>
-        <button aria-label="Change location" title="Change location" onClick={()=>setShowWelcome(true)} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"#8899AA",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",marginRight:isMobile?0:6}}>{isMobile?"⟲":"⟲ CHANGE LOCATION"}</button>
-        <a aria-label="Send feedback" title="Send feedback" href="https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_academy_feedback_form.html" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",textDecoration:"none",marginRight:isMobile?0:10}}>{isMobile?"✉":"✉ FEEDBACK"}</a>
-        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:wxLoad?"#FFD700":"#00C896"}}>● {wxLoad?"LOADING":"LIVE"}</span>
+        <button aria-label="Change location" title="Change location" onClick={()=>setShowWelcome(true)} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",marginRight:isMobile?0:6}}>{isMobile?"⟲":"⟲ CHANGE LOCATION"}</button>
+        <a aria-label="Send feedback" title="Send feedback" href="https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_academy_feedback_form.html" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"var(--sr-accent)",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",textDecoration:"none",marginRight:isMobile?0:10}}>{isMobile?"✉":"✉ FEEDBACK"}</a>
+        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:wxLoad?"var(--sr-gold)":"var(--sr-success)"}}>● {wxLoad?"LOADING":"LIVE"}</span>
       </div>
       <div style={{flex:1,display:"flex",overflow:"hidden",height:"calc(100vh - 56px)"}}>
         {isDesktop?<div style={{width:270,flexShrink:0,overflow:"auto",borderRight:"1px solid rgba(255,255,255,0.06)"}}>{sidebar}</div>:menuOpen&&(
           <div style={{position:"fixed",inset:0,zIndex:3000,display:"flex",isolation:"isolate"}}>
-            <div onClick={()=>setMenuOpen(false)} style={{position:"absolute",inset:0,zIndex:0,background:"rgba(0,0,0,0.7)"}}/>
-            <div style={{position:"relative",zIndex:1,width:280,height:"100%",overflow:"auto",background:"#06101C",borderRight:"1px solid rgba(0,180,255,0.2)",boxShadow:"12px 0 30px rgba(0,0,0,0.55)"}}>{sidebar}</div>
+            <div onClick={()=>setMenuOpen(false)} style={{position:"absolute",inset:0,zIndex:0,background:"var(--sr-overlay)"}}/>
+            <div style={{position:"relative",zIndex:1,width:280,height:"100%",overflow:"auto",background:"var(--sr-bg-elevated)",borderRight:"1px solid rgba(0,180,255,0.2)",boxShadow:"12px 0 30px rgba(0,0,0,0.55)"}}>{sidebar}</div>
           </div>
         )}
         <div style={{flex:1,overflow:"auto",padding:isMobile?"12px 12px 80px":"18px 22px"}}>
-          <div style={{background:"linear-gradient(135deg,rgba(0,30,60,0.9),rgba(0,15,35,0.9))",border:"1px solid rgba(0,180,255,0.25)",borderRadius:10,padding:isMobile?"14px 16px":"18px 22px",marginBottom:14}}>
+          <div style={{background:"var(--sr-hero)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:10,padding:isMobile?"14px 16px":"18px 22px",marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10}}>
               <div>
                 <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
-                  <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:isMobile?26:32,letterSpacing:"0.1em",color:"#FFFFFF"}}>{selected}</span>
-                  <span style={{fontSize:14,color:"#8BCCF0",fontWeight:500}}>{airfield.name}</span>
+                  <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:isMobile?26:32,letterSpacing:"0.1em",color:"var(--sr-text-strong)"}}>{selected}</span>
+                  <span style={{fontSize:14,color:"var(--sr-accent)",fontWeight:500}}>{airfield.name}</span>
                 </div>
-                <div style={{fontSize:11,color:"#556677",marginBottom:8}}>{airfield.city}  ·  <span style={{color:"#00B4FF",fontWeight:600}}>{airfield.class}</span>  ·  {airfield.type}  ·  Elevation <span style={{color:"#FFD700",fontWeight:600}}>{airfield.elevation.toLocaleString()}ft</span></div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{airfield.runways.map(r=><span key={r} style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#8899AA",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:4,padding:"3px 8px"}}>{r}</span>)}</div>
-                <div style={{fontSize:8.5,color:airfield.source?"#00C896":"#FFD700",marginTop:7,lineHeight:1.5}}>
-                  {airfield.source ? <>✓ Verified against <a href={airfield.source.url} target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>{airfield.source.label}</a> · {airfield.source.cycle}</> : <>Reference training summary — verify runways, frequencies, airspace, hours, and NOTAMs in the current <a href={airfield.region==="uk"?UK_AIP:FAA_CHART_SUPPLEMENT_SEARCH} target="_blank" rel="noreferrer" style={{color:"#00B4FF"}}>{airfield.region==="uk"?"UK AIP":"FAA Chart Supplement"}</a> before flight.</>}
+                <div style={{fontSize:11,color:"var(--sr-text-muted-2)",marginBottom:8}}>{airfield.city}  ·  <span style={{color:"var(--sr-accent)",fontWeight:600}}>{airfield.class}</span>  ·  {airfield.type}  ·  Elevation <span style={{color:"var(--sr-gold)",fontWeight:600}}>{airfield.elevation.toLocaleString()}ft</span></div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{airfield.runways.map(r=><span key={r} style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted)",background:"var(--sr-surface)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:4,padding:"3px 8px"}}>{r}</span>)}</div>
+                <div style={{fontSize:8.5,color:airfield.source?"var(--sr-success)":"var(--sr-gold)",marginTop:7,lineHeight:1.5}}>
+                  {airfield.source ? <>✓ Verified against <a href={airfield.source.url} target="_blank" rel="noreferrer" style={{color:"var(--sr-accent)"}}>{airfield.source.label}</a> · {airfield.source.cycle}</> : <>Reference training summary — verify runways, frequencies, airspace, hours, and NOTAMs in the current <a href={airfield.region==="uk"?UK_AIP:FAA_CHART_SUPPLEMENT_SEARCH} target="_blank" rel="noreferrer" style={{color:"var(--sr-accent)"}}>{airfield.region==="uk"?"UK AIP":"FAA Chart Supplement"}</a> before flight.</>}
                 </div>
               </div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -3323,69 +3409,69 @@ export default function App() {
           <WeatherLayerWidget airfield={airfield} icao={selected} liveWx={liveWx}/>
           <div style={{display:"flex",borderBottom:"2px solid rgba(255,255,255,0.06)",marginBottom:14,overflowX:"auto",gap:2}}>
             {[["hazards",`THREATS (${filteredHazards.length})`],["atc","ATC & AIRSPACE"],["cfi","CFI NOTES"],["brief","W-A-N-T BRIEF"]].map(([tid,label])=>(
-              <button key={tid} onClick={()=>setTab(tid)} style={{background:tab===tid?"rgba(0,180,255,0.08)":"none",border:"none",cursor:"pointer",padding:"10px 16px",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.08em",whiteSpace:"nowrap",color:tab===tid?"#00B4FF":"#FFFFFF",borderBottom:tab===tid?"2px solid #00B4FF":"2px solid transparent",transition:"all 0.15s",marginBottom:"-2px"}}>{label}</button>
+              <button key={tid} onClick={()=>setTab(tid)} style={{background:tab===tid?"rgba(0,180,255,0.08)":"none",border:"none",cursor:"pointer",padding:"10px 16px",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.08em",whiteSpace:"nowrap",color:tab===tid?"var(--sr-accent)":"var(--sr-text-strong)",borderBottom:tab===tid?"2px solid #00B4FF":"2px solid transparent",transition:"all 0.15s",marginBottom:"-2px"}}>{label}</button>
             ))}
           </div>
           {tab==="hazards"&&<div>
-            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.15em",marginBottom:10}}>{filteredHazards.length} THREAT{filteredHazards.length!==1?"S":""} FOR {selected} · TAP ANY CARD TO EXPAND</div>
+            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.15em",marginBottom:10}}>{filteredHazards.length} THREAT{filteredHazards.length!==1?"S":""} FOR {selected} · TAP ANY CARD TO EXPAND</div>
             {filteredHazards.map(h=><HazardCard key={h.id} h={h} expanded={!!expanded[h.id]} onToggle={()=>setExpanded(e=>({...e,[h.id]:!e[h.id]}))}/>)}
           </div>}
-          {tab==="atc"&&<div style={{background:"rgba(0,20,45,0.8)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"18px 20px"}}>
-            <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.15em",marginBottom:12,fontWeight:"bold"}}>📡 ATC & AIRSPACE NOTES</div>
-            <pre style={{fontSize:13,color:"#C0D4E8",lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{airfield.atcNotes}</pre>
+          {tab==="atc"&&<div style={{background:"var(--sr-blue-panel)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"18px 20px"}}>
+            <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.15em",marginBottom:12,fontWeight:"bold"}}>📡 ATC & AIRSPACE NOTES</div>
+            <pre style={{fontSize:13,color:"var(--sr-text)",lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{airfield.atcNotes}</pre>
           </div>}
-          {tab==="cfi"&&<div style={{background:"rgba(0,40,25,0.6)",border:"1px solid rgba(0,200,150,0.25)",borderRadius:10,padding:"18px 20px"}}>
-            <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#00C896",letterSpacing:"0.15em",marginBottom:12,fontWeight:"bold"}}>📋 CFI BRIEFING NOTES</div>
-            <p style={{fontSize:13,color:"#C0D4E8",lineHeight:1.9}}>{airfield.cfiNotes}</p>
+          {tab==="cfi"&&<div style={{background:"var(--sr-green-panel)",border:"1px solid rgba(0,200,150,0.25)",borderRadius:10,padding:"18px 20px"}}>
+            <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-success)",letterSpacing:"0.15em",marginBottom:12,fontWeight:"bold"}}>📋 CFI BRIEFING NOTES</div>
+            <p style={{fontSize:13,color:"var(--sr-text)",lineHeight:1.9}}>{airfield.cfiNotes}</p>
           </div>}
           {tab==="brief"&&<div>
-            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#445566",letterSpacing:"0.15em",marginBottom:12}}>PRE-FLIGHT BRIEFING · W-A-N-T · {selected}</div>
+            <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.15em",marginBottom:12}}>PRE-FLIGHT BRIEFING · W-A-N-T · {selected}</div>
 
             {/* W — WEATHER */}
             <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:12}}>
-              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>🌦 W — WEATHER</div>
-              {wxLoad && <div style={{fontSize:11,color:"#556677"}}>Loading live weather…</div>}
-              {!wxLoad && !liveWx && <div style={{fontSize:11,color:"#556677"}}>No live weather data available for this field.</div>}
+              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>🌦 W — WEATHER</div>
+              {wxLoad && <div style={{fontSize:11,color:"var(--sr-text-muted-2)"}}>Loading live weather…</div>}
+              {!wxLoad && !liveWx && <div style={{fontSize:11,color:"var(--sr-text-muted-2)"}}>No live weather data available for this field.</div>}
               {!wxLoad && liveWx && <>
-                <div style={{fontSize:13,color:"#FFFFFF",lineHeight:1.6,marginBottom:8}}>{interpretMetarShort(liveWx.metar)}</div>
+                <div style={{fontSize:13,color:"var(--sr-text-strong)",lineHeight:1.6,marginBottom:8}}>{interpretMetarShort(liveWx.metar)}</div>
                 {briefTafThreats.length>0 ? (
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
                     {briefTafThreats.map((t,i)=><div key={i} style={{fontSize:12,color:t.color,fontWeight:"500"}}>{t.icon} {t.text}</div>)}
                   </div>
-                ) : <div style={{fontSize:11,color:"#556677"}}>No significant forecast hazards flagged in the current TAF.</div>}
+                ) : <div style={{fontSize:11,color:"var(--sr-text-muted-2)"}}>No significant forecast hazards flagged in the current TAF.</div>}
               </>}
             </div>
 
             {/* A — AIRCRAFT & PERFORMANCE */}
             <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:12}}>
-              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>✈ A — AIRCRAFT & PERFORMANCE</div>
-              {!aircraftPerf && <div style={{fontSize:11,color:"#556677"}}>Live temperature not available — check the performance tools once weather loads.</div>}
+              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>✈ A — AIRCRAFT & PERFORMANCE</div>
+              {!aircraftPerf && <div style={{fontSize:11,color:"var(--sr-text-muted-2)"}}>Live temperature not available — check the performance tools once weather loads.</div>}
               {aircraftPerf?.kind==="da" && (
-                <div style={{fontSize:13,color:"#FFFFFF",lineHeight:1.7}}>
-                  Density altitude: <b style={{color:aircraftPerf.daRisk==="EXTREME"?"#FF3B3B":aircraftPerf.daRisk==="HIGH"?"#FF8C00":aircraftPerf.daRisk==="MODERATE"?"#FFD700":"#00C896"}}>{aircraftPerf.da.toLocaleString()}ft ({aircraftPerf.daRisk})</b>
-                  <div style={{fontSize:11,color:"#8899AA",marginTop:4}}>Recalculate takeoff/climb performance rather than assuming sea-level POH numbers — see the full calculator above.</div>
+                <div style={{fontSize:13,color:"var(--sr-text-strong)",lineHeight:1.7}}>
+                  Density altitude: <b style={{color:aircraftPerf.daRisk==="EXTREME"?"#FF3B3B":aircraftPerf.daRisk==="HIGH"?"#FF8C00":aircraftPerf.daRisk==="MODERATE"?"var(--sr-gold)":"var(--sr-success)"}}>{aircraftPerf.da.toLocaleString()}ft ({aircraftPerf.daRisk})</b>
+                  <div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:4}}>Recalculate takeoff/climb performance rather than assuming sea-level POH numbers — see the full calculator above.</div>
                 </div>
               )}
               {aircraftPerf?.kind==="uk" && (
-                <div style={{fontSize:13,color:"#FFFFFF",lineHeight:1.7}}>
-                  Estimated cloud base: <b>{aircraftPerf.cbAgl.toLocaleString()}ft AGL</b> · Icing risk: <b style={{color:aircraftPerf.icingRisk==="LIKELY"?"#FF3B3B":aircraftPerf.icingRisk==="POSSIBLE"?"#FFD700":"#00C896"}}>{aircraftPerf.icingRisk}</b>
-                  <div style={{fontSize:11,color:"#8899AA",marginTop:4}}>{aircraftPerf.hasDew?"":"Dewpoint estimated — not directly reported in this METAR. "}Estimate only — confirm against the actual TAF/METAR and F214/F215 charts.</div>
+                <div style={{fontSize:13,color:"var(--sr-text-strong)",lineHeight:1.7}}>
+                  Estimated cloud base: <b>{aircraftPerf.cbAgl.toLocaleString()}ft AGL</b> · Icing risk: <b style={{color:aircraftPerf.icingRisk==="LIKELY"?"#FF3B3B":aircraftPerf.icingRisk==="POSSIBLE"?"var(--sr-gold)":"var(--sr-success)"}}>{aircraftPerf.icingRisk}</b>
+                  <div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:4}}>{aircraftPerf.hasDew?"":"Dewpoint estimated — not directly reported in this METAR. "}Estimate only — confirm against the actual TAF/METAR and F214/F215 charts.</div>
                 </div>
               )}
-              <div style={{fontSize:11,color:"#8899AA",marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",lineHeight:1.6}}>Performance is only part of this section — before flight, also check <b style={{color:"#C0D4E8"}}>aircraft status</b>, the <b style={{color:"#C0D4E8"}}>tech log</b>, and any <b style={{color:"#C0D4E8"}}>MEL (Minimum Equipment List)</b> items with your instructor or dispatcher.</div>
+              <div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",lineHeight:1.6}}>Performance is only part of this section — before flight, also check <b style={{color:"var(--sr-text)"}}>aircraft status</b>, the <b style={{color:"var(--sr-text)"}}>tech log</b>, and any <b style={{color:"var(--sr-text)"}}>MEL (Minimum Equipment List)</b> items with your instructor or dispatcher.</div>
             </div>
 
             {/* N — NOTAMS */}
             <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:12}}>
-              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>📋 N — NOTAMS</div>
-              <div style={{fontSize:12,color:"#C0D4E8",lineHeight:1.6,marginBottom:10}}>This app doesn't pull live NOTAMs. Check current NOTAMs for {selected} — and any alternates — before every flight.</div>
-              <a href={notamLink} target="_blank" rel="noreferrer" style={{display:"inline-block",background:"rgba(0,180,255,0.15)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:6,padding:"7px 14px",color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:10,textDecoration:"none",fontWeight:"bold"}}>{airfield.region==="uk"?"OPEN NATS AIS →":"OPEN FAA NOTAM SEARCH →"}</a>
+              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>📋 N — NOTAMS</div>
+              <div style={{fontSize:12,color:"var(--sr-text)",lineHeight:1.6,marginBottom:10}}>This app doesn't pull live NOTAMs. Check current NOTAMs for {selected} — and any alternates — before every flight.</div>
+              <a href={notamLink} target="_blank" rel="noreferrer" style={{display:"inline-block",background:"rgba(0,180,255,0.15)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:6,padding:"7px 14px",color:"var(--sr-accent)",fontFamily:"'DM Mono',monospace",fontSize:10,textDecoration:"none",fontWeight:"bold"}}>{airfield.region==="uk"?"OPEN NATS AIS →":"OPEN FAA NOTAM SEARCH →"}</a>
             </div>
 
             {/* T — THREATS */}
             <div style={{background:"rgba(0,180,255,0.05)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"16px 18px",marginBottom:16}}>
-              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>⚠ T — THREATS</div>
-              {briefTopHazards.length===0 && <div style={{fontSize:11,color:"#556677"}}>No critical/high hazards recorded for this field — see the HAZARDS tab for the full list.</div>}
+              <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",fontWeight:"bold",marginBottom:10}}>⚠ T — THREATS</div>
+              {briefTopHazards.length===0 && <div style={{fontSize:11,color:"var(--sr-text-muted-2)"}}>No critical/high hazards recorded for this field — see the HAZARDS tab for the full list.</div>}
               {briefTopHazards.length>0 && (
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {briefTopHazards.map(h=>{
@@ -3393,36 +3479,37 @@ export default function App() {
                     return (
                       <div key={h.id} style={{display:"flex",alignItems:"flex-start",gap:8}}>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:sc.color,background:sc.bg,border:`1px solid ${sc.border}`,padding:"2px 6px",borderRadius:3,flexShrink:0,marginTop:2}}>{sc.label}</span>
-                        <div style={{fontSize:12,color:"#C0D4E8",lineHeight:1.5}}><b style={{color:"#FFFFFF"}}>{h.title}</b>{h.why?` — ${h.why}`:""}</div>
+                        <div style={{fontSize:12,color:"var(--sr-text)",lineHeight:1.5}}><b style={{color:"var(--sr-text-strong)"}}>{h.title}</b>{h.why?` — ${h.why}`:""}</div>
                       </div>
                     );
                   })}
                 </div>
               )}
-              {airfield.hazards.length > briefTopHazards.length && <div style={{fontSize:10,color:"#556677",marginTop:8}}>See the HAZARDS tab for the full list, including medium/low items.</div>}
+              {airfield.hazards.length > briefTopHazards.length && <div style={{fontSize:10,color:"var(--sr-text-muted-2)",marginTop:8}}>See the HAZARDS tab for the full list, including medium/low items.</div>}
             </div>
 
             {/* AI Summary */}
             {!briefing&&!briefLoad&&<div style={{textAlign:"center",padding:"30px 20px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10}}>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"#334455",marginBottom:6}}>AI SUMMARY</div>
-              <div style={{fontSize:11,color:"#223344",marginBottom:16}}>Generate a plain-language narrative pulling the above together</div>
-              <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.18)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:8,padding:"11px 26px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:"0.1em",fontWeight:"bold"}}>GENERATE AI SUMMARY →</button>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"var(--sr-text-muted-3)",marginBottom:6}}>AI SUMMARY</div>
+              <div style={{fontSize:11,color:"var(--sr-text-muted-3)",marginBottom:16}}>Generate a plain-language narrative pulling the above together</div>
+              <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.18)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:8,padding:"11px 26px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:"0.1em",fontWeight:"bold"}}>GENERATE AI SUMMARY →</button>
             </div>}
-            {briefLoad&&<div style={{textAlign:"center",padding:"30px",background:"rgba(0,20,40,0.6)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:10}}>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"#00B4FF",marginBottom:6}}>Generating summary…</div>
-              <div style={{fontSize:10,color:"#334455"}}>Analysing hazards · live METAR · TAF forecast · airspace</div>
+            {briefLoad&&<div style={{textAlign:"center",padding:"30px",background:"var(--sr-blue-panel)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:10}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--sr-accent)",marginBottom:6}}>Generating summary…</div>
+              <div style={{fontSize:10,color:"var(--sr-text-muted-3)"}}>Analysing hazards · live METAR · TAF forecast · airspace</div>
             </div>}
-            {briefing&&<div style={{background:"rgba(0,15,35,0.8)",border:"1px solid rgba(0,180,255,0.18)",borderRadius:10,padding:"18px"}}>
+            {briefing&&<div style={{background:"var(--sr-blue-panel)",border:"1px solid rgba(0,180,255,0.18)",borderRadius:10,padding:"18px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#00B4FF",letterSpacing:"0.1em",fontWeight:"bold"}}>★ AI SUMMARY</div>
-                <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:5,padding:"5px 12px",color:"#00B4FF",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9}}>↻ REGENERATE</button>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-accent)",letterSpacing:"0.1em",fontWeight:"bold"}}>★ AI SUMMARY</div>
+                <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:5,padding:"5px 12px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9}}>↻ REGENERATE</button>
               </div>
-              <pre style={{fontSize:12,color:"#C0D8F0",lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{briefing}</pre>
-              <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.05)",fontSize:9,color:"#223344",fontFamily:"'DM Mono',monospace"}}>W-A-N-T ABOVE IS BUILT FROM LIVE APP DATA · THIS SUMMARY IS AI-GENERATED · FOR EDUCATIONAL PURPOSES ONLY · NOT A SUBSTITUTE FOR CFI INSTRUCTION</div>
+              <pre style={{fontSize:12,color:"var(--sr-text)",lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{briefing}</pre>
+              <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.05)",fontSize:9,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace"}}>W-A-N-T ABOVE IS BUILT FROM LIVE APP DATA · THIS SUMMARY IS AI-GENERATED · FOR EDUCATIONAL PURPOSES ONLY · NOT A SUBSTITUTE FOR CFI INSTRUCTION</div>
             </div>}
           </div>}
         </div>
       </div>
-    </div>
+    </div>,
+    {showLogout:opsLoggedIn},
   );
 }

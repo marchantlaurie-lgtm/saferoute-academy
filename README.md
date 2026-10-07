@@ -8,6 +8,8 @@ Step 3 of the beta sequence — persistent private demo workspaces — is comple
 
 The Step 3 persistence checklist is maintained in [docs/testing/step-3-persistence-checklist.md](docs/testing/step-3-persistence-checklist.md).
 
+Post-milestone CFI feedback about logout navigation and Light/Dark/System appearance is recorded in [docs/feedback/2026-10-07-cfi-navigation-and-appearance.md](docs/feedback/2026-10-07-cfi-navigation-and-appearance.md).
+
 Step 2 — the interface freeze — remains recorded in [docs/milestones/step-2-interface-freeze.md](docs/milestones/step-2-interface-freeze.md). Its frozen regression suite and issue classification are maintained in:
 
 - [docs/testing/step-2-regression-checklist.md](docs/testing/step-2-regression-checklist.md)
