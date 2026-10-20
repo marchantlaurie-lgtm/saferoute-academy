@@ -20,7 +20,7 @@ PR #1 is merged and its prototype capabilities are present in `main`. Its origin
 | Workspace | Demonstrated capabilities |
 | --- | --- |
 | Club Admin | Club-wide training, fleet and access overview; session-only role and account-status changes; safeguards against removing or suspending the final active admin; locked beta safety policies and recent prototype activity. |
-| CFI / Training | Review pilot currency and checks, record a check/sign-off, and change aircraft-type authorisations. Changes update the shared pilot record used by Pilot / Ops in the same session. |
+| CFI / Training | Review pilot currency and checks through focused status filters, record a check/sign-off, and change aircraft-type authorisations. “Needs Attention” hides fully current records; category filters hide all other statuses; “All” groups the roster in a consistent red, amber, blue and green priority order. Changes update the shared pilot record used by Pilot / Ops in the same session. |
 | Engineering | Review aircraft states, defects, restrictions and maintenance context; change aircraft availability and demonstrate return to service. An open grounding / “do not fly” defect must be closed before a serviceable state can be recorded. Changes update Pilot / Ops in the same session. |
 | Pilot / Ops and PAVE/FRAT | Select a pilot and eligible aircraft, then start an assessment with record-derived context from the shared CFI and Engineering data. |
 
@@ -32,6 +32,8 @@ The Ops/FRAT integration:
 - Prefills record-backed answers for recent flying hours, last-flight recency, training/check status and aircraft defects, with source context and Academy-versus-pilot answer labels.
 - Shows the simulated aircraft's recorded defects and restrictions, plus advisories for approaching checks, pending sign-off and scheduled maintenance due soon. Maintenance due soon does not independently add FRAT points.
 - Leaves sleep, IMSAFE, aircraft familiarity, weather and external pressures for pilot input.
+
+Guide and Display controls are available from every screen. Guide contains the full public-beta instructions plus Quick Starts for Students & Pilots, Club Admin, CFI / Training and Engineering. Display offers System, Light and Dark appearances and saves the selection on the current device.
 
 ## Demo limitations and tester access
 
@@ -47,10 +49,12 @@ Suggested tester focus: Club Admin access controls and authority boundaries; CFI
 
 A fresh functional and data audit was completed on 20 October 2026:
 
-- `npm test` — 28 passing tests; `npm run lint` and `npm run build` successful.
+- `npm test` — 40 passing tests; `npm run lint` and `npm run build` successful.
 - Public tester access verified without username/password prompts for Club Admin, CFI / Training, Engineering and Pilot / Ops.
 - Final-active-admin safeguard verified in Club Admin.
 - CFI sign-off propagation into Pilot / Ops and the Academy-prefilled FRAT verified end to end.
+- CFI roster filters verified: Needs Attention excludes fully current pilots, each category filter hides other categories, and All uses a fixed priority grouping without duplicates.
+- Guide, role Quick Starts, System/Light/Dark Display controls and saved appearance preference verified locally.
 - Engineering grounding-defect protection verified: return to service stays locked until the grounding defect is closed, and Pilot / Ops independently blocks conflicting aircraft records.
 - Ops-launched FRAT now returns to Pilot / Ops, and a visible return control is retained when a tester continues into the main Academy application.
 - Session-relative demo dates replace fixed dates so due-soon and recency labels do not become internally inconsistent.
@@ -65,6 +69,9 @@ The build still reports a non-blocking JavaScript chunk-size warning. These chec
 | `src/App.jsx` | Main application, prototype workspaces, shared session state and FRAT interface. |
 | `src/lib/academy-frat.js` | Academy-derived FRAT answers, context, advisories and eligibility gates. |
 | `src/lib/club-admin.js` | Club role/status updates, last-admin safeguards and overview summaries. |
+| `src/lib/cfi-roster.js` | CFI status filtering, counts and consistent roster grouping. |
+| `src/lib/appearance.js` | System, Light and Dark appearance preference handling. |
+| `src/components/help-guide.jsx`, `src/data/beta-guide-content.js` | Public-beta How To and role Quick Start guides. |
 | `src/lib/` | Supporting weather, airfield, icing and FRAT-control logic. |
 | `src/components/uk-weather-map.jsx` | UK weather-map component. |
 | `src/main.jsx`, `src/*.css`, `src/assets/`, `public/` | Application entry point, styling and assets. |
