@@ -19,7 +19,7 @@ PR #1 is merged and its prototype capabilities are present in `main`. Its origin
 
 | Workspace | Demonstrated capabilities |
 | --- | --- |
-| Club Admin | Club-wide training, fleet and access overview; session-only role and account-status changes; safeguards against removing or suspending the final active admin; locked beta safety policies and recent prototype activity. |
+| Club Admin | A selectable All, Students, Instructors, Staff and Aircraft directory; session-only role and account-status changes; read-only fleet and defect oversight; safeguards against removing or suspending the final active admin; locked beta safety policies and recent prototype activity. |
 | CFI / Training | Review pilot currency and checks through focused status filters, record a check/sign-off, and change aircraft-type authorisations. “Needs Attention” hides fully current records; category filters hide all other statuses; “All” groups the roster in a consistent red, amber, blue and green priority order. Changes update the shared pilot record used by Pilot / Ops in the same session. |
 | Engineering | Review aircraft states, defects, restrictions and maintenance context; change aircraft availability and demonstrate return to service. An open grounding / “do not fly” defect must be closed before a serviceable state can be recorded. Changes update Pilot / Ops in the same session. |
 | Pilot / Ops and PAVE/FRAT | Select a pilot and eligible aircraft, then start an assessment with record-derived context from the shared CFI and Engineering data. |
@@ -49,11 +49,12 @@ Suggested tester focus: Club Admin access controls and authority boundaries; CFI
 
 A fresh functional and data audit was completed on 20 October 2026:
 
-- `npm test` — 40 passing tests; `npm run lint` and `npm run build` successful.
+- `npm test` — 43 passing tests; `npm run lint` and `npm run build` successful.
 - Public tester access verified without username/password prompts for Club Admin, CFI / Training, Engineering and Pilot / Ops.
 - Final-active-admin safeguard verified in Club Admin.
 - CFI sign-off propagation into Pilot / Ops and the Academy-prefilled FRAT verified end to end.
 - CFI roster filters verified: Needs Attention excludes fully current pilots, each category filter hides other categories, and All uses a fixed priority grouping without duplicates.
+- Club Admin directory filters verified: Students, Instructors, Staff and Aircraft hide unrelated records, while All groups the full directory without duplicates.
 - Guide, role Quick Starts, System/Light/Dark Display controls and saved appearance preference verified locally.
 - Engineering grounding-defect protection verified: return to service stays locked until the grounding defect is closed, and Pilot / Ops independently blocks conflicting aircraft records.
 - Ops-launched FRAT now returns to Pilot / Ops, and a visible return control is retained when a tester continues into the main Academy application.

@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   buildClubAdminSummary,
+  getClubAdminDirectoryCounts,
+  getClubAdminUserCategory,
+  groupClubAdminDirectory,
   toggleClubUserRole,
   toggleClubUserStatus,
 } from "../src/lib/club-admin.js";
@@ -57,5 +60,52 @@ test("club summary reports training, fleet and access attention", () => {
     restrictedAircraft: 1,
     unavailableAircraft: 1,
     openDefects: 2,
+  });
+});
+
+test("Club Admin directory separates students, instructors and other staff", () => {
+  const people = [
+    { id: "p1", role: "Student — PPL" },
+    { id: "p2", role: "CFI" },
+  ];
+  const directoryUsers = [
+    { id: "u1", personId: "p1", name: "Student", roles: ["pilot"] },
+    { id: "u2", personId: "p2", name: "Instructor", roles: ["pilot", "cfi", "admin"] },
+    { id: "u3", personId: null, name: "Engineer", roles: ["engineering"] },
+  ];
+
+  assert.equal(getClubAdminUserCategory(directoryUsers[0], people), "students");
+  assert.equal(getClubAdminUserCategory(directoryUsers[1], people), "instructors");
+  assert.equal(getClubAdminUserCategory(directoryUsers[2], people), "staff");
+});
+
+test("Club Admin directory filters hide unrelated records", () => {
+  const people = [{ id: "p1", role: "Student — PPL" }, { id: "p2", role: "CFI" }];
+  const directoryUsers = [
+    { id: "u1", personId: "p1", name: "Student", roles: ["pilot"] },
+    { id: "u2", personId: "p2", name: "Instructor", roles: ["cfi", "admin"] },
+    { id: "u3", personId: null, name: "Engineer", roles: ["engineering"] },
+  ];
+  const aircraft = [{ id: "a1", tail: "N2AA" }, { id: "a2", tail: "N1AA" }];
+
+  assert.deepEqual(groupClubAdminDirectory(directoryUsers, people, aircraft, "students").map(group => group.id), ["students"]);
+  assert.deepEqual(groupClubAdminDirectory(directoryUsers, people, aircraft, "aircraft")[0].items.map(item => item.tail), ["N1AA", "N2AA"]);
+  assert.deepEqual(groupClubAdminDirectory(directoryUsers, people, aircraft, "all").map(group => group.id), ["students", "instructors", "staff", "aircraft"]);
+});
+
+test("Club Admin directory counts support the selectable overview tiles", () => {
+  const people = [{ id: "p1", role: "Student — PPL" }, { id: "p2", role: "CFI" }];
+  const directoryUsers = [
+    { id: "u1", personId: "p1", roles: ["pilot"] },
+    { id: "u2", personId: "p2", roles: ["cfi"] },
+    { id: "u3", personId: null, roles: ["engineering"] },
+  ];
+
+  assert.deepEqual(getClubAdminDirectoryCounts(directoryUsers, people, [{}, {}]), {
+    all: 5,
+    students: 1,
+    instructors: 1,
+    staff: 1,
+    aircraft: 2,
   });
 });

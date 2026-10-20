@@ -184,8 +184,20 @@ code {
   align-items: start;
 }
 
+.admin-directory-layout {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.82fr) minmax(0, 2fr);
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+
 @media (max-width: 760px) {
   .cfi-roster-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-directory-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -25,6 +25,9 @@ import {
 import {
   buildClubAdminSummary,
   CLUB_ACCESS_ROLES,
+  CLUB_ADMIN_DIRECTORY_FILTERS,
+  getClubAdminDirectoryCounts,
+  groupClubAdminDirectory,
   toggleClubUserRole,
   toggleClubUserStatus,
 } from "./lib/club-admin.js";
@@ -1913,11 +1916,17 @@ function DemoWorkspaceHeader({ icon, title, orgName, onBack, accent="var(--sr-ac
 }
 
 function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUsers, adminAudit, setAdminAudit, onBack }) {
-  const [selectedId,setSelectedId] = useState(users[0]?.id || null);
+  const [directoryFilter,setDirectoryFilter] = useState("all");
+  const [selectedId,setSelectedId] = useState(users[0]?`user:${users[0].id}`:(aircraftList[0]?`aircraft:${aircraftList[0].id}`:null));
   const [notice,setNotice] = useState(null);
-  const selectedUser = users.find(user=>user.id===selectedId) || users[0];
+  const directoryGroups=groupClubAdminDirectory(users,people,aircraftList,directoryFilter);
+  const visibleRecords=directoryGroups.flatMap(group=>group.items.map(item=>({kind:group.kind,item})));
+  const selectedRecord=visibleRecords.find(record=>`${record.kind}:${record.item.id}`===selectedId)||visibleRecords[0]||null;
+  const selectedUser = selectedRecord?.kind==="user"?selectedRecord.item:null;
+  const selectedAircraft = selectedRecord?.kind==="aircraft"?selectedRecord.item:null;
   const linkedPilot = people.find(person=>person.id===selectedUser?.personId);
   const summary = buildClubAdminSummary(people,aircraftList,users);
+  const directoryCounts = getClubAdminDirectoryCounts(users,people,aircraftList);
   const roleLabels = Object.fromEntries(CLUB_ACCESS_ROLES.map(role=>[role.id,role.label]));
   const activity = [
     ...adminAudit,
@@ -1928,7 +1937,17 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
     setAdminAudit(previous=>[{time:new Date().toLocaleString("en-GB"),source:"Club Admin",text},...previous]);
   }
 
+  function selectDirectoryFilter(nextFilter) {
+    const nextGroups=groupClubAdminDirectory(users,people,aircraftList,nextFilter);
+    const firstGroup=nextGroups[0];
+    const firstItem=firstGroup?.items[0];
+    setDirectoryFilter(nextFilter);
+    setSelectedId(firstItem?`${firstGroup.kind}:${firstItem.id}`:null);
+    setNotice(null);
+  }
+
   function changeRole(role) {
+    if(!selectedUser) return;
     const result=toggleClubUserRole(users,selectedUser.id,role);
     if(!result.changed) {
       setNotice({tone:"error",text:result.reason});
@@ -1941,6 +1960,7 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
   }
 
   function changeStatus() {
+    if(!selectedUser) return;
     const result=toggleClubUserStatus(users,selectedUser.id);
     if(!result.changed) {
       setNotice({tone:"error",text:result.reason});
@@ -1957,6 +1977,19 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
     due:{label:"DUE SOON",color:"var(--sr-gold)"},
     noncurrent:{label:"ACTION REQUIRED",color:"#FF5B5B"},
   };
+  const directoryMeta={
+    all:{icon:"◉",color:"#A78BFA",background:"rgba(167,139,250,0.13)",border:"rgba(167,139,250,0.45)"},
+    students:{icon:"🎓",color:"var(--sr-accent)",background:"rgba(0,180,255,0.11)",border:"rgba(0,180,255,0.42)"},
+    instructors:{icon:"🧑‍🏫",color:"var(--sr-success)",background:"rgba(0,200,150,0.10)",border:"rgba(0,200,150,0.38)"},
+    staff:{icon:"👥",color:"#A78BFA",background:"rgba(167,139,250,0.13)",border:"rgba(167,139,250,0.45)"},
+    aircraft:{icon:"✈",color:"#FF8C42",background:"rgba(255,140,66,0.11)",border:"rgba(255,140,66,0.42)"},
+  };
+  const aircraftStatusMeta={
+    airworthy:{label:"SERVICEABLE",icon:"🟢",color:"var(--sr-success)"},
+    restricted:{label:"RESTRICTED",icon:"🟡",color:"var(--sr-gold)"},
+    maintenance:{label:"MAINTENANCE",icon:"🟠",color:"#FF8C42"},
+    grounded:{label:"UNAVAILABLE",icon:"🔴",color:"#FF5B5B"},
+  };
 
   return (
     <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
@@ -1965,26 +1998,44 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
         <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated Club Admin data only. Access changes last for this browser session. Club Admin provides oversight and system access; CFI sign-off and Engineering return-to-service authority remain in their specialist workspaces.</div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:10,marginBottom:18}}>
-          {[
-            ["👥","Active users",summary.activeUsers,"#A78BFA"],
-            ["🔴","Pilots requiring action",summary.attentionPilots,"#FF5B5B"],
-            ["🟡","Checks due soon",summary.dueSoonPilots,"var(--sr-gold)"],
-            ["✈","Aircraft available",summary.availableAircraft,"var(--sr-success)"],
-            ["⛔","Aircraft unavailable",summary.unavailableAircraft,"#FF6B6B"],
-            ["🛠","Open defects",summary.openDefects,"var(--sr-accent)"],
-          ].map(([icon,label,value,color])=><div key={label} style={{background:"var(--sr-surface)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"14px"}}><div style={{fontSize:9,color:"var(--sr-text-muted)",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:27,color,fontWeight:700,marginTop:4}}>{value}</div>{label==="Aircraft available"&&summary.restrictedAircraft>0&&<div style={{fontSize:9,color:"var(--sr-gold)",marginTop:2}}>{summary.restrictedAircraft} restricted</div>}</div>)}
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",marginBottom:8}}>FILTER CLUB DIRECTORY</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(135px,1fr))",gap:10,marginBottom:8}} role="group" aria-label="Filter Club Admin directory">
+          {CLUB_ADMIN_DIRECTORY_FILTERS.map(option=>{
+            const meta=directoryMeta[option.id];
+            const active=directoryFilter===option.id;
+            return <button key={option.id} aria-pressed={active} onClick={()=>selectDirectoryFilter(option.id)} style={{textAlign:"left",background:active?meta.background:"var(--sr-surface)",border:`1px solid ${active?meta.border:"var(--sr-border)"}`,borderRadius:10,padding:"13px 14px",cursor:"pointer",boxShadow:active?`inset 0 -3px 0 ${meta.color}`:"none"}}>
+              <div style={{fontSize:9,color:active?meta.color:"var(--sr-text-muted)",fontFamily:"'DM Mono',monospace",fontWeight:active?700:500}}>{meta.icon} {option.label.toUpperCase()}</div>
+              <div style={{fontSize:27,color:active?meta.color:"var(--sr-text-strong)",fontWeight:700,marginTop:4}}>{directoryCounts[option.id]}</div>
+            </button>;
+          })}
         </div>
+        <div style={{fontSize:10,color:"var(--sr-text-muted-2)",lineHeight:1.5,marginBottom:18}}>{directoryFilter==="all"?"Showing students, instructors, staff and aircraft in separate sections.":`Showing only ${CLUB_ADMIN_DIRECTORY_FILTERS.find(option=>option.id===directoryFilter)?.label.toLowerCase()}; all other records are hidden.`}</div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16,alignItems:"start",marginBottom:18}}>
+        <div className="admin-directory-layout">
           <div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"14px"}}>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:10}}>USERS & ACCESS</div>
-            {users.map(user=>{
-              const selected=user.id===selectedId;
-              return <button key={user.id} onClick={()=>{setSelectedId(user.id);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selected?"rgba(167,139,250,0.13)":"var(--sr-surface-soft)",border:`1px solid ${selected?"rgba(167,139,250,0.45)":"var(--sr-border)"}`,borderRadius:8,padding:"10px 11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)",opacity:user.status==="suspended"?0.62:1}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong style={{fontSize:11.5}}>{user.name}</strong><span style={{fontSize:8,color:user.status==="active"?"var(--sr-success)":"#FF7C7C",fontFamily:"'DM Mono',monospace"}}>{user.status.toUpperCase()}</span></div>
-                <div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:4,lineHeight:1.4}}>{user.roles.map(role=>roleLabels[role]).join(" · ") || "No workspace access"}</div>
-              </button>;
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:12}}>FILTERED DIRECTORY · {visibleRecords.length}</div>
+            {directoryGroups.length===0&&<div style={{padding:"22px 10px",textAlign:"center",fontSize:11,color:"var(--sr-text-muted-2)"}}>No records match this filter.</div>}
+            {directoryGroups.map(group=>{
+              const meta=directoryMeta[group.id];
+              return <section key={group.id} style={{marginBottom:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,color:meta.color,fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:"0.08em",padding:"0 2px 6px",marginBottom:7,borderBottom:`1px solid ${meta.border}`}}><span>{meta.icon} {group.label.toUpperCase()}</span><span>{group.items.length}</span></div>
+                {group.items.map(item=>{
+                  const recordId=`${group.kind}:${item.id}`;
+                  const selected=selectedRecord&&`${selectedRecord.kind}:${selectedRecord.item.id}`===recordId;
+                  if(group.kind==="aircraft") {
+                    const aircraftMeta=aircraftStatusMeta[item.status]||aircraftStatusMeta.grounded;
+                    const openDefects=(item.defects||[]).filter(defect=>defect.status!=="Closed").length;
+                    return <button key={recordId} onClick={()=>{setSelectedId(recordId);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selected?meta.background:"var(--sr-surface-soft)",border:`1px solid ${selected?meta.border:"var(--sr-border)"}`,borderRadius:8,padding:"10px 11px",marginBottom:7,cursor:"pointer",color:"var(--sr-text-strong)",boxShadow:selected?`inset 3px 0 0 ${meta.color}`:"none"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong style={{fontSize:11.5}}>{item.tail}</strong><span style={{fontSize:8,color:aircraftMeta.color,fontFamily:"'DM Mono',monospace"}}>{aircraftMeta.icon} {aircraftMeta.label}</span></div>
+                      <div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:4}}>{item.type} · {openDefects} open defect{openDefects===1?"":"s"}</div>
+                    </button>;
+                  }
+                  return <button key={recordId} onClick={()=>{setSelectedId(recordId);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selected?meta.background:"var(--sr-surface-soft)",border:`1px solid ${selected?meta.border:"var(--sr-border)"}`,borderRadius:8,padding:"10px 11px",marginBottom:7,cursor:"pointer",color:"var(--sr-text-strong)",opacity:item.status==="suspended"?0.62:1,boxShadow:selected?`inset 3px 0 0 ${meta.color}`:"none"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong style={{fontSize:11.5}}>{item.name}</strong><span style={{fontSize:8,color:item.status==="active"?"var(--sr-success)":"#FF7C7C",fontFamily:"'DM Mono',monospace"}}>{item.status.toUpperCase()}</span></div>
+                    <div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:4,lineHeight:1.4}}>{item.roles.map(role=>roleLabels[role]).join(" · ") || "No workspace access"}</div>
+                  </button>;
+                })}
+              </section>;
             })}
           </div>
 
@@ -2007,9 +2058,35 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
             <div style={{fontSize:9.5,color:"var(--sr-text-muted)",lineHeight:1.55,marginTop:10}}>These controls manage access only. They do not change pilot currency, aircraft authorisations, defect status or airworthiness.</div>
             {notice&&<div style={{marginTop:12,background:notice.tone==="error"?"rgba(255,91,91,0.1)":"rgba(0,200,150,0.08)",border:`1px solid ${notice.tone==="error"?"rgba(255,91,91,0.35)":"rgba(0,200,150,0.28)"}`,borderRadius:7,padding:"9px 10px",fontSize:10,color:notice.tone==="error"?"var(--sr-danger-text)":"#7CE0C0"}}>{notice.text}</div>}
           </div>}
+
+          {selectedAircraft&&<div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
+              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.08em",color:"var(--sr-text-strong)"}}>{selectedAircraft.tail}</div><div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:2}}>{selectedAircraft.type} · {selectedAircraft.airframeHours?.toLocaleString()} airframe hrs</div></div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:(aircraftStatusMeta[selectedAircraft.status]||aircraftStatusMeta.grounded).color,border:`1px solid ${alphaColor((aircraftStatusMeta[selectedAircraft.status]||aircraftStatusMeta.grounded).color,35)}`,borderRadius:7,padding:"8px 10px"}}>{(aircraftStatusMeta[selectedAircraft.status]||aircraftStatusMeta.grounded).icon} {(aircraftStatusMeta[selectedAircraft.status]||aircraftStatusMeta.grounded).label}</div>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginTop:16}}>
+              {[
+                ["AVAILABLE",summary.availableAircraft,"var(--sr-success)"],
+                ["RESTRICTED",summary.restrictedAircraft,"var(--sr-gold)"],
+                ["UNAVAILABLE",summary.unavailableAircraft,"#FF5B5B"],
+                ["OPEN DEFECTS",summary.openDefects,"var(--sr-accent)"],
+              ].map(([label,value,color])=><div key={label} style={{background:"var(--sr-surface)",border:"1px solid var(--sr-border)",borderRadius:8,padding:"10px"}}><div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>{label}</div><div style={{fontSize:20,color,fontWeight:700,marginTop:3}}>{value}</div></div>)}
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:8,marginTop:14}}>
+              {[["NEXT SCHEDULED MAINT.",`${selectedAircraft.nextMaintenanceHours} hrs`],["ANNUAL / INSPECTION DUE",selectedAircraft.annualDue],["LAST 100-HOUR",selectedAircraft.last100]].map(([label,value])=><div key={label} style={{background:"rgba(0,180,255,0.055)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"10px"}}><div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>{label}</div><div style={{fontSize:12,color:"var(--sr-text-strong)",marginTop:4}}>{value}</div></div>)}
+            </div>
+
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#FF8C42",letterSpacing:"0.1em",margin:"20px 0 8px"}}>DEFECTS / RESTRICTIONS</div>
+            {(selectedAircraft.defects||[]).filter(defect=>defect.status!=="Closed").length===0?<div style={{fontSize:10,color:"var(--sr-success)",padding:"10px 0"}}>✓ No open defects recorded in this fictional record.</div>:(selectedAircraft.defects||[]).filter(defect=>defect.status!=="Closed").map(defect=><div key={defect.id} style={{background:"rgba(255,140,66,0.08)",border:"1px solid rgba(255,140,66,0.26)",borderRadius:8,padding:"10px 11px",marginBottom:7}}><div style={{fontSize:10.5,color:"var(--sr-text-strong)",fontWeight:700}}>{defect.id} · {defect.text}</div><div style={{fontSize:9,color:"#FFB078",marginTop:4}}>{defect.status} · {defect.restriction}</div></div>)}
+            <div style={{marginTop:14,padding:"10px 11px",background:"rgba(255,180,0,0.07)",border:"1px solid rgba(255,180,0,0.25)",borderRadius:8,fontSize:9.5,color:"var(--sr-gold)",lineHeight:1.55}}>Club Admin is read-only for aircraft status. Defect closure and return-to-service actions remain in Engineering.</div>
+          </div>}
+
+          {!selectedRecord&&<div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"42px 18px",textAlign:"center",color:"var(--sr-text-muted-2)",fontSize:11}}>No records match this filter.</div>}
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16}}>
+        {directoryFilter==="all"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16}}>
           <div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"15px"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:11}}>ORGANISATION / TEST SETTINGS</div>
             {[
@@ -2028,7 +2105,7 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
             {activity.map((event,index)=><div key={`${event.time}-${index}`} style={{padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)"}}><div style={{display:"flex",justifyContent:"space-between",gap:8,fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted-2)"}}><span>{event.source}</span><span>{event.time}</span></div><div style={{fontSize:10.5,color:"var(--sr-text-subtle)",marginTop:4,lineHeight:1.45}}>{event.text}</div></div>)}
             <div style={{fontSize:9.5,color:"var(--sr-text-muted-2)",lineHeight:1.55,marginTop:11}}>Read-only oversight view. A production beta would use immutable, identity-linked audit records.</div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
