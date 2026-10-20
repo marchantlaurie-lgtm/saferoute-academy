@@ -6,6 +6,7 @@ SafeRoute Academy is a React + Vite aviation safety and training prototype for e
 
 ## Project links
 
+- [Public tester app](https://www.saferouteacademy.app/)
 - [Public repository and current main branch](https://github.com/marchantlaurie-lgtm/saferoute-academy)
 - [Merged PR #1 — Academy Ops prototype: Admin, CFI, Engineering and FRAT integration](https://github.com/marchantlaurie-lgtm/saferoute-academy/pull/1)
 - [Vercel branch preview](https://saferoute-academy-git-academy-engineering-cfi-4aa47c-saferoute1.vercel.app)
@@ -20,14 +21,14 @@ PR #1 is merged and its prototype capabilities are present in `main`. Its origin
 | --- | --- |
 | Club Admin | Club-wide training, fleet and access overview; session-only role and account-status changes; safeguards against removing or suspending the final active admin; locked beta safety policies and recent prototype activity. |
 | CFI / Training | Review pilot currency and checks, record a check/sign-off, and change aircraft-type authorisations. Changes update the shared pilot record used by Pilot / Ops in the same session. |
-| Engineering | Review aircraft states, defects, restrictions and maintenance context; change aircraft availability and demonstrate return to service. Changes update Pilot / Ops in the same session. |
+| Engineering | Review aircraft states, defects, restrictions and maintenance context; change aircraft availability and demonstrate return to service. An open grounding / “do not fly” defect must be closed before a serviceable state can be recorded. Changes update Pilot / Ops in the same session. |
 | Pilot / Ops and PAVE/FRAT | Select a pilot and eligible aircraft, then start an assessment with record-derived context from the shared CFI and Engineering data. |
 
 CFI sign-off and Engineering return-to-service authority remain in their specialist workspaces. Club Admin provides oversight and system access; it does not replace those specialist actions.
 
 The Ops/FRAT integration:
 
-- Blocks grounded or in-maintenance aircraft, missing aircraft-type authorisation and non-current training records, rather than treating these prohibitions as ordinary score increases.
+- Blocks grounded or in-maintenance aircraft, any open grounding / “do not fly” defect, missing aircraft-type authorisation and non-current training records, rather than treating these prohibitions as ordinary score increases.
 - Prefills record-backed answers for recent flying hours, last-flight recency, training/check status and aircraft defects, with source context and Academy-versus-pilot answer labels.
 - Shows the simulated aircraft's recorded defects and restrictions, plus advisories for approaching checks, pending sign-off and scheduled maintenance due soon. Maintenance due soon does not independently add FRAT points.
 - Leaves sleep, IMSAFE, aircraft familiarity, weather and external pressures for pilot input.
@@ -38,21 +39,24 @@ The flight-school/club login is a workspace selector demonstrating a planned int
 
 The prototype's selection gates, role controls, sign-offs and return-to-service actions demonstrate workflow behaviour; they do not establish real-world permissions, pilot eligibility or aircraft airworthiness.
 
-**The branch preview currently requires Vercel team sign-in.** PR #1 records that Vercel Authentication protects the deployed preview. Before external feedback sessions, the project owner must add named testers or disable preview protection for the branch. A public GitHub repository and a successful Vercel deployment do not make this preview anonymously accessible.
+**External testers should use [www.saferouteacademy.app](https://www.saferouteacademy.app/).** The workspace selector, Club Admin, CFI / Training, Engineering and Pilot / Ops demo are publicly accessible there without a username or password. This was rechecked on 20 October 2026. The separate Vercel branch-preview URL may still require Vercel team sign-in and is not the recommended tester route.
 
 Suggested tester focus: Club Admin access controls and authority boundaries; CFI currency, sign-off and authorisation changes; Engineering states, defects and restrictions; propagation into Ops/FRAT; and the clarity of red blockers, amber advisories and pilot-entered fields.
 
 ## Verification state
 
-[Merged PR #1](https://github.com/marchantlaurie-lgtm/saferoute-academy/pull/1) records:
+A fresh functional and data audit was completed on 20 October 2026:
 
-- `npm test` — 25 passing tests.
-- Successful `npm run lint` and `npm run build`.
-- Rendered workflow checks for Admin access changes and last-admin safeguards.
-- End-to-end verification of CFI and Engineering session changes in Ops/FRAT.
-- A successful Vercel branch deployment; the Vercel bot also reports the deployment as Ready.
+- `npm test` — 28 passing tests; `npm run lint` and `npm run build` successful.
+- Public tester access verified without username/password prompts for Club Admin, CFI / Training, Engineering and Pilot / Ops.
+- Final-active-admin safeguard verified in Club Admin.
+- CFI sign-off propagation into Pilot / Ops and the Academy-prefilled FRAT verified end to end.
+- Engineering grounding-defect protection verified: return to service stays locked until the grounding defect is closed, and Pilot / Ops independently blocks conflicting aircraft records.
+- Ops-launched FRAT now returns to Pilot / Ops, and a visible return control is retained when a tester continues into the main Academy application.
+- Session-relative demo dates replace fixed dates so due-soon and recency labels do not become internally inconsistent.
+- Mobile header and weather-map/sidebar layering checked at a 375-pixel viewport.
 
-These are the checks recorded for that prototype change, not a claim of a fresh verification run, completed external tester review or production readiness. The preview-access constraint remains separate from deployment success.
+The build still reports a non-blocking JavaScript chunk-size warning. These checks validate the current prototype workflows; they are not a production-airworthiness, regulatory-compliance or security certification.
 
 ## Repository structure
 

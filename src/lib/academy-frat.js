@@ -1,4 +1,5 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const MONTH_INDEX = {
   jan: 0,
@@ -53,6 +54,18 @@ export function daysSinceAcademyDate(value, asOf = new Date()) {
   return Math.max(0, Math.floor((assessmentDate.getTime() - recordDate.getTime()) / DAY_MS));
 }
 
+export function formatAcademyDate(value) {
+  const date = parseAcademyDate(value);
+  if (!date) return null;
+  return `${String(date.getUTCDate()).padStart(2, "0")} ${MONTH_LABELS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
+export function academyDateOffset(days, asOf = new Date()) {
+  const date = parseAcademyDate(asOf);
+  if (!date || !Number.isFinite(days)) return null;
+  return formatAcademyDate(new Date(date.getTime() + days * DAY_MS));
+}
+
 export function hrs90ToFratPoints(hours) {
   if (hours > 20) return 0;
   if (hours >= 10) return 1;
@@ -79,6 +92,15 @@ export function trainingStatusToFratPoints(person, asOf = new Date()) {
 
 export function getOpenAircraftDefects(aircraft) {
   return (aircraft?.defects || []).filter(defect => defect.status !== "Closed");
+}
+
+export function hasGroundingDefect(aircraft) {
+  const context = [
+    aircraft?.squawk,
+    ...getOpenAircraftDefects(aircraft).flatMap(defect => [defect.text, defect.restriction]),
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  return /grounded|do not fly|unserviceable|affects safety/.test(context);
 }
 
 export function aircraftDefectToFratPoints(aircraft) {
@@ -118,6 +140,12 @@ export function evaluateFratEligibility(person, aircraft) {
       code: "aircraft_unavailable",
       title: `${aircraft.tail} is ${state}`,
       detail: "Engineering must return the aircraft to service before it can be used for a FRAT.",
+    });
+  } else if (hasGroundingDefect(aircraft)) {
+    blockers.push({
+      code: "aircraft_grounding_defect",
+      title: `${aircraft.tail} has an open grounding defect`,
+      detail: "Engineering must close the grounding defect before the aircraft can be returned to service or used for a FRAT.",
     });
   }
 

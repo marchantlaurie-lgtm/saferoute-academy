@@ -15,7 +15,13 @@ import {
   hasVisibleMoistureSignal,
   isNegativeIcingIntensity,
 } from "./lib/icing.js";
-import { buildOpsFratSeed, evaluateFratEligibility } from "./lib/academy-frat.js";
+import {
+  academyDateOffset,
+  buildOpsFratSeed,
+  evaluateFratEligibility,
+  formatAcademyDate,
+  hasGroundingDefect,
+} from "./lib/academy-frat.js";
 import {
   buildClubAdminSummary,
   CLUB_ACCESS_ROLES,
@@ -1649,17 +1655,17 @@ function HazardCard({ h, expanded, onToggle }) {
 // appears — never presented as if it were a real live feed.
 
 const MOCK_OPS_PEOPLE = [
-  { id:"p1", name:"Jordan Reyes", role:"Student — PPL", hrs90:14.2, currency:"Medical current (Class 3, exp. 8mo)", medical:"Current — 8 months remaining", lastFlight:"28 Sep 2026", clubCurrency:"Current", nextCheck:"18 Nov 2026", trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 152"], lastCheck:"18 May 2026" },
-  { id:"p2", name:"Alicia Chen", role:"Student — Instrument", hrs90:6.5, currency:"Medical current (Class 3, exp. 5mo)", medical:"Current — 5 months remaining", lastFlight:"22 Sep 2026", clubCurrency:"Expires in 12 days", nextCheck:"18 Oct 2026", trainingStatus:"due", pendingSignoff:true, aircraftAuth:["Cessna 172N"], lastCheck:"18 Apr 2026" },
-  { id:"p3", name:"Marcus Webb", role:"CFI", hrs90:42.0, currency:"Flight review & medical current", medical:"Current", lastFlight:"05 Oct 2026", clubCurrency:"Current", nextCheck:"12 Feb 2027", trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 172N","Piper PA-28-181","Cessna 152"], lastCheck:"12 Aug 2026" },
-  { id:"p4", name:"Sarah Kim", role:"Student — Solo", hrs90:3.1, currency:"Medical current (Class 3, exp. 11mo)", medical:"Current — 11 months remaining", lastFlight:"31 Aug 2026", clubCurrency:"Expired — checkout required", nextCheck:"OVERDUE", trainingStatus:"noncurrent", pendingSignoff:false, aircraftAuth:["Cessna 152"], lastCheck:"14 Mar 2026" },
+  { id:"p1", name:"Jordan Reyes", role:"Student — PPL", hrs90:14.2, currency:"Medical current (Class 3, exp. 8mo)", medical:"Current — 8 months remaining", lastFlight:academyDateOffset(-8), clubCurrency:"Current", nextCheck:academyDateOffset(29), trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 152"], lastCheck:academyDateOffset(-155) },
+  { id:"p2", name:"Alicia Chen", role:"Student — Instrument", hrs90:6.5, currency:"Medical current (Class 3, exp. 5mo)", medical:"Current — 5 months remaining", lastFlight:academyDateOffset(-14), clubCurrency:"Expires in 12 days", nextCheck:academyDateOffset(12), trainingStatus:"due", pendingSignoff:true, aircraftAuth:["Cessna 172N"], lastCheck:academyDateOffset(-185) },
+  { id:"p3", name:"Marcus Webb", role:"CFI", hrs90:42.0, currency:"Flight review & medical current", medical:"Current", lastFlight:academyDateOffset(-1), clubCurrency:"Current", nextCheck:academyDateOffset(115), trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 172N","Piper PA-28-181","Cessna 152"], lastCheck:academyDateOffset(-69) },
+  { id:"p4", name:"Sarah Kim", role:"Student — Solo", hrs90:3.1, currency:"Medical current (Class 3, exp. 11mo)", medical:"Current — 11 months remaining", lastFlight:academyDateOffset(-50), clubCurrency:"Expired — checkout required", nextCheck:"OVERDUE", trainingStatus:"noncurrent", pendingSignoff:false, aircraftAuth:["Cessna 152"], lastCheck:academyDateOffset(-220) },
 ];
 
 const MOCK_OPS_AIRCRAFT = [
-  { id:"a1", tail:"N172SR", type:"Cessna 172S", status:"airworthy", squawk:null, last100:"12 days ago", airframeHours:4218.6, nextMaintenanceHours:37.2, annualDue:"14 Jan 2027", defects:[], maintenanceHistory:["100-hour inspection completed 24 Sep 2026","Oil & filter change 24 Sep 2026"], audit:[{time:"24 Sep 2026 15:20",text:"Returned to service after 100-hour inspection"}] },
-  { id:"a2", tail:"N44TR", type:"Cessna 172N", status:"restricted", squawk:"Right nav light intermittent — deferred (minor)", last100:"45 days ago", airframeHours:3184.7, nextMaintenanceHours:8.4, annualDue:"02 Dec 2026", defects:[{id:"DEF-0047",text:"Right nav light intermittent",status:"Deferred",restriction:"Day VFR only"}], maintenanceHistory:["50-hour inspection completed 22 Aug 2026"], audit:[{time:"04 Oct 2026 09:15",text:"DEF-0047 assessed — aircraft restricted to Day VFR"}] },
-  { id:"a3", tail:"N9DA", type:"Piper PA-28-181", status:"grounded", squawk:"Engine oil analysis pending — DO NOT FLY", last100:"6 days ago", airframeHours:5520.1, nextMaintenanceHours:94.0, annualDue:"21 Mar 2027", defects:[{id:"DEF-0051",text:"Engine oil analysis pending",status:"Work in progress",restriction:"Aircraft grounded"}], maintenanceHistory:["100-hour inspection completed 30 Sep 2026"], audit:[{time:"05 Oct 2026 17:42",text:"Aircraft grounded pending engine oil analysis"}] },
-  { id:"a4", tail:"N721CT", type:"Cessna 152", status:"airworthy", squawk:null, last100:"3 days ago", airframeHours:7642.3, nextMaintenanceHours:47.8, annualDue:"08 Feb 2027", defects:[], maintenanceHistory:["50-hour inspection completed 03 Oct 2026"], audit:[{time:"03 Oct 2026 11:10",text:"50-hour inspection completed — returned to service"}] },
+  { id:"a1", tail:"N172SR", type:"Cessna 172S", status:"airworthy", squawk:null, last100:"12 days ago", airframeHours:4218.6, nextMaintenanceHours:37.2, annualDue:academyDateOffset(86), defects:[], maintenanceHistory:[`100-hour inspection completed ${academyDateOffset(-12)}`,`Oil & filter change ${academyDateOffset(-12)}`], audit:[{time:`${academyDateOffset(-12)} 15:20`,text:"Returned to service after 100-hour inspection"}] },
+  { id:"a2", tail:"N44TR", type:"Cessna 172N", status:"restricted", squawk:"Right nav light intermittent — deferred (minor)", last100:"45 days ago", airframeHours:3184.7, nextMaintenanceHours:8.4, annualDue:academyDateOffset(43), defects:[{id:"DEF-0047",text:"Right nav light intermittent",status:"Deferred",restriction:"Day VFR only"}], maintenanceHistory:[`50-hour inspection completed ${academyDateOffset(-45)}`], audit:[{time:`${academyDateOffset(-2)} 09:15`,text:"DEF-0047 assessed — aircraft restricted to Day VFR"}] },
+  { id:"a3", tail:"N9DA", type:"Piper PA-28-181", status:"grounded", squawk:"Engine oil analysis pending — DO NOT FLY", last100:"6 days ago", airframeHours:5520.1, nextMaintenanceHours:94.0, annualDue:academyDateOffset(152), defects:[{id:"DEF-0051",text:"Engine oil analysis pending",status:"Work in progress",restriction:"Aircraft grounded"}], maintenanceHistory:[`100-hour inspection completed ${academyDateOffset(-6)}`], audit:[{time:`${academyDateOffset(-1)} 17:42`,text:"Aircraft grounded pending engine oil analysis"}] },
+  { id:"a4", tail:"N721CT", type:"Cessna 152", status:"airworthy", squawk:null, last100:"3 days ago", airframeHours:7642.3, nextMaintenanceHours:47.8, annualDue:academyDateOffset(111), defects:[], maintenanceHistory:[`50-hour inspection completed ${academyDateOffset(-3)}`], audit:[{time:`${academyDateOffset(-3)} 11:10`,text:"50-hour inspection completed — returned to service"}] },
 ];
 
 const MOCK_CLUB_USERS = [
@@ -1671,8 +1677,8 @@ const MOCK_CLUB_USERS = [
 ];
 
 const MOCK_ADMIN_AUDIT = [
-  { time:"06 Oct 2026 09:00", source:"Club Admin", text:"Functional beta access review opened" },
-  { time:"05 Oct 2026 17:45", source:"Club Admin", text:"Prototype safety policies confirmed as enforced" },
+  { time:`${academyDateOffset(0)} 09:00`, source:"Club Admin", text:"Functional beta access review opened" },
+  { time:`${academyDateOffset(-1)} 17:45`, source:"Club Admin", text:"Prototype safety policies confirmed as enforced" },
 ];
 
 function AccountTypeScreen({ onSelect }) {
@@ -1742,11 +1748,12 @@ function OpsPersonCard({ person, selected, onSelect }) {
 }
 
 function OpsAircraftCard({ ac, person, selected, onSelect }) {
-  const unavailable = ac.status === "grounded" || ac.status === "maintenance";
+  const groundingDefect = hasGroundingDefect(ac);
+  const unavailable = ac.status === "grounded" || ac.status === "maintenance" || groundingDefect;
   const unauthorised = !!person && !(person.aircraftAuth || []).includes(ac.type);
   const disabled = unavailable || unauthorised;
   const restricted = ac.status === "restricted";
-  const stateText = unavailable ? (ac.status==="maintenance"?"MAINTENANCE":"GROUNDED") : restricted ? "RESTRICTED" : "SERVICEABLE";
+  const stateText = groundingDefect ? "GROUNDING DEFECT" : unavailable ? (ac.status==="maintenance"?"MAINTENANCE":"GROUNDED") : restricted ? "RESTRICTED" : "SERVICEABLE";
   const stateColor = unavailable || unauthorised ? "#FF6B6B" : restricted || ac.squawk ? "#FFD700" : "#00C896";
   return (
     <button disabled={disabled} onClick={()=>!disabled && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:disabled?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.03)",border:`1px solid ${disabled?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"11px 14px",cursor:disabled?"not-allowed":"pointer",marginBottom:8,opacity:disabled?0.75:1}}>
@@ -1940,7 +1947,9 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
 function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, onBack }) {
   const [selectedId,setSelectedId] = useState(aircraftList[0]?.id || null);
   const [newDefect,setNewDefect] = useState("");
+  const [notice,setNotice] = useState(null);
   const aircraft = aircraftList.find(a=>a.id===selectedId) || aircraftList[0];
+  const releaseBlocked = hasGroundingDefect(aircraft);
 
   function mutateAircraft(fn, auditText) {
     setAircraftList(prev=>prev.map(ac=>{
@@ -1951,8 +1960,13 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
   }
 
   function changeState(status) {
+    if ((status === "airworthy" || status === "restricted") && hasGroundingDefect(aircraft)) {
+      setNotice({tone:"error",text:`${aircraft.tail} still has an open grounding defect. Close it before recording a serviceable state.`});
+      return;
+    }
     const labels={airworthy:"SERVICEABLE",restricted:"RESTRICTED",maintenance:"MAINTENANCE",grounded:"UNSERVICEABLE"};
     mutateAircraft(ac=>({...ac,status}),`Aircraft state changed to ${labels[status]}`);
+    setNotice({tone:"success",text:`${aircraft.tail} state updated to ${labels[status]}.`});
   }
 
   function addDefect() {
@@ -1963,6 +1977,7 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
       return {...ac,defects,squawk:ac.squawk||text};
     },`New defect reported: ${text}`);
     setNewDefect("");
+    setNotice({tone:"success",text:`Defect recorded against ${aircraft.tail}.`});
   }
 
   function closeDefect(id) {
@@ -1971,10 +1986,12 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
       const open=defects.find(d=>d.status!=="Closed");
       return {...ac,defects,squawk:open?.text||null};
     },`${id} closed after engineering action`);
+    setNotice({tone:"success",text:`${id} closed. Reassess the aircraft state before returning it to service.`});
   }
 
   function recordInspection() {
     mutateAircraft(ac=>({...ac,last100:"Today",nextMaintenanceHours:100,maintenanceHistory:[`100-hour inspection completed ${new Date().toLocaleDateString("en-GB")}`,...(ac.maintenanceHistory||[])]}),"100-hour inspection recorded complete");
+    setNotice({tone:"success",text:`100-hour inspection recorded for ${aircraft.tail}.`});
   }
 
   const counts={
@@ -2009,7 +2026,7 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#FF8C42",letterSpacing:"0.1em",marginBottom:10}}>FLEET</div>
             {aircraftList.map(ac=>{
               const meta=stateMeta[ac.status]||stateMeta.airworthy;
-              return <button key={ac.id} onClick={()=>setSelectedId(ac.id)} style={{width:"100%",textAlign:"left",background:selectedId===ac.id?"rgba(255,140,66,0.12)":"rgba(255,255,255,0.025)",border:`1px solid ${selectedId===ac.id?"rgba(255,140,66,0.42)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF"}}>
+              return <button key={ac.id} onClick={()=>{setSelectedId(ac.id);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selectedId===ac.id?"rgba(255,140,66,0.12)":"rgba(255,255,255,0.025)",border:`1px solid ${selectedId===ac.id?"rgba(255,140,66,0.42)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"#FFFFFF"}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:8}}><strong>{ac.tail}</strong><span style={{color:meta.color,fontSize:10}}>{meta.icon} {meta.label}</span></div>
                 <div style={{fontSize:10,color:"#778899",marginTop:3}}>{ac.type} · {ac.nextMaintenanceHours} hrs to maint.</div>
               </button>;
@@ -2023,8 +2040,13 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
 
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#667788",letterSpacing:"0.1em",margin:"22px 0 8px"}}>UPDATE AIRCRAFT STATE</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
-              {[["airworthy","🟢 SERVICEABLE"],["restricted","🟡 RESTRICTED"],["maintenance","🟠 MAINTENANCE"],["grounded","🔴 UNSERVICEABLE"]].map(([id,label])=><button key={id} onClick={()=>changeState(id)} style={{background:aircraft.status===id?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.04)",border:`1px solid ${aircraft.status===id?"rgba(0,180,255,0.45)":"rgba(255,255,255,0.1)"}`,borderRadius:6,padding:"8px 10px",color:"#D0DCE8",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>{label}</button>)}
+              {[["airworthy","🟢 SERVICEABLE"],["restricted","🟡 RESTRICTED"],["maintenance","🟠 MAINTENANCE"],["grounded","🔴 UNSERVICEABLE"]].map(([id,label])=>{
+                const blocked=releaseBlocked&&(id==="airworthy"||id==="restricted");
+                return <button key={id} disabled={blocked} onClick={()=>changeState(id)} title={blocked?"Close the grounding defect before selecting a serviceable state":undefined} style={{background:aircraft.status===id?"rgba(0,180,255,0.14)":"rgba(255,255,255,0.04)",border:`1px solid ${aircraft.status===id?"rgba(0,180,255,0.45)":"rgba(255,255,255,0.1)"}`,borderRadius:6,padding:"8px 10px",color:blocked?"#556677":"#D0DCE8",cursor:blocked?"not-allowed":"pointer",fontSize:10,fontFamily:"'DM Mono',monospace",opacity:blocked?0.6:1}}>{label}</button>;
+              })}
             </div>
+            {releaseBlocked&&<div style={{marginTop:10,background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.38)",borderRadius:7,padding:"9px 10px",fontSize:10,color:"#FF9A9A",lineHeight:1.5}}>🔒 Return to service is blocked while an open defect contains a grounding or “do not fly” restriction.</div>}
+            {notice&&<div style={{marginTop:10,background:notice.tone==="error"?"rgba(255,91,91,0.1)":"rgba(0,200,150,0.08)",border:`1px solid ${notice.tone==="error"?"rgba(255,91,91,0.35)":"rgba(0,200,150,0.28)"}`,borderRadius:7,padding:"9px 10px",fontSize:10,color:notice.tone==="error"?"#FF9A9A":"#7CE0C0"}}>{notice.text}</div>}
 
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:9,marginTop:18}}>
               <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"#667788"}}>NEXT SCHEDULED MAINT.</div><div style={{fontSize:18,color:aircraft.nextMaintenanceHours<10?"#FFD700":"#FFFFFF",marginTop:3}}>{aircraft.nextMaintenanceHours} hrs</div></div>
@@ -2046,7 +2068,7 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
 
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:18}}>
               <button onClick={recordInspection} style={{background:"rgba(0,180,255,0.12)",border:"1px solid rgba(0,180,255,0.35)",color:"#00B4FF",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RECORD 100-HOUR COMPLETE</button>
-              <button onClick={()=>changeState("airworthy")} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"#00C896",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RETURN TO SERVICE</button>
+              <button disabled={releaseBlocked} onClick={()=>changeState("airworthy")} title={releaseBlocked?"Close the grounding defect before returning this aircraft to service":undefined} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:releaseBlocked?"#556677":"#00C896",borderRadius:7,padding:"9px 11px",cursor:releaseBlocked?"not-allowed":"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,opacity:releaseBlocked?0.6:1}}>RETURN TO SERVICE</button>
             </div>
 
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#667788",letterSpacing:"0.1em",margin:"22px 0 8px"}}>AUDIT TRAIL</div>
@@ -2077,7 +2099,7 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }
     setPeople(prev=>prev.map(p=>p.id===selectedId?{...p,...patch}:p));
   }
   function completeCheck(){
-    updatePerson({trainingStatus:"current",pendingSignoff:false,clubCurrency:"Current",lastCheck:new Date().toLocaleDateString("en-GB"),nextCheck:"06 Apr 2027"});
+    updatePerson({trainingStatus:"current",pendingSignoff:false,clubCurrency:"Current",lastCheck:formatAcademyDate(new Date()),nextCheck:academyDateOffset(180)});
   }
   function toggleAuth(type){
     const has=(person.aircraftAuth||[]).includes(type);
@@ -2160,7 +2182,7 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }
   );
 }
 
-function WelcomeScreen({ onSelect }) {
+function WelcomeScreen({ onSelect, onReturnToOps }) {
   const count = region => Object.values(AIRFIELDS).filter(airfield => airfield.region === region).length;
   const options = [
     { id:"florida", label:"FLORIDA", icon:"🌴", desc:`${count("florida")} training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay.` },
@@ -2191,6 +2213,7 @@ function WelcomeScreen({ onSelect }) {
         ))}
       </div>
       <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"#334455",marginTop:36,letterSpacing:"0.1em"}}>YOU CAN SWITCH LOCATIONS ANY TIME FROM THE APP</div>
+      {onReturnToOps&&<button onClick={onReturnToOps} style={{marginTop:16,background:"rgba(255,180,0,0.1)",border:"1px solid rgba(255,180,0,0.35)",borderRadius:7,padding:"9px 13px",color:"#FFD700",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>← RETURN TO PILOT / OPS</button>}
     </div>
   );
 }
@@ -3107,12 +3130,19 @@ export default function App() {
       setFratInitialAnswers(null); setFratControls({}); setFratResidualAnswers({}); setFratReviewComplete(false);
       setShowOpsDashboard(false);setShowWelcome(false);setShowFRAT(true);
     }}
-    onContinueToApp={()=>setShowOpsDashboard(false)}
+    onContinueToApp={()=>{setShowOpsDashboard(false);setShowWelcome(false);}}
     onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}} />;
-  if (showWelcome) return <WelcomeScreen onSelect={chooseRegion}/>;
+  if (showWelcome) return <WelcomeScreen
+    onSelect={chooseRegion}
+    onReturnToOps={accountType==="flightschool"&&opsLoggedIn&&opsWorkspace==="ops"?()=>{setShowWelcome(false);setShowOpsDashboard(true);}:null}
+  />;
   if (showE6B) return <E6BScreen onClose={()=>{setShowE6B(false);setMenuOpen(false);}}/>;
   if (showFRAT) return <FRATScreen
-    onClose={()=>{setShowFRAT(false);setOpsPrefill(null);setMenuOpen(false);}}
+    onClose={()=>{
+      const launchedFromOps=!!opsPrefill&&accountType==="flightschool"&&opsLoggedIn&&opsWorkspace==="ops";
+      setShowFRAT(false);setOpsPrefill(null);setMenuOpen(false);
+      if(launchedFromOps) setShowOpsDashboard(true);
+    }}
     opsPrefill={opsPrefill}
     answers={fratAnswers} setAnswers={setFratAnswers}
     prefillKeys={fratPrefillKeys} setPrefillKeys={setFratPrefillKeys}
@@ -3125,21 +3155,22 @@ export default function App() {
   return (
     <div style={{minHeight:"100vh",background:"#050D18",fontFamily:"'Inter',sans-serif",color:"#D0DCE8",display:"flex",flexDirection:"column"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:#08121E;}::-webkit-scrollbar-thumb{background:#1A3050;border-radius:2px;}input[type=range]{-webkit-appearance:none;height:5px;border-radius:3px;background:rgba(255,255,255,0.12);}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#00B4FF;cursor:pointer;border:2px solid #050D18;}button{touch-action:manipulation;}`}</style>
-      <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:`0 ${isMobile?12:20}px`,display:"flex",alignItems:"center",gap:10,height:56,backdropFilter:"blur(12px)",position:"sticky",top:0,zIndex:100,flexShrink:0}}>
-        {!isDesktop&&<button onClick={()=>setMenuOpen(o=>!o)} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 10px",color:"#8899AA",cursor:"pointer",fontSize:14}}>☰</button>}
-        <div style={{display:"flex",alignItems:"center",gap:9}}>
-          <div style={{width:28,height:28,background:"linear-gradient(135deg,#0055DD,#00B4FF)",borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>✈</div>
+      <div style={{background:"rgba(3,10,22,0.97)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:`0 ${isMobile?8:20}px`,display:"flex",alignItems:"center",gap:isMobile?6:10,height:56,backdropFilter:"blur(12px)",position:"sticky",top:0,zIndex:100,flexShrink:0}}>
+        {!isDesktop&&<button aria-label="Open navigation menu" onClick={()=>setMenuOpen(o=>!o)} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 9px",color:"#8899AA",cursor:"pointer",fontSize:14,flexShrink:0}}>☰</button>}
+        <div style={{display:"flex",alignItems:"center",gap:isMobile?5:9,minWidth:0}}>
+          {!isMobile&&<div style={{width:28,height:28,background:"linear-gradient(135deg,#0055DD,#00B4FF)",borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>✈</div>}
           <div style={{display:"flex",flexDirection:"column",lineHeight:1}}>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:isMobile?17:21,letterSpacing:"0.15em",color:"#FFFFFF"}}>SAFEROUTE <span style={{color:"#00B4FF"}}>ACADEMY</span></div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:isMobile?14:21,letterSpacing:isMobile?"0.08em":"0.15em",color:"#FFFFFF",whiteSpace:"nowrap"}}>SAFEROUTE <span style={{color:"#00B4FF"}}>ACADEMY</span></div>
             {!isMobile&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:"#334455",letterSpacing:"0.15em",marginTop:1}}>STUDENT PILOT SAFETY INTELLIGENCE</div>}
           </div>
-          <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#00C896",background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",padding:"2px 6px",borderRadius:3,letterSpacing:"0.1em"}}>BETA</span>
+          <span style={{fontFamily:"'DM Mono',monospace",fontSize:isMobile?7:8,color:"#00C896",background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",padding:isMobile?"2px 4px":"2px 6px",borderRadius:3,letterSpacing:isMobile?"0.04em":"0.1em",flexShrink:0}}>BETA</span>
         </div>
         <div style={{flex:1}}/>
-        <button onClick={()=>setShowWelcome(true)} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 10px",color:"#8899AA",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",marginRight:6}}>⟲ CHANGE LOCATION</button>
-        <a href="https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_academy_feedback_form.html" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:6,padding:"6px 10px",color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",textDecoration:"none",marginRight:10}}>✉ FEEDBACK</a>
-        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:wxLoad?"#FFD700":"#00C896"}}>● {wxLoad?"LOADING":"LIVE"}</span>
+        <button aria-label="Change location" title="Change location" onClick={()=>setShowWelcome(true)} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"#8899AA",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",marginRight:isMobile?0:6,flexShrink:0}}>⟲{!isMobile&&" CHANGE LOCATION"}</button>
+        <a aria-label="Send feedback" title="Send feedback" href="https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_academy_feedback_form.html" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"#00B4FF",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",textDecoration:"none",marginRight:isMobile?2:10,flexShrink:0}}>✉{!isMobile&&" FEEDBACK"}</a>
+        <span aria-label={wxLoad?"Weather loading":"Live weather connected"} title={wxLoad?"Weather loading":"Live weather connected"} style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:wxLoad?"#FFD700":"#00C896",whiteSpace:"nowrap",flexShrink:0}}>●{!isMobile&&` ${wxLoad?"LOADING":"LIVE"}`}</span>
       </div>
+      {accountType==="flightschool"&&opsLoggedIn&&opsWorkspace==="ops"&&<button onClick={()=>{setOpsPrefill(null);setShowFRAT(false);setShowE6B(false);setShowWelcome(false);setMenuOpen(false);setShowOpsDashboard(true);}} style={{position:"fixed",right:isMobile?12:20,bottom:isMobile?12:20,zIndex:2500,background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"10px 13px",color:"#050D18",fontWeight:800,fontSize:10,cursor:"pointer",fontFamily:"'DM Mono',monospace",boxShadow:"0 8px 24px rgba(0,0,0,0.35)"}}>← PILOT / OPS</button>}
       <div style={{flex:1,display:"flex",overflow:"hidden",height:"calc(100vh - 56px)"}}>
         {isDesktop?<div style={{width:270,flexShrink:0,overflow:"auto",borderRight:"1px solid rgba(255,255,255,0.06)"}}>{sidebar}</div>:menuOpen&&(
           <div style={{position:"fixed",inset:0,zIndex:3000,display:"flex",isolation:"isolate"}}>

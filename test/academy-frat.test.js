@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  academyDateOffset,
   aircraftDefectToFratPoints,
   buildOpsFratSeed,
   evaluateFratEligibility,
+  formatAcademyDate,
+  hasGroundingDefect,
   lastFlightToFratPoints,
   trainingStatusToFratPoints,
 } from "../src/lib/academy-frat.js";
@@ -65,6 +68,12 @@ test("last-flight recency follows the FRAT thresholds", () => {
   assert.equal(lastFlightToFratPoints("31 Aug 2026", AS_OF), 3);
 });
 
+test("demo dates stay relative to the current session date", () => {
+  assert.equal(academyDateOffset(-8, AS_OF), "28 Sep 2026");
+  assert.equal(academyDateOffset(12, AS_OF), "18 Oct 2026");
+  assert.equal(formatAcademyDate(new Date("2026-10-20T23:00:00Z")), "20 Oct 2026");
+});
+
 test("Academy seed fills only record-backed fields and leaves human inputs manual", () => {
   const seed = buildOpsFratSeed({ person: currentPilot, aircraft: clearAircraft }, AS_OF);
 
@@ -123,6 +132,37 @@ test("FRAT eligibility blocks unavailable aircraft and missing authorisation", (
   const maintenance = evaluateFratEligibility(currentPilot, { ...clearAircraft, status: "maintenance" });
   assert.equal(maintenance.allowed, false);
   assert.equal(maintenance.blockers[0].code, "aircraft_unavailable");
+});
+
+test("an open grounding defect remains a hard block even after an incorrect serviceable state", () => {
+  const conflictingAircraft = {
+    ...clearAircraft,
+    tail: "N9DA",
+    type: "Piper PA-28-181",
+    status: "airworthy",
+    squawk: "Engine oil analysis pending — DO NOT FLY",
+    defects: [{
+      id: "DEF-0051",
+      text: "Engine oil analysis pending",
+      status: "Work in progress",
+      restriction: "Aircraft grounded",
+    }],
+  };
+  const authorisedPilot = {...currentPilot, aircraftAuth:[...currentPilot.aircraftAuth, "Piper PA-28-181"]};
+
+  assert.equal(hasGroundingDefect(conflictingAircraft), true);
+  const result = evaluateFratEligibility(authorisedPilot, conflictingAircraft);
+  assert.equal(result.allowed, false);
+  assert.equal(result.blockers[0].code, "aircraft_grounding_defect");
+});
+
+test("closed grounding defects do not block a serviceable aircraft", () => {
+  const aircraft = {
+    ...clearAircraft,
+    defects: [{ id: "DEF-1", text: "Oil analysis", status: "Closed", restriction: "Aircraft grounded" }],
+  };
+  assert.equal(hasGroundingDefect(aircraft), false);
+  assert.equal(evaluateFratEligibility(currentPilot, aircraft).allowed, true);
 });
 
 test("non-current training requires CFI action instead of adding points to a normal FRAT", () => {
