@@ -25,11 +25,12 @@ test("every role guide contains usable steps, evaluation prompts and beta limits
   }
 });
 
-test("full guide preserves session-only and non-authoritative safety boundaries", () => {
+test("full guide preserves persistent-demo and non-authoritative safety boundaries", () => {
   const text = JSON.stringify(FULL_GUIDE_SECTIONS).toLowerCase();
   assert.match(text, /do not enter real/);
   assert.match(text, /shared/);
-  assert.match(text, /session/);
+  assert.match(text, /persist/);
+  assert.match(text, /reset demo/);
   assert.match(text, /authoritative aviation record/);
   assert.match(text, /never makes or authorises/);
 });

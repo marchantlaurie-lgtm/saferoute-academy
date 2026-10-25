@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import "leaflet/dist/leaflet.css";
 import {
   interpretMetarShort,
@@ -45,6 +45,11 @@ import {
 } from "./lib/appearance.js";
 import { HelpGuideModal } from "./components/help-guide.jsx";
 import { normaliseGuideId } from "./data/beta-guide-content.js";
+import { createDemoWorkspaceSnapshot, DEFAULT_DEMO_WORKSPACE_NAME } from "./data/demo-workspace-template.js";
+import {
+  createConfiguredWorkspaceRepository,
+  loadBrowserWorkspaceSnapshot,
+} from "./lib/workspace-repository.js";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "https://saferoute-backend-production.up.railway.app";
 
@@ -2073,32 +2078,9 @@ function HazardCard({ h, expanded, onToggle }) {
 // is fabricated example data, clearly labelled as such everywhere it
 // appears — never presented as if it were a real live feed.
 
-const MOCK_OPS_PEOPLE = [
-  { id:"p1", name:"Jordan Reyes", role:"Student — PPL", hrs90:14.2, currency:"Medical current (Class 3, exp. 8mo)", medical:"Current — 8 months remaining", lastFlight:academyDateOffset(-8), clubCurrency:"Current", nextCheck:academyDateOffset(29), trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 152"], lastCheck:academyDateOffset(-155) },
-  { id:"p2", name:"Alicia Chen", role:"Student — Instrument", hrs90:6.5, currency:"Medical current (Class 3, exp. 5mo)", medical:"Current — 5 months remaining", lastFlight:academyDateOffset(-14), clubCurrency:"Expires in 12 days", nextCheck:academyDateOffset(12), trainingStatus:"due", pendingSignoff:true, aircraftAuth:["Cessna 172N"], lastCheck:academyDateOffset(-185) },
-  { id:"p3", name:"Marcus Webb", role:"CFI", hrs90:42.0, currency:"Flight review & medical current", medical:"Current", lastFlight:academyDateOffset(-1), clubCurrency:"Current", nextCheck:academyDateOffset(115), trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 172N","Piper PA-28-181","Cessna 152"], lastCheck:academyDateOffset(-69) },
-  { id:"p4", name:"Sarah Kim", role:"Student — Solo", hrs90:3.1, currency:"Medical current (Class 3, exp. 11mo)", medical:"Current — 11 months remaining", lastFlight:academyDateOffset(-50), clubCurrency:"Expired — checkout required", nextCheck:"OVERDUE", trainingStatus:"noncurrent", pendingSignoff:false, aircraftAuth:["Cessna 152"], lastCheck:academyDateOffset(-220) },
-];
-
-const MOCK_OPS_AIRCRAFT = [
-  { id:"a1", tail:"N172SR", type:"Cessna 172S", status:"airworthy", squawk:null, last100:"12 days ago", airframeHours:4218.6, nextMaintenanceHours:37.2, annualDue:academyDateOffset(86), defects:[], maintenanceHistory:[`100-hour inspection completed ${academyDateOffset(-12)}`,`Oil & filter change ${academyDateOffset(-12)}`], audit:[{time:`${academyDateOffset(-12)} 15:20`,text:"Returned to service after 100-hour inspection"}] },
-  { id:"a2", tail:"N44TR", type:"Cessna 172N", status:"restricted", squawk:"Right nav light intermittent — deferred (minor)", last100:"45 days ago", airframeHours:3184.7, nextMaintenanceHours:8.4, annualDue:academyDateOffset(43), defects:[{id:"DEF-0047",text:"Right nav light intermittent",status:"Deferred",restriction:"Day VFR only"}], maintenanceHistory:[`50-hour inspection completed ${academyDateOffset(-45)}`], audit:[{time:`${academyDateOffset(-2)} 09:15`,text:"DEF-0047 assessed — aircraft restricted to Day VFR"}] },
-  { id:"a3", tail:"N9DA", type:"Piper PA-28-181", status:"grounded", squawk:"Engine oil analysis pending — DO NOT FLY", last100:"6 days ago", airframeHours:5520.1, nextMaintenanceHours:94.0, annualDue:academyDateOffset(152), defects:[{id:"DEF-0051",text:"Engine oil analysis pending",status:"Work in progress",restriction:"Aircraft grounded"}], maintenanceHistory:[`100-hour inspection completed ${academyDateOffset(-6)}`], audit:[{time:`${academyDateOffset(-1)} 17:42`,text:"Aircraft grounded pending engine oil analysis"}] },
-  { id:"a4", tail:"N721CT", type:"Cessna 152", status:"airworthy", squawk:null, last100:"3 days ago", airframeHours:7642.3, nextMaintenanceHours:47.8, annualDue:academyDateOffset(111), defects:[], maintenanceHistory:[`50-hour inspection completed ${academyDateOffset(-3)}`], audit:[{time:`${academyDateOffset(-3)} 11:10`,text:"50-hour inspection completed — returned to service"}] },
-];
-
-const MOCK_CLUB_USERS = [
-  { id:"u1", personId:"p1", name:"Jordan Reyes", email:"jordan@example.test", status:"active", roles:["pilot"] },
-  { id:"u2", personId:"p2", name:"Alicia Chen", email:"alicia@example.test", status:"active", roles:["pilot"] },
-  { id:"u3", personId:"p3", name:"Marcus Webb", email:"marcus@example.test", status:"active", roles:["pilot","cfi","admin"] },
-  { id:"u4", personId:"p4", name:"Sarah Kim", email:"sarah@example.test", status:"active", roles:["pilot"] },
-  { id:"u5", personId:null, name:"Evelyn Carter", email:"evelyn@example.test", status:"active", roles:["engineering"] },
-];
-
-const MOCK_ADMIN_AUDIT = [
-  { time:`${academyDateOffset(0)} 09:00`, source:"Club Admin", text:"Functional beta access review opened" },
-  { time:`${academyDateOffset(-1)} 17:45`, source:"Club Admin", text:"Prototype safety policies confirmed as enforced" },
-];
+const INITIAL_DEMO_WORKSPACE = createDemoWorkspaceSnapshot();
+const MOCK_OPS_PEOPLE = INITIAL_DEMO_WORKSPACE.people;
+const MOCK_OPS_AIRCRAFT = INITIAL_DEMO_WORKSPACE.aircraft;
 
 function AccountTypeScreen({ onSelect }) {
   return (
@@ -2131,7 +2113,21 @@ function AccountTypeScreen({ onSelect }) {
   );
 }
 
-function FlightSchoolLoginScreen({ onLogin, onBack }) {
+function DemoDataNotice({ persistenceState, onReset, detail }) {
+  const saveText=persistenceState?.status==="saving"?"Saving changes…":persistenceState?.status==="error"?"Save needs attention":persistenceState?.label||"PRIVATE SYNTHETIC DEMO";
+  return (
+    <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FFD700",lineHeight:1.5,marginBottom:18}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
+        <div><b>⚠ SYNTHETIC PRIVATE DEMO</b> — {detail||"This resettable workspace contains fictional people, aircraft and records only."}<br/><span style={{color:"#C9B56A"}}>Do not enter real personal, medical, training, maintenance or operational information.</span></div>
+        {onReset&&<button onClick={onReset} style={{background:"rgba(255,255,255,0.055)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"6px 8px",color:"#FFD700",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:8,whiteSpace:"nowrap"}}>↺ RESET DEMO DATA</button>}
+      </div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:persistenceState?.status==="error"?"#FF8F8F":"#8FA09A",letterSpacing:"0.06em",marginTop:7}}>{saveText}</div>
+      {persistenceState?.error&&<div style={{fontSize:9,color:"#FF9A9A",marginTop:5}}>{persistenceState.error}</div>}
+    </div>
+  );
+}
+
+function FlightSchoolLoginScreen({ onLogin, onBack, persistenceState, onReset, workspaceName=DEFAULT_DEMO_WORKSPACE_NAME }) {
   const secondaryButton = {
     width:"100%",background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.28)",borderRadius:8,padding:"12px",
     color:"var(--sr-accent)",fontWeight:"bold",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.04em",marginTop:9
@@ -2142,13 +2138,13 @@ function FlightSchoolLoginScreen({ onLogin, onBack }) {
       <div style={{width:"100%",maxWidth:380}}>
         <button onClick={onBack} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:13,marginBottom:24}}>← BACK</button>
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.1em",color:"var(--sr-text-strong)",marginBottom:4}}>🏫 FLIGHT SCHOOL / CLUB LOGIN</div>
-        <div style={{fontSize:11,color:"var(--sr-text-muted)",lineHeight:1.6,marginBottom:20}}>Choose the workspace you want to preview.</div>
-        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:24}}>⚠ DEMO MODE — all records are simulated and changes last only for this browser session.</div>
-        <button onClick={()=>onLogin("Demo Flight School","ops")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"var(--sr-on-gold)",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>PILOT / OPS LOGIN</button>
+        <div style={{fontSize:11,color:"var(--sr-text-muted)",lineHeight:1.6,marginBottom:20}}>Independent CFIs and invited school reviewers can explore the same resettable fictional flight school. Choose the role you want to test.</div>
+        <DemoDataNotice persistenceState={persistenceState} onReset={onReset}/>
+        <button onClick={()=>onLogin(workspaceName,"ops")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"var(--sr-on-gold)",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>PILOT / OPS LOGIN</button>
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.1em",margin:"18px 0 4px"}}>SPECIALIST WORKSPACES</div>
-        <button onClick={()=>onLogin("Demo Flight School","admin")} style={secondaryButton}>🏛 CLUB ADMIN</button>
-        <button onClick={()=>onLogin("Demo Flight School","cfi")} style={secondaryButton}>🎓 CFI / TRAINING</button>
-        <button onClick={()=>onLogin("Demo Flight School","engineering")} style={secondaryButton}>🔧 ENGINEERING LOGIN</button>
+        <button onClick={()=>onLogin(workspaceName,"admin")} style={secondaryButton}>🏛 CLUB ADMIN</button>
+        <button onClick={()=>onLogin(workspaceName,"cfi")} style={secondaryButton}>🎓 CFI / TRAINING</button>
+        <button onClick={()=>onLogin(workspaceName,"engineering")} style={secondaryButton}>🔧 ENGINEERING LOGIN</button>
       </div>
     </div>
   );
@@ -2187,7 +2183,7 @@ function OpsAircraftCard({ ac, person, selected, onSelect }) {
   );
 }
 
-function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack, people=MOCK_OPS_PEOPLE, aircraftList=MOCK_OPS_AIRCRAFT }) {
+function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack, people=MOCK_OPS_PEOPLE, aircraftList=MOCK_OPS_AIRCRAFT, persistenceState, onReset }) {
   const [person, setPerson] = useState(null);
   const [aircraft, setAircraft] = useState(null);
   const eligibility = evaluateFratEligibility(person, aircraft);
@@ -2206,7 +2202,7 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"var(--sr-text-strong)",marginLeft:6}}>🏫 {orgName || "OPS SYSTEM"} — DEMO</div>
       </div>
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:22}}>⚠ SIMULATED DATA — this roster and fleet are fabricated examples illustrating a planned integration. No real student, instructor, or aircraft records are connected.</div>
+        <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="This roster and fleet are fabricated examples illustrating the Academy integration."/>
 
         <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",marginBottom:10}}>SELECT PILOT</div>
         {people.map(p=><OpsPersonCard key={p.id} person={p} selected={person?.id===p.id} onSelect={selectPerson}/>)}
@@ -2214,7 +2210,7 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
         <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",margin:"22px 0 10px"}}>SELECT AIRCRAFT</div>
         {aircraftList.map(a=><OpsAircraftCard key={a.id} ac={a} person={person} selected={aircraft?.id===a.id} onSelect={setAircraft}/>)}
 
-        {person && !aircraft && <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"9px 11px",fontSize:10,color:"#8DCBEA",lineHeight:1.5}}>Only serviceable aircraft types currently authorised on {person.name}'s shared CFI record can be selected. Engineering and CFI changes apply here immediately for this session.</div>}
+        {person && !aircraft && <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"9px 11px",fontSize:10,color:"#8DCBEA",lineHeight:1.5}}>Only serviceable aircraft types currently authorised on {person.name}'s shared CFI record can be selected. Synthetic Engineering and CFI changes apply immediately and persist in this private demo workspace.</div>}
 
         {eligibility.blockers.map(blocker=><div key={blocker.code} style={{background:"rgba(255,59,59,0.09)",border:"1px solid rgba(255,59,59,0.38)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-danger-text)",lineHeight:1.55,marginTop:10}}><b>BLOCKED — {blocker.title}</b><br/>{blocker.detail}</div>)}
 
@@ -2241,7 +2237,7 @@ function DemoWorkspaceHeader({ icon, title, orgName, onBack, accent="var(--sr-ac
   );
 }
 
-function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUsers, adminAudit, setAdminAudit, onBack }) {
+function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUsers, adminAudit, setAdminAudit, onBack, persistenceState, onReset }) {
   const [directoryFilter,setDirectoryFilter] = useState("all");
   const [selectedId,setSelectedId] = useState(users[0]?`user:${users[0].id}`:(aircraftList[0]?`aircraft:${aircraftList[0].id}`:null));
   const [notice,setNotice] = useState(null);
@@ -2322,7 +2318,7 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
       <DemoWorkspaceHeader icon="🏛" title="CLUB ADMIN" orgName={orgName} onBack={onBack} accent="#A78BFA"/>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated Club Admin data only. Access changes last for this browser session. Club Admin provides oversight and system access; CFI sign-off and Engineering return-to-service authority remain in their specialist workspaces.</div>
+        <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="Access changes persist in this private demo. Club Admin oversight remains separate from CFI and Engineering authority."/>
 
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",marginBottom:8}}>FILTER CLUB DIRECTORY</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(135px,1fr))",gap:10,marginBottom:8}} role="group" aria-label="Filter Club Admin directory">
@@ -2418,7 +2414,7 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
             {[
               ["Organisation",orgName||"Demo Flight School","var(--sr-text-strong)"],
               ["Environment","FUNCTIONAL DEMO / TEST","var(--sr-gold)"],
-              ["Data storage","BROWSER SESSION ONLY","var(--sr-gold)"],
+              ["Data storage",persistenceState?.label||"OPENING PRIVATE DEMO","var(--sr-gold)"],
               ["External invitations","DISABLED","var(--sr-text-muted)"],
               ["Official operational record","NO — PROTOTYPE ONLY","#FF7C7C"],
             ].map(([label,value,color])=><div key={label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)",fontSize:10}}><span style={{color:"var(--sr-text-muted)"}}>{label}</span><strong style={{color,textAlign:"right",fontFamily:"'DM Mono',monospace",fontSize:9}}>{value}</strong></div>)}
@@ -2437,7 +2433,7 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
   );
 }
 
-function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, onBack }) {
+function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, onBack, persistenceState, onReset }) {
   const [selectedId,setSelectedId] = useState(aircraftList[0]?.id || null);
   const [newDefect,setNewDefect] = useState("");
   const [notice,setNotice] = useState(null);
@@ -2505,7 +2501,7 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
       <DemoWorkspaceHeader icon="🔧" title="ENGINEERING" orgName={orgName} onBack={onBack} accent="#FF8C42"/>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated fleet data only. Changes below update the Pilot / Ops view during this browser session so the workflow can be tested end-to-end.</div>
+        <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="Fictional fleet changes persist and update the Pilot / Ops view so the workflow can be tested end-to-end."/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
           {[
             ["🟢","Serviceable",counts.serviceable,"var(--sr-success)"],
@@ -2573,7 +2569,7 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
   );
 }
 
-function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }) {
+function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, persistenceState, onReset }) {
   const firstAttention=groupCfiRoster(people,"attention").flatMap(group=>group.people)[0];
   const [selectedId,setSelectedId] = useState(firstAttention?.id || people[0]?.id || null);
   const [rosterFilter,setRosterFilter] = useState("attention");
@@ -2615,7 +2611,7 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
       <DemoWorkspaceHeader icon="🎓" title="CFI / TRAINING" orgName={orgName} onBack={onBack} accent="var(--sr-accent)"/>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated training records only. CFI changes update the shared pilot record used by the Pilot / Ops workspace for this browser session.</div>
+        <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="Fictional CFI changes persist and update the pilot record used by the Pilot / Ops workspace."/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
           {[
             ["🟢","Current",counts.current,"var(--sr-success)",false],
@@ -2697,7 +2693,7 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }
               <button onClick={()=>updatePerson({trainingStatus:"due",clubCurrency:"Check due soon"})} style={{background:"rgba(255,215,0,0.1)",border:"1px solid rgba(255,215,0,0.3)",color:"var(--sr-gold)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>MARK DUE SOON</button>
               <button onClick={()=>updatePerson({trainingStatus:"noncurrent",clubCurrency:"Expired — instructor check required"})} style={{background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.3)",color:"#FF7C7C",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>REQUIRE TRAINING</button>
             </div>
-            <div style={{marginTop:18,padding:"11px 12px",background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:8,fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.55}}>In the production version, these actions would be permission-controlled and create an immutable instructor audit record. This prototype is intentionally session-only.</div>
+            <div style={{marginTop:18,padding:"11px 12px",background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:8,fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.55}}>These actions are saved to synthetic demo records only. Named identity-linked permissions and an immutable operational audit trail remain future safeguards.</div>
           </div>:<div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"42px 18px",textAlign:"center",color:"var(--sr-text-muted-2)",fontSize:11}}>No pilot is selected because this filter has no matching records.</div>}
         </div>
       </div>
@@ -3372,6 +3368,19 @@ export default function App() {
   });
   const [systemPrefersDark,setSystemPrefersDark] = useState(()=>typeof window!=="undefined" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches);
   const resolvedAppearance = resolveAppearance(appearance,systemPrefersDark);
+  const initialWorkspaceRef = useRef(null);
+  if (!initialWorkspaceRef.current) {
+    const seed = createDemoWorkspaceSnapshot();
+    initialWorkspaceRef.current = loadBrowserWorkspaceSnapshot(
+      typeof window!=="undefined" ? window.localStorage : null,
+      seed,
+    );
+  }
+  const initialWorkspace = initialWorkspaceRef.current;
+  const workspaceRepositoryRef = useRef(null);
+  const persistenceReadyRef = useRef(false);
+  const lastWorkspaceSignatureRef = useRef(null);
+  const saveChainRef = useRef(Promise.resolve());
   const [region,setRegion] = useState("florida");
   const [selected,setSelected] = useState("KVRB");
   const [query,setQuery] = useState("KVRB");
@@ -3384,10 +3393,29 @@ export default function App() {
   const [opsPrefill,setOpsPrefill] = useState(null); // { person, aircraft } | null
   const [showOpsDashboard,setShowOpsDashboard] = useState(false);
   const [opsWorkspace,setOpsWorkspace] = useState(null); // "ops" | "admin" | "cfi" | "engineering"
-  const [opsPeople,setOpsPeople] = useState(()=>MOCK_OPS_PEOPLE.map(p=>({...p,aircraftAuth:[...(p.aircraftAuth||[])]})));
-  const [opsAircraftList,setOpsAircraftList] = useState(()=>MOCK_OPS_AIRCRAFT.map(a=>({...a,defects:(a.defects||[]).map(d=>({...d})),maintenanceHistory:[...(a.maintenanceHistory||[])],audit:[...(a.audit||[])]})));
-  const [opsUsers,setOpsUsers] = useState(()=>MOCK_CLUB_USERS.map(user=>({...user,roles:[...user.roles]})));
-  const [opsAdminAudit,setOpsAdminAudit] = useState(()=>MOCK_ADMIN_AUDIT.map(event=>({...event})));
+  const [workspaceMeta,setWorkspaceMeta] = useState(()=>({
+    id:initialWorkspace.id,
+    name:initialWorkspace.name,
+    kind:initialWorkspace.kind,
+    schemaVersion:initialWorkspace.schemaVersion,
+    templateVersion:initialWorkspace.templateVersion,
+    dataMode:"synthetic",
+    authoritative:false,
+    resettable:true,
+    revision:initialWorkspace.revision || 0,
+    createdAt:initialWorkspace.createdAt,
+    updatedAt:initialWorkspace.updatedAt,
+  }));
+  const [persistenceState,setPersistenceState] = useState({
+    mode:"loading",
+    label:"OPENING PRIVATE SYNTHETIC DEMO",
+    status:"loading",
+    error:null,
+  });
+  const [opsPeople,setOpsPeople] = useState(()=>initialWorkspace.people);
+  const [opsAircraftList,setOpsAircraftList] = useState(()=>initialWorkspace.aircraft);
+  const [opsUsers,setOpsUsers] = useState(()=>initialWorkspace.users);
+  const [opsAdminAudit,setOpsAdminAudit] = useState(()=>initialWorkspace.adminAudit);
   const [fratAnswers,setFratAnswers] = useState({});
   const [fratPrefillKeys,setFratPrefillKeys] = useState({});
   const [fratInitialAnswers,setFratInitialAnswers] = useState(null);
@@ -3425,6 +3453,114 @@ export default function App() {
       resolvedAppearance={resolvedAppearance}
       onAppearanceChange={value=>setAppearance(normaliseAppearance(value))}
     >{content}</AppearanceShell>;
+  }
+
+  const applyWorkspaceSnapshot = useCallback((snapshot)=>{
+    setWorkspaceMeta({
+      id:snapshot.id,
+      name:snapshot.name,
+      kind:snapshot.kind,
+      schemaVersion:snapshot.schemaVersion,
+      templateVersion:snapshot.templateVersion,
+      dataMode:"synthetic",
+      authoritative:false,
+      resettable:true,
+      revision:snapshot.revision || 0,
+      createdAt:snapshot.createdAt,
+      updatedAt:snapshot.updatedAt,
+    });
+    setOpsPeople(snapshot.people);
+    setOpsAircraftList(snapshot.aircraft);
+    setOpsUsers(snapshot.users);
+    setOpsAdminAudit(snapshot.adminAudit);
+  },[]);
+
+  const workspaceSignature = useCallback((snapshot)=>JSON.stringify({
+    people:snapshot.people,
+    aircraft:snapshot.aircraft,
+    users:snapshot.users,
+    adminAudit:snapshot.adminAudit,
+  }),[]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    const seed=createDemoWorkspaceSnapshot({
+      id:initialWorkspace.id,
+      name:initialWorkspace.name,
+      kind:initialWorkspace.kind,
+    });
+    const storage=typeof window!=="undefined"?window.localStorage:null;
+    let repository=createConfiguredWorkspaceRepository({env:import.meta.env,storage,seed});
+    workspaceRepositoryRef.current=repository;
+
+    async function openWorkspace() {
+      try {
+        const snapshot=await repository.loadOrCreate();
+        if(cancelled) return;
+        applyWorkspaceSnapshot(snapshot);
+        lastWorkspaceSignatureRef.current=workspaceSignature(snapshot);
+        persistenceReadyRef.current=true;
+        setPersistenceState({mode:repository.mode,label:repository.label,status:"saved",error:null});
+      } catch (error) {
+        if(cancelled) return;
+        repository=createConfiguredWorkspaceRepository({env:{},storage,seed:initialWorkspace});
+        workspaceRepositoryRef.current=repository;
+        const snapshot=await repository.loadOrCreate();
+        if(cancelled) return;
+        applyWorkspaceSnapshot(snapshot);
+        lastWorkspaceSignatureRef.current=workspaceSignature(snapshot);
+        persistenceReadyRef.current=true;
+        setPersistenceState({
+          mode:repository.mode,
+          label:repository.label,
+          status:"saved",
+          error:`Cloud save unavailable; using the private device fallback. ${error.message}`,
+        });
+      }
+    }
+
+    openWorkspace();
+    return ()=>{cancelled=true;};
+  },[applyWorkspaceSnapshot,initialWorkspace,workspaceSignature]);
+
+  useEffect(()=>{
+    if(!persistenceReadyRef.current || !workspaceRepositoryRef.current) return;
+    const snapshot={
+      ...workspaceMeta,
+      people:opsPeople,
+      aircraft:opsAircraftList,
+      users:opsUsers,
+      adminAudit:opsAdminAudit,
+    };
+    const signature=workspaceSignature(snapshot);
+    if(signature===lastWorkspaceSignatureRef.current) return;
+
+    setPersistenceState(previous=>({...previous,status:"saving",error:null}));
+    const timer=window.setTimeout(()=>{
+      saveChainRef.current=saveChainRef.current
+        .then(()=>workspaceRepositoryRef.current.save(snapshot))
+        .then(saved=>{
+          lastWorkspaceSignatureRef.current=workspaceSignature(saved);
+          setWorkspaceMeta(previous=>({...previous,revision:saved.revision,updatedAt:saved.updatedAt}));
+          setPersistenceState(previous=>({...previous,status:"saved",error:null}));
+        })
+        .catch(error=>setPersistenceState(previous=>({...previous,status:"error",error:error.message})));
+    },300);
+    return ()=>window.clearTimeout(timer);
+  },[opsAdminAudit,opsAircraftList,opsPeople,opsUsers,workspaceMeta,workspaceSignature]);
+
+  async function resetDemoWorkspace() {
+    if(!workspaceRepositoryRef.current) return;
+    if(typeof window!=="undefined" && !window.confirm("Reset this private synthetic workspace to the original SafeRoute demo data?")) return;
+    setPersistenceState(previous=>({...previous,status:"saving",error:null}));
+    try {
+      const snapshot=await workspaceRepositoryRef.current.reset();
+      applyWorkspaceSnapshot(snapshot);
+      lastWorkspaceSignatureRef.current=workspaceSignature(snapshot);
+      setPersistenceState(previous=>({...previous,status:"saved",error:null}));
+    } catch (error) {
+      setPersistenceState(previous=>({...previous,status:"error",error:error.message}));
+    }
   }
 
   function handleSearch(val) {
@@ -3647,6 +3783,9 @@ export default function App() {
   if (accountType === "flightschool" && !opsLoggedIn) return withAppearance(<FlightSchoolLoginScreen
     onLogin={(org,workspace)=>{setOrgName(org);setOpsWorkspace(workspace||"ops");setOpsLoggedIn(true);setShowOpsDashboard((workspace||"ops")==="ops");}}
     onBack={()=>setAccountType(null)}
+    persistenceState={persistenceState}
+    onReset={resetDemoWorkspace}
+    workspaceName={workspaceMeta.name}
   />);
   if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "admin") return withAppearance(<ClubAdminDashboardScreen
     orgName={orgName}
@@ -3656,12 +3795,16 @@ export default function App() {
     setUsers={setOpsUsers}
     adminAudit={opsAdminAudit}
     setAdminAudit={setOpsAdminAudit}
+    persistenceState={persistenceState}
+    onReset={resetDemoWorkspace}
     onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
   />);
   if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "engineering") return withAppearance(<EngineeringDashboardScreen
     orgName={orgName}
     aircraftList={opsAircraftList}
     setAircraftList={setOpsAircraftList}
+    persistenceState={persistenceState}
+    onReset={resetDemoWorkspace}
     onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
   />);
   if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "cfi") return withAppearance(<CfiDashboardScreen
@@ -3669,11 +3812,15 @@ export default function App() {
     people={opsPeople}
     setPeople={setOpsPeople}
     aircraftList={opsAircraftList}
+    persistenceState={persistenceState}
+    onReset={resetDemoWorkspace}
     onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
   />);
   if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "ops" && showOpsDashboard) return withAppearance(<OpsDashboardScreen orgName={orgName}
     people={opsPeople}
     aircraftList={opsAircraftList}
+    persistenceState={persistenceState}
+    onReset={resetDemoWorkspace}
     onStartBriefing={(person,aircraft)=>{
       if (!evaluateFratEligibility(person,aircraft).allowed) return;
       setOpsPrefill({person,aircraft});

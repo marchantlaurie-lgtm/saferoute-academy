@@ -1,4 +1,4 @@
-export const BETA_GUIDE_UPDATED = "20 October 2026";
+export const BETA_GUIDE_UPDATED = "25 October 2026";
 
 export const QUICK_START_GUIDES = [
   {
@@ -57,7 +57,7 @@ export const QUICK_START_GUIDES = [
     ],
     cautions: [
       "Admin actions do not change pilot currency, aircraft authorisations, defects or airworthiness.",
-      "All changes are fictional and last only for the current browser session.",
+      "All changes are fictional and are saved only in the tester's isolated synthetic demo workspace; use Reset Demo whenever a clean starting point is needed.",
     ],
   },
   {
@@ -86,7 +86,7 @@ export const QUICK_START_GUIDES = [
     ],
     cautions: [
       "These are fictional demonstration sign-offs, not regulatory endorsements or training records.",
-      "The beta is publicly accessible and session-only; do not enter real student or pilot information.",
+      "The beta is publicly accessible and its synthetic workspace is persistent; do not enter real student or pilot information.",
     ],
   },
   {
@@ -128,7 +128,8 @@ export const FULL_GUIDE_SECTIONS = [
     ],
     items: [
       "Do not enter real names, contact details, medical information, licence data, aircraft registrations, defects or maintenance information.",
-      "The Flight School / Club records are fictional and reset when the page is reloaded; changes last only for the current browser session.",
+      "The Flight School / Club records are fictional and are saved in an isolated synthetic workspace for the tester; reloading does not reset them.",
+      "Use Reset Demo to restore the original fictional records. If cloud save is unavailable, Academy labels the device-only fallback clearly.",
       "The public tester workspaces do not require a username or password.",
       "Use Feedback to report unclear wording, unsafe assumptions, missing information or awkward workflow.",
     ],
@@ -219,7 +220,7 @@ export const FULL_GUIDE_SECTIONS = [
       "A grounding or Do Not Fly defect remains a hard blocker even if an aircraft state becomes inconsistent.",
       "Serviceable and Restricted cannot be selected until the grounding defect is closed.",
       "Closing a defect clears the current squawk only when no other open defect remains.",
-      "The audit list is session-only prototype history, not an approved technical log.",
+      "The saved audit list is prototype history, not an approved or immutable technical log.",
     ],
   },
   {
@@ -236,7 +237,7 @@ export const FULL_GUIDE_SECTIONS = [
       "Role changes affect demo access only and do not alter operational records.",
       "The final active Club Admin cannot be removed or suspended.",
       "Locked safety policies summarise the gates enforced by the prototype.",
-      "Recent Prototype Activity is informative and session-only.",
+      "Recent Prototype Activity is informative persistent demo history, not an immutable operational audit trail.",
     ],
   },
   {
@@ -264,10 +265,10 @@ export const FULL_GUIDE_SECTIONS = [
       "Report any wording that could imply regulatory approval, airworthiness, currency or flight authorisation.",
       "Include the workspace, fictional pilot/aircraft and action when describing a workflow issue.",
       "Include device/browser and Display setting for layout or contrast problems.",
-      "Reloading resets all Flight School / Club demo changes.",
+      "Flight School / Club demo changes persist for the tester; use Reset Demo to restore the original fictional dataset.",
       "For US airports, Academy provides awareness from the FAA mapped-TFR feed, Aviation Weather Center advisory feeds and FAA NAS Status. It does not ingest the complete NOTAM set, provide live aircraft traffic or replace an official briefing.",
       "A green or empty advisory result means only that the named source returned no matching item in the selected scope. It never means the airspace or route is clear.",
-      "Academy does not provide authentication, durable operational records or a production audit trail.",
+      "The tester URL requires no conventional login. Anonymous workspace isolation is used only for synthetic evaluation data; Academy does not provide durable operational records or a production audit trail.",
     ],
   },
 ];

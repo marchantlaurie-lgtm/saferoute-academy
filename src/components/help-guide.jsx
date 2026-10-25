@@ -101,7 +101,7 @@ export function HelpGuideModal({ initialGuide = "full", onClose, onGuideChange }
         </header>
 
         <div className="guide-safety-banner">
-          <strong>Fictional, session-only test data.</strong> Do not enter real personal, medical, training, maintenance or operational information. Academy is not an authoritative aviation record.
+          <strong>Fictional, persistent test data.</strong> The tester workspace is isolated and resettable, but it is not an operational record. Do not enter real personal, medical, training, maintenance or operational information.
         </div>
 
         <nav className="guide-tabs" aria-label="How To guide sections">
