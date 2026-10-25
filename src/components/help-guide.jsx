@@ -15,9 +15,9 @@ function FullGuide({ onOpenQuickStart }) {
   return (
     <div>
       <div className="guide-intro-card">
-        <div className="guide-kicker">COMPLETE TESTER GUIDE</div>
-        <h2>How to use the SafeRoute Academy beta</h2>
-        <p>Work through the sections in order on a first visit, or open only the area you need. The role Quick Starts give shorter task lists for live testing.</p>
+        <div className="guide-kicker">COMPLETE PUBLIC BETA GUIDE</div>
+        <h2>How to use SafeRoute Academy</h2>
+        <p>Work through these sections on a first visit, or open a role Quick Start for a shorter student, pilot, CFI, Admin or Engineering test sequence.</p>
         <div className="guide-role-links">
           {QUICK_START_GUIDES.map(guide => (
             <button key={guide.id} onClick={() => onOpenQuickStart(guide.id)}>
@@ -93,15 +93,15 @@ export function HelpGuideModal({ initialGuide = "full", onClose, onGuideChange }
       <div className="guide-dialog" role="dialog" aria-modal="true" aria-labelledby="guide-title" onClick={event => event.stopPropagation()}>
         <header className="guide-header">
           <div>
-            <div className="guide-kicker">SAFEROUTE ACADEMY · CONTROLLED BETA</div>
+            <div className="guide-kicker">SAFEROUTE ACADEMY · PUBLIC FUNCTIONAL BETA</div>
             <div id="guide-title" className="guide-heading">HOW TO & QUICK START GUIDES</div>
-            <div className="guide-updated">Rebuilt from scratch · Updated {BETA_GUIDE_UPDATED}</div>
+            <div className="guide-updated">Updated {BETA_GUIDE_UPDATED}</div>
           </div>
           <button className="guide-close" aria-label="Close How To guide" onClick={onClose}>×</button>
         </header>
 
         <div className="guide-safety-banner">
-          <strong>Fictional shared test data only.</strong> Do not enter real personal, medical, training, maintenance or operational information. This beta is not an authoritative aviation record.
+          <strong>Fictional, session-only test data.</strong> Do not enter real personal, medical, training, maintenance or operational information. Academy is not an authoritative aviation record.
         </div>
 
         <nav className="guide-tabs" aria-label="How To guide sections">
@@ -117,7 +117,7 @@ export function HelpGuideModal({ initialGuide = "full", onClose, onGuideChange }
             ? <FullGuide onOpenQuickStart={selectGuide}/>
             : <QuickStart guide={quickGuide}/>
           }
-          <div className="guide-link-note">The current browser address opens this guide directly, so it can be bookmarked or sent to another invited tester.</div>
+          <div className="guide-link-note">The current browser address opens the selected guide directly, so it can be bookmarked or shared with another tester.</div>
         </main>
       </div>
     </div>

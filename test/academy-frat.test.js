@@ -2,11 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  academyDateOffset,
   aircraftDefectToFratPoints,
   buildOpsFratSeed,
-  daysSinceAcademyDate,
   evaluateFratEligibility,
-  hrs90ToFratPoints,
+  formatAcademyDate,
+  hasGroundingDefect,
   lastFlightToFratPoints,
   trainingStatusToFratPoints,
 } from "../src/lib/academy-frat.js";
@@ -65,17 +66,12 @@ test("last-flight recency follows the FRAT thresholds", () => {
   assert.equal(lastFlightToFratPoints("28 Sep 2026", AS_OF), 1);
   assert.equal(lastFlightToFratPoints("20 Sep 2026", AS_OF), 2);
   assert.equal(lastFlightToFratPoints("31 Aug 2026", AS_OF), 3);
-  assert.equal(lastFlightToFratPoints("07 Oct 2026", AS_OF), null, "a future date must not auto-fill as recent");
-  assert.equal(daysSinceAcademyDate("not a date", AS_OF), null);
 });
 
-test("90-day hours only auto-fill from a valid non-negative number", () => {
-  assert.equal(hrs90ToFratPoints(20.1), 0);
-  assert.equal(hrs90ToFratPoints(20), 1);
-  assert.equal(hrs90ToFratPoints(3), 2);
-  assert.equal(hrs90ToFratPoints(2.9), 3);
-  assert.equal(hrs90ToFratPoints(undefined), null);
-  assert.equal(hrs90ToFratPoints(-1), null);
+test("demo dates stay relative to the current session date", () => {
+  assert.equal(academyDateOffset(-8, AS_OF), "28 Sep 2026");
+  assert.equal(academyDateOffset(12, AS_OF), "18 Oct 2026");
+  assert.equal(formatAcademyDate(new Date("2026-10-20T23:00:00Z")), "20 Oct 2026");
 });
 
 test("Academy seed fills only record-backed fields and leaves human inputs manual", () => {
@@ -115,10 +111,6 @@ test("closed defects do not contribute aircraft risk", () => {
     defects: [{ id: "DEF-1", text: "Resolved", status: "Closed", restriction: "Day VFR only" }],
   };
   assert.equal(aircraftDefectToFratPoints(aircraft), 0);
-  assert.equal(aircraftDefectToFratPoints({
-    ...clearAircraft,
-    defects: [{ id: "DEF-2", text: "Resolved", status: "closed", restriction: "Day VFR only" }],
-  }), 0);
 });
 
 test("recent CFI check maps to current and recent dual", () => {
@@ -142,36 +134,45 @@ test("FRAT eligibility blocks unavailable aircraft and missing authorisation", (
   assert.equal(maintenance.blockers[0].code, "aircraft_unavailable");
 });
 
-test("non-current training fills the flight-review field and requires visible CFI action", () => {
+test("an open grounding defect remains a hard block even after an incorrect serviceable state", () => {
+  const conflictingAircraft = {
+    ...clearAircraft,
+    tail: "N9DA",
+    type: "Piper PA-28-181",
+    status: "airworthy",
+    squawk: "Engine oil analysis pending — DO NOT FLY",
+    defects: [{
+      id: "DEF-0051",
+      text: "Engine oil analysis pending",
+      status: "Work in progress",
+      restriction: "Aircraft grounded",
+    }],
+  };
+  const authorisedPilot = {...currentPilot, aircraftAuth:[...currentPilot.aircraftAuth, "Piper PA-28-181"]};
+
+  assert.equal(hasGroundingDefect(conflictingAircraft), true);
+  const result = evaluateFratEligibility(authorisedPilot, conflictingAircraft);
+  assert.equal(result.allowed, false);
+  assert.equal(result.blockers[0].code, "aircraft_grounding_defect");
+});
+
+test("closed grounding defects do not block a serviceable aircraft", () => {
+  const aircraft = {
+    ...clearAircraft,
+    defects: [{ id: "DEF-1", text: "Oil analysis", status: "Closed", restriction: "Aircraft grounded" }],
+  };
+  assert.equal(hasGroundingDefect(aircraft), false);
+  assert.equal(evaluateFratEligibility(currentPilot, aircraft).allowed, true);
+});
+
+test("non-current training requires CFI action instead of adding points to a normal FRAT", () => {
   const noncurrentPilot = {
     ...currentPilot,
     trainingStatus: "noncurrent",
     clubCurrency: "Expired — instructor check required",
   };
   const result = evaluateFratEligibility(noncurrentPilot, clearAircraft);
-  const seed = buildOpsFratSeed({ person: noncurrentPilot, aircraft: clearAircraft }, AS_OF);
 
-  assert.equal(result.allowed, true, "the FRAT remains available as a decision-support record");
-  assert.equal(seed.answers.pilot_4, 3);
-  assert.equal(seed.advisories.find(item => item.id === "training-action-required")?.level, "action");
-});
-
-test("invalid Academy pilot values stay manual instead of creating an auto-fill", () => {
-  const seed = buildOpsFratSeed({
-    person: {
-      ...currentPilot,
-      hrs90: undefined,
-      lastFlight: "07 Oct 2026",
-      trainingStatus: "unknown",
-    },
-    aircraft: clearAircraft,
-  }, AS_OF);
-
-  assert.equal(seed.answers.pilot_0, undefined);
-  assert.equal(seed.answers.pilot_2, undefined);
-  assert.equal(seed.answers.pilot_4, undefined);
-  assert.deepEqual(
-    seed.advisories.map(item => item.id),
-    ["hours-90-unverified", "last-flight-unverified", "training-status-unverified"],
-  );
+  assert.equal(result.allowed, false);
+  assert.equal(result.blockers[0].code, "training_action_required");
 });

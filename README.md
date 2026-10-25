@@ -1,47 +1,106 @@
 # SafeRoute Academy
 
-SafeRoute Academy is a controlled beta/prototype for student-pilot safety intelligence and pre-flight risk awareness. The flight-school workspaces use persistent synthetic demo data and are not authoritative maintenance, training, or regulatory records.
+SafeRoute Academy is a React + Vite aviation safety and training prototype for exploring flight-school and flying-club workflows. It demonstrates how pilot training/currency records and aircraft engineering status can inform pre-flight risk assessment using PAVE (Pilot, Aircraft, enVironment, External pressures) and a Flight Risk Assessment Tool (FRAT).
 
-## Current milestone
+**Status: demo / prototype for workflow evaluation and tester feedback.** The club workspaces use simulated records and browser-session-only changes; they are not official operational records or a production club-management system.
 
-Step 3 of the beta sequence — persistent private demo workspaces — is complete on the prototype branch. The application implementation, database activation, data boundary and verification record are documented in [docs/milestones/step-3-persistent-demo-workspaces.md](docs/milestones/step-3-persistent-demo-workspaces.md).
+## Project links
 
-The Step 3 persistence checklist is maintained in [docs/testing/step-3-persistence-checklist.md](docs/testing/step-3-persistence-checklist.md).
+- [Public tester app](https://www.saferouteacademy.app/)
+- [Public repository and current main branch](https://github.com/marchantlaurie-lgtm/saferoute-academy)
+- [Merged PR #1 — Academy Ops prototype: Admin, CFI, Engineering and FRAT integration](https://github.com/marchantlaurie-lgtm/saferoute-academy/pull/1)
+- [Vercel branch preview](https://saferoute-academy-git-academy-engineering-cfi-4aa47c-saferoute1.vercel.app)
+- [Vercel project](https://vercel.com/saferoute1/saferoute-academy)
+- [Tester feedback form](https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_academy_feedback_form.html)
 
-Post-milestone CFI feedback about logout navigation and Light/Dark/System appearance is recorded in [docs/feedback/2026-10-07-cfi-navigation-and-appearance.md](docs/feedback/2026-10-07-cfi-navigation-and-appearance.md).
+PR #1 is merged and its prototype capabilities are present in `main`. Its original description includes pre-merge wording about leaving main unchanged and remaining draft; that wording records the development stage at the time, rather than the current merge state. Merging the code does not change its demo/prototype status.
 
-The rebuilt tester How To guide and role-specific Quick Starts are indexed in [docs/guides/README.md](docs/guides/README.md) and are also available from the persistent **Guide** control inside the beta.
+## Current prototype capabilities
 
-Step 2 — the interface freeze — remains recorded in [docs/milestones/step-2-interface-freeze.md](docs/milestones/step-2-interface-freeze.md). Its frozen regression suite and issue classification are maintained in:
+| Workspace | Demonstrated capabilities |
+| --- | --- |
+| Club Admin | A selectable All, Students, Instructors, Staff and Aircraft directory; session-only role and account-status changes; read-only fleet and defect oversight; safeguards against removing or suspending the final active admin; locked beta safety policies and recent prototype activity. |
+| CFI / Training | Review pilot currency and checks through focused status filters, record a check/sign-off, and change aircraft-type authorisations. “Needs Attention” hides fully current records; category filters hide all other statuses; “All” groups the roster in a consistent red, amber, blue and green priority order. Changes update the shared pilot record used by Pilot / Ops in the same session. |
+| Engineering | Review aircraft states, defects, restrictions and maintenance context; change aircraft availability and demonstrate return to service. An open grounding / “do not fly” defect must be closed before a serviceable state can be recorded. Changes update Pilot / Ops in the same session. |
+| Pilot / Ops and PAVE/FRAT | Select a pilot and eligible aircraft, then start an assessment with record-derived context from the shared CFI and Engineering data. |
 
-- [docs/testing/step-2-regression-checklist.md](docs/testing/step-2-regression-checklist.md)
-- [docs/triage/step-2-interface-triage.md](docs/triage/step-2-interface-triage.md)
+CFI sign-off and Engineering return-to-service authority remain in their specialist workspaces. Club Admin provides oversight and system access; it does not replace those specialist actions.
 
-Step 1 — the shared Academy → PAVE/FRAT integration — remains recorded in [docs/milestones/step-1-academy-pave-frat-integration.md](docs/milestones/step-1-academy-pave-frat-integration.md).
+The Ops/FRAT integration:
 
-The Vercel branch preview is connected to the beta-only Supabase project. Those settings are scoped to the `academy-engineering-cfi-prototype` Preview environment and are not present in Production. Step 4 named authentication, invitations and enforced role-specific access has not started.
+- Blocks grounded or in-maintenance aircraft, any open grounding / “do not fly” defect, missing aircraft-type authorisation and non-current training records, rather than treating these prohibitions as ordinary score increases.
+- Prefills record-backed answers for recent flying hours, last-flight recency, training/check status and aircraft defects, with source context and Academy-versus-pilot answer labels.
+- Shows the simulated aircraft's recorded defects and restrictions, plus advisories for approaching checks, pending sign-off and scheduled maintenance due soon. Maintenance due soon does not independently add FRAT points.
+- Leaves sleep, IMSAFE, aircraft familiarity, weather and external pressures for pilot input.
 
-## Local verification
+Guide and Display controls are available from every screen. Guide contains the full public-beta instructions plus Quick Starts for Students & Pilots, Club Admin, CFI / Training and Engineering. Display offers System, Light and Dark appearances and saves the selection on the current device.
 
-```text
+US airfields also provide a separate Airspace & Advisories view. It uses the FAA sectional tile service, the FAA mapped-TFR feed, Aviation Weather Center G-AIRMET and SIGMET feeds, and FAA NAS airport events. Users can select a 25, 50 or 100 NM airport radius or draw a direct training line between Academy airfields and screen a configurable corridor. Every upstream source reports its own live, partial or unavailable state; an unavailable source is never presented as “no advisories.”
+
+The direct line is a training-awareness sketch, not an airway route, clearance, navigation service or complete route briefing. The TFR display is limited to records with mapped FAA geometry, NAS Status is not live aircraft traffic, and the interface continues to direct users to the complete FAA TFR list, AviationWeather.gov and Flight Service.
+
+## Demo limitations and tester access
+
+The flight-school/club login is a workspace selector demonstrating a planned integration, not a live organisation login. Club users, pilots, instructors and fleet records are fabricated examples. Workspace changes are held only for the current browser session; no real club records or durable operational audit trail are connected to these workflows. Production permission controls and immutable instructor audit records remain future work.
+
+The prototype's selection gates, role controls, sign-offs and return-to-service actions demonstrate workflow behaviour; they do not establish real-world permissions, pilot eligibility or aircraft airworthiness.
+
+**External testers should use [www.saferouteacademy.app](https://www.saferouteacademy.app/).** The workspace selector, Club Admin, CFI / Training, Engineering and Pilot / Ops demo are publicly accessible there without a username or password. This was rechecked on 20 October 2026. The separate Vercel branch-preview URL may still require Vercel team sign-in and is not the recommended tester route.
+
+Suggested tester focus: Club Admin access controls and authority boundaries; CFI currency, sign-off and authorisation changes; Engineering states, defects and restrictions; propagation into Ops/FRAT; and the clarity of red blockers, amber advisories and pilot-entered fields.
+
+## Verification state
+
+The full prototype workflow audit was completed on 20 October 2026. Automated verification was rerun and the live official advisory sources were validated on 25 October 2026:
+
+- `npm test` — 51 passing tests; `npm run lint` and `npm run build` successful.
+- Live requests for Vero Beach returned healthy FAA mapped-TFR, FAA NAS Status, Aviation Weather Center G-AIRMET and current SIGMET sources. Empty results remained distinct from unavailable-source results.
+- The official FAA sectional tile service rendered at Vero Beach, with independent TFR, G-AIRMET and SIGMET overlay controls.
+- A Vero Beach–Fort Lauderdale Executive training route check returned the current mapped TFR and weather-advisory intersections within the selected corridor, with official detail links.
+- Public tester access verified without username/password prompts for Club Admin, CFI / Training, Engineering and Pilot / Ops.
+- Final-active-admin safeguard verified in Club Admin.
+- CFI sign-off propagation into Pilot / Ops and the Academy-prefilled FRAT verified end to end.
+- CFI roster filters verified: Needs Attention excludes fully current pilots, each category filter hides other categories, and All uses a fixed priority grouping without duplicates.
+- Club Admin directory filters verified: Students, Instructors, Staff and Aircraft hide unrelated records, while All groups the full directory without duplicates.
+- Guide, role Quick Starts, System/Light/Dark Display controls and saved appearance preference verified locally.
+- Engineering grounding-defect protection verified: return to service stays locked until the grounding defect is closed, and Pilot / Ops independently blocks conflicting aircraft records.
+- Ops-launched FRAT now returns to Pilot / Ops, and a visible return control is retained when a tester continues into the main Academy application.
+- Session-relative demo dates replace fixed dates so due-soon and recency labels do not become internally inconsistent.
+- Mobile header and weather-map/sidebar layering checked at a 375-pixel viewport.
+
+The build still reports a non-blocking JavaScript chunk-size warning. These checks validate the current prototype workflows; they are not a production-airworthiness, regulatory-compliance or security certification.
+
+## Repository structure
+
+| Path | Purpose |
+| --- | --- |
+| `src/App.jsx` | Main application, prototype workspaces, shared session state and FRAT interface. |
+| `src/lib/academy-frat.js` | Academy-derived FRAT answers, context, advisories and eligibility gates. |
+| `src/lib/club-admin.js` | Club role/status updates, last-admin safeguards and overview summaries. |
+| `src/lib/cfi-roster.js` | CFI status filtering, counts and consistent roster grouping. |
+| `src/lib/appearance.js` | System, Light and Dark appearance preference handling. |
+| `src/components/help-guide.jsx`, `src/data/beta-guide-content.js` | Public-beta How To and role Quick Start guides. |
+| `src/lib/` | Supporting weather, airfield, icing and FRAT-control logic. |
+| `api/advisories.js`, `src/lib/advisories.js` | Server-side official advisory aggregation, source health, spatial filtering and direct-route awareness calculations. |
+| `src/components/uk-weather-map.jsx` | UK weather-map component. |
+| `src/main.jsx`, `src/*.css`, `src/assets/`, `public/` | Application entry point, styling and assets. |
+| `test/` | Node test suites for the extracted logic. |
+| `package.json`, `vite.config.js`, `eslint.config.js` | Development scripts, Vite and lint configuration. |
+
+## Local development
+
+```sh
+npm ci
+npm run dev
+```
+
+Available verification and preview commands:
+
+```sh
 npm test
 npm run lint
 npm run build
+npm run preview
 ```
 
-## Vite project notes
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+`npm run preview` serves the local production build after `npm run build`; it does not change the prototype's functional status. The application reads `VITE_BACKEND_URL` when supplied and otherwise uses the backend URL configured in `src/App.jsx`. The club workspaces described above remain simulated session-only workflows.

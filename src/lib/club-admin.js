@@ -5,6 +5,46 @@ export const CLUB_ACCESS_ROLES = [
   { id: "admin", label: "Club Admin" },
 ];
 
+export const CLUB_ADMIN_DIRECTORY_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "students", label: "Students" },
+  { id: "instructors", label: "Instructors" },
+  { id: "staff", label: "Staff" },
+  { id: "aircraft", label: "Aircraft" },
+];
+
+const CLUB_ADMIN_DIRECTORY_GROUPS = [
+  { id: "students", label: "Students", kind: "user" },
+  { id: "instructors", label: "Instructors", kind: "user" },
+  { id: "staff", label: "Staff", kind: "user" },
+  { id: "aircraft", label: "Aircraft", kind: "aircraft" },
+];
+
+export function getClubAdminUserCategory(user, people) {
+  const linkedPerson = people.find(person => person.id === user.personId);
+  const linkedRole = linkedPerson?.role || "";
+  if (user.roles.includes("cfi") || /\bCFI\b|instructor/i.test(linkedRole)) return "instructors";
+  if (/student/i.test(linkedRole)) return "students";
+  return "staff";
+}
+
+export function getClubAdminDirectoryCounts(users, people, aircraftList) {
+  const counts = { all: users.length + aircraftList.length, students: 0, instructors: 0, staff: 0, aircraft: aircraftList.length };
+  users.forEach(user => { counts[getClubAdminUserCategory(user, people)] += 1; });
+  return counts;
+}
+
+export function groupClubAdminDirectory(users, people, aircraftList, filter = "all") {
+  const groups = CLUB_ADMIN_DIRECTORY_GROUPS.map(group => ({
+    ...group,
+    items: group.kind === "aircraft"
+      ? [...aircraftList].sort((left, right) => left.tail.localeCompare(right.tail))
+      : users.filter(user => getClubAdminUserCategory(user, people) === group.id).sort((left, right) => left.name.localeCompare(right.name)),
+  }));
+
+  return groups.filter(group => (filter === "all" || group.id === filter) && group.items.length);
+}
+
 function activeAdminCount(users) {
   return users.filter(user => user.status === "active" && user.roles.includes("admin")).length;
 }

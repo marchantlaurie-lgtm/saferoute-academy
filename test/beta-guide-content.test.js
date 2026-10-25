@@ -8,7 +8,7 @@ import {
   normaliseGuideId,
 } from "../src/data/beta-guide-content.js";
 
-test("beta guidance includes a full guide and one Quick Start per requested role", () => {
+test("beta guidance includes a full guide and one Quick Start per workspace", () => {
   assert.deepEqual(
     QUICK_START_GUIDES.map(guide => guide.id),
     ["pilot-ops", "club-admin", "cfi", "engineering"],
@@ -25,12 +25,13 @@ test("every role guide contains usable steps, evaluation prompts and beta limits
   }
 });
 
-test("full guide preserves the shared-data and non-authoritative safety boundary", () => {
+test("full guide preserves session-only and non-authoritative safety boundaries", () => {
   const text = JSON.stringify(FULL_GUIDE_SECTIONS).toLowerCase();
   assert.match(text, /do not enter real/);
   assert.match(text, /shared/);
+  assert.match(text, /session/);
   assert.match(text, /authoritative aviation record/);
-  assert.match(text, /does not.*authorise|never makes or authorises/);
+  assert.match(text, /never makes or authorises/);
 });
 
 test("guide links safely default to the full guide", () => {

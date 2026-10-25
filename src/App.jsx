@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import {
   interpretMetarShort,
@@ -15,19 +15,29 @@ import {
   hasVisibleMoistureSignal,
   isNegativeIcingIntensity,
 } from "./lib/icing.js";
-import { buildOpsFratSeed, evaluateFratEligibility } from "./lib/academy-frat.js";
+import { formatAdvisoryAltitude } from "./lib/advisories.js";
+import {
+  academyDateOffset,
+  buildOpsFratSeed,
+  evaluateFratEligibility,
+  formatAcademyDate,
+  hasGroundingDefect,
+} from "./lib/academy-frat.js";
 import {
   buildClubAdminSummary,
   CLUB_ACCESS_ROLES,
+  CLUB_ADMIN_DIRECTORY_FILTERS,
+  getClubAdminDirectoryCounts,
+  groupClubAdminDirectory,
   toggleClubUserRole,
   toggleClubUserStatus,
 } from "./lib/club-admin.js";
 import { canControlReduce, FRAT_RETAIN_CONTROL, hasRecordedControl } from "./lib/frat-controls.js";
-import { createDemoWorkspaceSnapshot, DEFAULT_DEMO_WORKSPACE_NAME } from "./data/demo-workspace-template.js";
 import {
-  createConfiguredWorkspaceRepository,
-  loadBrowserWorkspaceSnapshot,
-} from "./lib/workspace-repository.js";
+  CFI_ROSTER_FILTERS,
+  getCfiRosterCounts,
+  groupCfiRoster,
+} from "./lib/cfi-roster.js";
 import {
   APPEARANCE_STORAGE_KEY,
   normaliseAppearance,
@@ -37,6 +47,10 @@ import { HelpGuideModal } from "./components/help-guide.jsx";
 import { normaliseGuideId } from "./data/beta-guide-content.js";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "https://saferoute-backend-production.up.railway.app";
+
+function alphaColor(color, percent) {
+  return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+}
 
 function guideFromLocation() {
   if (typeof window === "undefined") return null;
@@ -52,7 +66,7 @@ function updateGuideLocation(guideId) {
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
-function AppearanceShell({ appearance, resolvedAppearance, onAppearanceChange, showLogout=false, onLogout, children }) {
+function AppearanceShell({ appearance, resolvedAppearance, onAppearanceChange, children }) {
   const [settingsOpen,setSettingsOpen] = useState(false);
   const initialGuide = guideFromLocation();
   const [guideOpen,setGuideOpen] = useState(!!initialGuide);
@@ -83,8 +97,7 @@ function AppearanceShell({ appearance, resolvedAppearance, onAppearanceChange, s
   return (
     <div style={{minHeight:"100vh",background:"var(--sr-bg)",color:"var(--sr-text)"}}>
       {children}
-      <div style={{position:"fixed",right:14,bottom:14,zIndex:5000,display:"flex",gap:8,alignItems:"center"}}>
-        {showLogout&&<button aria-label="Log out to the Flight School and Club role selection" title="Log out to role selection" onClick={onLogout} style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(255,91,91,0.65)",borderRadius:999,padding:"10px 13px",color:"#E64444",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,boxShadow:"0 8px 26px rgba(0,0,0,0.22)"}}>⏻ LOG OUT</button>}
+      <div style={{position:"fixed",right:14,bottom:14,zIndex:2400,display:"flex",gap:8,alignItems:"center"}}>
         <button aria-label="Open How To and Quick Start guides" title="How To and Quick Start guides" onClick={openGuide} style={{background:"var(--sr-bg-elevated)",border:"1px solid var(--sr-border-strong)",borderRadius:999,padding:"10px 13px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,boxShadow:"0 8px 26px rgba(0,0,0,0.22)"}}>？ GUIDE</button>
         <button aria-label="Open display settings" title="Display settings" onClick={()=>setSettingsOpen(true)} style={{background:"var(--sr-bg-elevated)",border:"1px solid var(--sr-border-strong)",borderRadius:999,padding:"10px 13px",color:"var(--sr-text-strong)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,boxShadow:"0 8px 26px rgba(0,0,0,0.22)"}}>⚙ DISPLAY</button>
       </div>
@@ -98,11 +111,11 @@ function AppearanceShell({ appearance, resolvedAppearance, onAppearanceChange, s
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:9}}>
             {options.map(option=>{
               const selected=appearance===option.id;
-              return <button key={option.id} aria-pressed={selected} onClick={()=>onAppearanceChange(option.id)} style={{position:"relative",background:selected?"rgba(0,180,255,0.12)":"var(--sr-surface-soft)",border:`1px solid ${selected?"rgba(0,180,255,0.55)":"var(--sr-border)"}`,borderRadius:12,padding:"15px 8px 12px",color:selected?"#008AC1":"var(--sr-text-strong)",cursor:"pointer",minHeight:112}}>
+              return <button key={option.id} aria-pressed={selected} onClick={()=>onAppearanceChange(option.id)} style={{position:"relative",background:selected?"rgba(0,180,255,0.12)":"var(--sr-surface-soft)",border:`1px solid ${selected?"rgba(0,180,255,0.55)":"var(--sr-border)"}`,borderRadius:12,padding:"15px 8px 12px",color:selected?"var(--sr-accent)":"var(--sr-text-strong)",cursor:"pointer",minHeight:112}}>
                 <div style={{fontSize:26,lineHeight:1,marginBottom:9}}>{option.icon}</div>
                 <div style={{fontWeight:700,fontSize:12}}>{option.label}</div>
                 <div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:4,lineHeight:1.35}}>{option.detail}</div>
-                {selected&&<span aria-hidden="true" style={{position:"absolute",top:7,right:8,color:"#00A5DF",fontSize:14}}>✓</span>}
+                {selected&&<span aria-hidden="true" style={{position:"absolute",top:7,right:8,color:"var(--sr-accent)",fontSize:14}}>✓</span>}
               </button>;
             })}
           </div>
@@ -1293,7 +1306,7 @@ function DAWidget({ airfield, liveWx }) {
   const da = calcDA(airfield.elevation,tempC,altim);
   const [daColor,daLabel,daRisk] = da>5000?["#FF3B3B","EXTREME","Recalculate ALL performance. Significant reductions in climb rate and extended takeoff roll."]:da>3500?["#FF8C00","HIGH","Significant performance loss. Review POH numbers at field elevation before engine start."]:da>2000?["var(--sr-gold)","MODERATE","Performance affected. Recalculate takeoff roll and climb rate."]:["var(--sr-success)","NORMAL","Standard performance expected. Continue with normal planning."];
   return (
-    <div style={{background:"var(--sr-bg-elevated)",border:`2px solid ${daColor}55`,borderRadius:10,padding:"16px 18px",marginBottom:14}}>
+    <div style={{background:"var(--sr-bg-elevated)",border:`2px solid ${alphaColor(daColor,33)}`,borderRadius:10,padding:"16px 18px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
         <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.12em",fontWeight:"bold"}}>⬆ DENSITY ALTITUDE</div>
         <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:useLive?"var(--sr-success)":"var(--sr-gold)",background:useLive?"rgba(0,200,150,0.15)":"rgba(255,215,0,0.1)",border:`1px solid ${useLive?"rgba(0,200,150,0.4)":"rgba(255,215,0,0.3)"}`,padding:"2px 7px",borderRadius:3}}>{useLive?"● LIVE METAR":"MANUAL"}</span>
@@ -1313,7 +1326,7 @@ function DAWidget({ airfield, liveWx }) {
           <div style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:"var(--sr-text-strong)",fontWeight:"bold",marginTop:4}}>{altim.toFixed(2)}"</div>
         </div>
       </div>
-      <div style={{background:"rgba(0,0,0,0.4)",borderRadius:8,padding:"14px 16px",border:`1px solid ${daColor}44`,textAlign:"center"}}>
+      <div style={{background:"var(--sr-surface-soft)",borderRadius:8,padding:"14px 16px",border:`1px solid ${alphaColor(daColor,27)}`,textAlign:"center"}}>
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-3)",letterSpacing:"0.15em",marginBottom:4}}>DENSITY ALTITUDE</div>
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:36,color:daColor,fontWeight:"bold",lineHeight:1}}>{da.toLocaleString()} ft</div>
         <div style={{fontSize:11,color:daColor,fontWeight:"bold",marginTop:6,letterSpacing:"0.05em"}}>{daLabel} RISK</div>
@@ -1346,7 +1359,7 @@ function UkWeatherWidget({ airfield, liveWx }) {
   const icingRisk = tempC<=0 ? "LIKELY" : (freezingLevel < cloudBaseAmsl+2000 ? "POSSIBLE" : "NOT INDICATED");
   const riskColor = icingRisk==="LIKELY" ? "#FF3B3B" : icingRisk==="POSSIBLE" ? "var(--sr-gold)" : "var(--sr-success)";
   return (
-    <div style={{background:"var(--sr-bg-elevated)",border:`2px solid ${riskColor}55`,borderRadius:8,padding:"11px 13px",marginBottom:10}}>
+    <div style={{background:"var(--sr-bg-elevated)",border:`2px solid ${alphaColor(riskColor,33)}`,borderRadius:8,padding:"11px 13px",marginBottom:10}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
         <div style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",fontWeight:"bold"}}>☁ CLOUD BASE & ICING</div>
         <span style={{fontSize:7,fontFamily:"'DM Mono',monospace",color:useLive?"var(--sr-success)":"var(--sr-gold)",background:useLive?"rgba(0,200,150,0.15)":"rgba(255,215,0,0.15)",border:`1px solid ${useLive?"rgba(0,200,150,0.4)":"rgba(255,215,0,0.3)"}`,padding:"2px 5px",borderRadius:3}}>{useLive?"● LIVE METAR":"MANUAL"}</span>
@@ -1363,11 +1376,11 @@ function UkWeatherWidget({ airfield, liveWx }) {
           <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--sr-text-strong)",fontWeight:"bold",marginTop:3}}>{dewC}°C</div>
         </div>
       </div>
-      <div style={{background:"rgba(0,0,0,0.4)",borderRadius:6,padding:"10px 12px",border:`1px solid ${riskColor}44`,textAlign:"center"}}>
+      <div style={{background:"var(--sr-surface-soft)",borderRadius:6,padding:"10px 12px",border:`1px solid ${alphaColor(riskColor,27)}`,textAlign:"center"}}>
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:"var(--sr-text-muted-3)",letterSpacing:"0.12em",marginBottom:3}}>ESTIMATED CLOUD BASE</div>
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:25,color:"var(--sr-text-strong)",fontWeight:"bold",lineHeight:1}}>{cloudBaseAgl.toLocaleString()} ft AGL</div>
         <div style={{fontSize:8,color:"var(--sr-text-muted)",marginTop:3}}>({cloudBaseAmsl.toLocaleString()}ft AMSL)</div>
-        <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:7,borderTop:"1px solid rgba(255,255,255,0.08)",textAlign:"left"}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:7,borderTop:"1px solid var(--sr-border)",textAlign:"left"}}>
           <span style={{fontSize:8,color:"var(--sr-text-muted)"}}>Freezing level: <b style={{color:"var(--sr-text)"}}>~{freezingLevel.toLocaleString()}ft AMSL</b></span>
           <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:riskColor,fontWeight:"bold"}}>ICING: {icingRisk}</span>
         </div>
@@ -1443,10 +1456,10 @@ function IcingPanel({ airfield, icao, liveWx }) {
   }, [airfield.region, coords, icao]);
 
   return (
-    <div style={{background:"var(--sr-bg-elevated)",border:`1px solid ${statusColor}55`,borderRadius:10,padding:"16px 18px",marginBottom:14}}>
+    <div style={{background:"var(--sr-bg-elevated)",border:`1px solid ${alphaColor(statusColor,33)}`,borderRadius:10,padding:"16px 18px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:12}}>
         <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.12em",fontWeight:"bold"}}>❄ ICING / FREEZING LEVEL</div>
-        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:statusColor,border:`1px solid ${statusColor}66`,background:`${statusColor}18`,padding:"3px 7px",borderRadius:4,fontWeight:"bold"}}>{status}</span>
+        <span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:statusColor,border:`1px solid ${alphaColor(statusColor,40)}`,background:alphaColor(statusColor,9),padding:"3px 7px",borderRadius:4,fontWeight:"bold"}}>{status}</span>
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:12}}>
@@ -1474,14 +1487,14 @@ function IcingPanel({ airfield, icao, liveWx }) {
 
       {airfield.region !== "uk" && (
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:8,marginBottom:12}}>
-          <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:7,padding:"10px 12px"}}>
+          <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid var(--sr-surface-hover)",borderRadius:7,padding:"10px 12px"}}>
             <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:6}}>G-AIRMET ZULU · SELECTED AIRFIELD</div>
             {icingLoad ? <div style={{fontSize:10,color:"var(--sr-text-muted)"}}>Checking official advisory…</div> : advisoryActive ? (
               (icingData.advisories || []).map((advisory,index)=><div key={`${advisory.validTime}-${index}`} style={{fontSize:10,color:"#FF8C00",lineHeight:1.55,fontWeight:"bold"}}>{advisory.severity || "MOD"} icing · {formatIcingLevel(advisory.base)} to {formatIcingLevel(advisory.top)}</div>)
             ) : <div style={{fontSize:10,color:icingError?"var(--sr-text-muted)":"var(--sr-success)",lineHeight:1.5}}>{icingError?"Official advisory feed unavailable.":"No current G-AIRMET icing area intersects this airfield."}</div>}
             {icingData?.validTime && <div style={{fontSize:8,color:"var(--sr-text-muted-2)",marginTop:5}}>Snapshot valid {new Date(icingData.validTime).toLocaleString([], {timeZone:"UTC",hour:"2-digit",minute:"2-digit",day:"numeric",month:"short",timeZoneName:"short"})}</div>}
           </div>
-          <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:7,padding:"10px 12px"}}>
+          <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid var(--sr-surface-hover)",borderRadius:7,padding:"10px 12px"}}>
             <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",marginBottom:6}}>ICING PIREPS · 100 NM / 6 HOURS</div>
             {icingLoad ? <div style={{fontSize:10,color:"var(--sr-text-muted)"}}>Checking recent pilot reports…</div> : (
               <>
@@ -1501,14 +1514,339 @@ function IcingPanel({ airfield, icao, liveWx }) {
   );
 }
 
+const ADVISORIES_API_ROOT = import.meta.env.VITE_ADVISORIES_API_URL || "/api/advisories";
+const FAA_SECTIONAL_TILE_URL = "https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}";
+
+function escapeMapText(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatUtcTime(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString([], {
+    timeZone:"UTC",
+    day:"numeric",
+    month:"short",
+    hour:"2-digit",
+    minute:"2-digit",
+    timeZoneName:"short",
+  });
+}
+
+function AdvisorySourceBadge({ status }) {
+  const presentation = status === "ok"
+    ? { label:"● LIVE", color:"var(--sr-success)" }
+    : status === "partial"
+      ? { label:"PARTIAL", color:"var(--sr-gold)" }
+      : { label:"DATA UNAVAILABLE", color:"var(--sr-text-muted)" };
+  return <span style={{fontSize:7,fontFamily:"'DM Mono',monospace",fontWeight:"bold",color:presentation.color,border:`1px solid ${alphaColor(presentation.color,38)}`,background:alphaColor(presentation.color,10),borderRadius:4,padding:"3px 6px",whiteSpace:"nowrap"}}>{presentation.label}</span>;
+}
+
+function AdvisoryMap({ airfield, icao, data, destinationIcao }) {
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const streetLayerRef = useRef(null);
+  const sectionalLayerRef = useRef(null);
+  const overlayGroupRef = useRef(null);
+  const [leaflet,setLeaflet] = useState(null);
+  const [baseLayer,setBaseLayer] = useState("sectional");
+  const [visible,setVisible] = useState({ tfr:true, gairmet:true, sigmet:true });
+  const coords = FIELD_COORDS[icao];
+  const destinationCoords = destinationIcao ? FIELD_COORDS[destinationIcao] : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    import("leaflet")
+      .then(module => { if (!cancelled) setLeaflet(module.default); })
+      .catch(() => { if (!cancelled) setLeaflet(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || !leaflet || !coords) return;
+    if (mapRef.current) mapRef.current.remove();
+    const map = leaflet.map(mapContainerRef.current, {
+      center:coords,
+      zoom:8,
+      minZoom:4,
+      maxZoom:16,
+      scrollWheelZoom:false,
+      touchZoom:true,
+      zoomControl:true,
+    });
+    map.on("click", () => map.scrollWheelZoom.enable());
+    streetLayerRef.current = leaflet.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      maxZoom:16,
+      zIndex:0,
+    });
+    sectionalLayerRef.current = leaflet.tileLayer(FAA_SECTIONAL_TILE_URL, {
+      attribution:'Sectional: <a href="https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/vfr/">FAA Aeronautical Information Services</a>',
+      minNativeZoom:8,
+      maxNativeZoom:12,
+      maxZoom:16,
+      zIndex:0,
+    });
+    leaflet.marker(coords).addTo(map).bindPopup(`${escapeMapText(airfield.name)} (${escapeMapText(icao)})`);
+    mapRef.current = map;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      streetLayerRef.current = null;
+      sectionalLayerRef.current = null;
+      overlayGroupRef.current = null;
+    };
+  }, [airfield.name, coords, icao, leaflet]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const street = streetLayerRef.current;
+    const sectional = sectionalLayerRef.current;
+    if (street && map.hasLayer(street)) map.removeLayer(street);
+    if (sectional && map.hasLayer(sectional)) map.removeLayer(sectional);
+    const selected = baseLayer === "sectional" ? sectional : street;
+    if (selected) selected.addTo(map);
+  }, [baseLayer, icao, leaflet]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !leaflet || !coords) return;
+    if (overlayGroupRef.current) map.removeLayer(overlayGroupRef.current);
+    const group = leaflet.layerGroup().addTo(map);
+    overlayGroupRef.current = group;
+    const categories = [
+      { id:"tfr", collection:data?.tfrs, color:"#FF3B3B", fillOpacity:0.16 },
+      { id:"gairmet", collection:data?.gairmets, color:"#FFB020", fillOpacity:0.12 },
+      { id:"sigmet", collection:data?.sigmets, color:"#C77DFF", fillOpacity:0.15 },
+    ];
+    categories.forEach(category => {
+      if (!visible[category.id] || !category.collection?.features?.length) return;
+      leaflet.geoJSON(category.collection, {
+        style:{ color:category.color, weight:2, fillColor:category.color, fillOpacity:category.fillOpacity },
+        pointToLayer:(_feature,latlng) => leaflet.circleMarker(latlng, { radius:7, color:category.color, fillOpacity:0.45 }),
+        onEachFeature:(feature,layer) => {
+          const properties = feature.properties || {};
+          const distance = data?.scope?.mode === "route" ? properties.routeDistanceNm : properties.departureDistanceNm;
+          const distanceText = distance === 0
+            ? (data?.scope?.mode === "route" ? "Intersects route" : "Contains selected airport")
+            : Number.isFinite(distance) ? `${distance} NM ${data?.scope?.mode === "route" ? "from route" : "from airport"}` : "";
+          layer.bindPopup(`<strong>${escapeMapText(properties.title || properties.type)}</strong><br>${escapeMapText(distanceText)}<br><small>${escapeMapText(properties.source)}</small>`);
+        },
+      }).addTo(group);
+    });
+    if (destinationCoords) {
+      leaflet.polyline([coords,destinationCoords], { color:"#00B4FF", weight:3, dashArray:"8 7" })
+        .addTo(group)
+        .bindPopup(`Direct training line ${escapeMapText(icao)}–${escapeMapText(destinationIcao)}`);
+      leaflet.marker(destinationCoords).addTo(group).bindPopup(`${escapeMapText(AIRFIELDS[destinationIcao]?.name)} (${escapeMapText(destinationIcao)})`);
+      if ((data?.scope?.directDistanceNm || Infinity) <= 180) {
+        map.fitBounds([coords,destinationCoords], { padding:[28,28], maxZoom:9 });
+      } else {
+        map.setView(coords,8);
+      }
+    } else {
+      map.setView(coords,8);
+    }
+    return () => {
+      if (map.hasLayer(group)) map.removeLayer(group);
+      if (overlayGroupRef.current === group) overlayGroupRef.current = null;
+    };
+  }, [coords, data, destinationCoords, destinationIcao, icao, leaflet, visible]);
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap",marginBottom:8}}>
+        <div style={{display:"flex",gap:5}}>
+          {[{id:"sectional",label:"FAA SECTIONAL"},{id:"street",label:"STREET"}].map(option=><button key={option.id} aria-pressed={baseLayer===option.id} onClick={()=>setBaseLayer(option.id)} style={{background:baseLayer===option.id?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${baseLayer===option.id?"rgba(0,180,255,0.5)":"var(--sr-border)"}`,borderRadius:5,padding:"5px 8px",color:baseLayer===option.id?"var(--sr-accent)":"var(--sr-text-muted)",fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:"bold",cursor:"pointer"}}>{option.label}</button>)}
+        </div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+          {[
+            {id:"tfr",label:"TFR",color:"#FF3B3B"},
+            {id:"gairmet",label:"G-AIRMET",color:"#FFB020"},
+            {id:"sigmet",label:"SIGMET",color:"#C77DFF"},
+          ].map(option=><button key={option.id} aria-pressed={visible[option.id]} onClick={()=>setVisible(current=>({...current,[option.id]:!current[option.id]}))} style={{background:visible[option.id]?alphaColor(option.color,15):"var(--sr-surface)",border:`1px solid ${visible[option.id]?alphaColor(option.color,55):"var(--sr-border)"}`,borderRadius:5,padding:"5px 8px",color:visible[option.id]?option.color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:"bold",cursor:"pointer"}}>{visible[option.id]?"●":"○"} {option.label}</button>)}
+        </div>
+      </div>
+      <div ref={mapContainerRef} style={{height:330,width:"100%",borderRadius:8,overflow:"hidden",position:"relative",zIndex:0,background:"var(--sr-surface)"}}/>
+      <div style={{fontSize:8,color:"var(--sr-text-muted-2)",marginTop:7,lineHeight:1.45}}>FAA sectional tiles are maintained by Aeronautical Information Services. Zoom 8–12 provides the native chart detail; check the chart cycle, chart notices and current NOTAMs before flight.</div>
+    </div>
+  );
+}
+
+function advisoryAltitudeText(properties) {
+  const base = formatAdvisoryAltitude(properties.base);
+  const top = formatAdvisoryAltitude(properties.top);
+  if (base && top) return `${base} to ${top}`;
+  return top || base;
+}
+
+function AdvisoryList({ title, features, source, routeMode, emptyText }) {
+  return (
+    <div style={{background:"rgba(0,0,0,0.22)",border:"1px solid var(--sr-surface-hover)",borderRadius:8,padding:"11px 12px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+        <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",fontWeight:"bold"}}>{title}</div>
+        <AdvisorySourceBadge status={source?.status || "unavailable"}/>
+      </div>
+      {source?.status === "unavailable" ? <div style={{fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.5}}>Official source could not be reached. No absence-of-hazard conclusion is shown.</div> : features.length ? features.slice(0,6).map((feature,index)=>{
+        const properties = feature.properties || {};
+        const distance = routeMode ? properties.routeDistanceNm : properties.departureDistanceNm;
+        const distanceLabel = distance === 0 ? (routeMode?"INTERSECTS ROUTE":"AT AIRPORT") : `${distance} NM ${routeMode?"FROM ROUTE":"AWAY"}`;
+        const validity = properties.validTo ? `Valid to ${formatUtcTime(properties.validTo)}` : properties.modifiedAt ? `FAA record updated ${formatUtcTime(properties.modifiedAt)}` : null;
+        const altitude = advisoryAltitudeText(properties);
+        return <div key={`${properties.notamId||properties.title}-${index}`} style={{borderTop:index?"1px solid var(--sr-border)":"none",paddingTop:index?8:0,marginTop:index?8:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:9,alignItems:"flex-start"}}>
+            <div style={{fontSize:10,color:"var(--sr-text-strong)",fontWeight:"bold",lineHeight:1.45}}>{properties.title}</div>
+            <span style={{fontSize:7,fontFamily:"'DM Mono',monospace",color:distance===0?"#FF8C00":"var(--sr-text-muted)",whiteSpace:"nowrap"}}>{distanceLabel}</span>
+          </div>
+          {(altitude||validity)&&<div style={{fontSize:8,color:"var(--sr-text-muted-2)",marginTop:3,lineHeight:1.45}}>{[altitude,validity].filter(Boolean).join(" · ")}</div>}
+          {properties.detailUrl&&<a href={properties.detailUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",fontSize:8,color:"var(--sr-accent)",marginTop:4,fontFamily:"'DM Mono',monospace"}}>OPEN OFFICIAL TFR →</a>}
+        </div>;
+      }) : <div style={{fontSize:10,color:"var(--sr-success)",lineHeight:1.5}}>{emptyText}</div>}
+      {source?.retrievedAt&&<div style={{fontSize:7,color:"var(--sr-text-muted-3)",marginTop:8}}>Feed checked {formatUtcTime(source.retrievedAt)}</div>}
+    </div>
+  );
+}
+
+function NasAdvisoryList({ data, source }) {
+  const records = [data?.departure,data?.destination].filter(Boolean);
+  const events = records.flatMap(record => (record.events || []).map(event => ({...event,airportId:record.airportId,airportName:record.airportName})));
+  return (
+    <div style={{background:"rgba(0,0,0,0.22)",border:"1px solid var(--sr-surface-hover)",borderRadius:8,padding:"11px 12px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+        <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",fontWeight:"bold"}}>FAA NAS AIRPORT EVENTS</div>
+        <AdvisorySourceBadge status={source?.status || "unavailable"}/>
+      </div>
+      {source?.status === "unavailable" ? <div style={{fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.5}}>FAA NAS Status could not be reached. Check the official status page directly.</div> : events.length ? events.map((event,index)=><div key={`${event.airportId}-${event.type}-${index}`} style={{borderTop:index?"1px solid var(--sr-border)":"none",paddingTop:index?8:0,marginTop:index?8:0}}>
+        <div style={{fontSize:10,color:event.type.includes("Closure")||event.type.includes("Stop")?"#FF6B6B":"var(--sr-gold)",fontWeight:"bold"}}>{event.airportId} · {event.type}</div>
+        <div style={{fontSize:9,color:"var(--sr-text)",lineHeight:1.5,marginTop:3}}>{event.detail}</div>
+        {(event.startsAt||event.endsAt)&&<div style={{fontSize:8,color:"var(--sr-text-muted-2)",marginTop:3}}>{event.startsAt?formatUtcTime(event.startsAt):"Current"}{event.endsAt?` to ${formatUtcTime(event.endsAt)}`:""}</div>}
+      </div>) : <div style={{fontSize:10,color:"var(--sr-success)",lineHeight:1.5}}>{data?.destination?"No active FAA NAS airport event was returned for either selected airport.":"No active FAA NAS airport event was returned for the selected airport."} This is not a NOTAM or traffic-avoidance check.</div>}
+      <a href="https://nasstatus.faa.gov/" target="_blank" rel="noreferrer" style={{display:"inline-block",fontSize:8,color:"var(--sr-accent)",marginTop:8,fontFamily:"'DM Mono',monospace"}}>OPEN FAA NAS STATUS →</a>
+    </div>
+  );
+}
+
+function AirspaceAdvisoriesPanel({ airfield, icao }) {
+  const coords = FIELD_COORDS[icao];
+  const [radius,setRadius] = useState(50);
+  const [corridor,setCorridor] = useState(25);
+  const [destinationIcao,setDestinationIcao] = useState("");
+  const [data,setData] = useState(null);
+  const [loading,setLoading] = useState(true);
+  const [requestError,setRequestError] = useState(null);
+  const destinationCoords = destinationIcao ? FIELD_COORDS[destinationIcao] : null;
+  const destinationOptions = Object.entries(AIRFIELDS)
+    .filter(([code,field]) => code !== icao && field.region !== "uk" && FIELD_COORDS[code])
+    .sort((left,right) => left[1].name.localeCompare(right[1].name));
+
+  useEffect(() => {
+    if (!coords) return;
+    const controller = new AbortController();
+    const url = new URL(ADVISORIES_API_ROOT, window.location.origin);
+    url.searchParams.set("icao",icao);
+    url.searchParams.set("lat",coords[0]);
+    url.searchParams.set("lon",coords[1]);
+    url.searchParams.set("radius",radius);
+    url.searchParams.set("corridor",corridor);
+    if (destinationCoords) {
+      url.searchParams.set("destIcao",destinationIcao);
+      url.searchParams.set("destLat",destinationCoords[0]);
+      url.searchParams.set("destLon",destinationCoords[1]);
+    }
+    fetch(url, { signal:controller.signal })
+      .then(response => {
+        if (!response.ok) throw new Error(`Advisory service returned ${response.status}`);
+        return response.json();
+      })
+      .then(result => setData(result))
+      .catch(error => { if (error.name !== "AbortError") { setRequestError(error.message); setData(null); } })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [coords, corridor, destinationCoords, destinationIcao, icao, radius]);
+
+  const routeMode = data?.scope?.mode === "route";
+  const uniqueTfrs = [...new Map((data?.tfrs?.features || []).map(feature => [feature.properties.notamId || feature.id,feature])).values()];
+  const gairmets = data?.gairmets?.features || [];
+  const sigmets = data?.sigmets?.features || [];
+  const nasEventCount = [data?.nas?.departure,data?.nas?.destination].filter(Boolean).reduce((total,record)=>total+(record.events?.length||0),0);
+  const cardData = [
+    {label:"MAPPED TFR",count:uniqueTfrs.length,status:data?.sources?.tfr?.status,color:"#FF6B6B"},
+    {label:"G-AIRMET",count:gairmets.length,status:data?.sources?.gairmet?.status,color:"#FFB020"},
+    {label:"SIGMET",count:sigmets.length,status:data?.sources?.sigmet?.status,color:"#C77DFF"},
+    {label:"NAS EVENT",count:nasEventCount,status:data?.sources?.nas?.status,color:"#8BCCF0"},
+  ];
+
+  return (
+    <div style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(0,180,255,0.24)",borderRadius:10,padding:"16px 18px",marginBottom:14}} aria-busy={loading}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,flexWrap:"wrap",marginBottom:12}}>
+        <div><div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.12em",fontWeight:"bold"}}>◈ AIRSPACE & ADVISORIES</div><div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:4}}>Official FAA and Aviation Weather Center awareness feeds</div></div>
+        {loading&&<span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"var(--sr-gold)"}}>REFRESHING…</span>}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:12}}>
+        <label style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>AIRPORT RADIUS
+          <select value={radius} onChange={event=>{setLoading(true);setRequestError(null);setData(null);setRadius(Number(event.target.value));}} disabled={!!destinationIcao} style={{display:"block",width:"100%",marginTop:5,background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:"8px 9px",color:"var(--sr-text-strong)",fontFamily:"'DM Mono',monospace",fontSize:10}}>
+            {[25,50,100].map(value=><option key={value} value={value}>{value} NM</option>)}
+          </select>
+        </label>
+        <label style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>OPTIONAL TRAINING ROUTE
+          <select value={destinationIcao} onChange={event=>{setLoading(true);setRequestError(null);setData(null);setDestinationIcao(event.target.value);}} style={{display:"block",width:"100%",marginTop:5,background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:"8px 9px",color:"var(--sr-text-strong)",fontFamily:"'DM Mono',monospace",fontSize:10}}>
+            <option value="">Nearby {icao} only</option>
+            {destinationOptions.map(([code,field])=><option key={code} value={code}>{code} · {field.name}</option>)}
+          </select>
+        </label>
+        <label style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>ROUTE CORRIDOR
+          <select value={corridor} onChange={event=>{setLoading(true);setRequestError(null);setData(null);setCorridor(Number(event.target.value));}} disabled={!destinationIcao} style={{display:"block",width:"100%",marginTop:5,background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:"8px 9px",color:"var(--sr-text-strong)",fontFamily:"'DM Mono',monospace",fontSize:10}}>
+            {[10,25,50].map(value=><option key={value} value={value}>± {value} NM</option>)}
+          </select>
+        </label>
+      </div>
+      {destinationIcao&&<div style={{fontSize:8,color:"var(--sr-gold)",lineHeight:1.45,marginBottom:10}}>Route sketch: direct line {icao}–{destinationIcao}{data?.scope?.directDistanceNm?` · ${data.scope.directDistanceNm} NM`:""}. Training awareness only—this is not an airway route, clearance, navigation service or complete route briefing.</div>}
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(85px,1fr))",gap:7,marginBottom:12}}>
+        {cardData.map(card=><div key={card.label} style={{background:"var(--sr-surface-soft)",border:`1px solid ${alphaColor(card.color,28)}`,borderRadius:7,padding:"9px 7px",textAlign:"center"}}><div style={{fontFamily:"'DM Mono',monospace",fontSize:18,color:card.status==="unavailable"?"var(--sr-text-muted)":card.color,fontWeight:"bold"}}>{card.status==="unavailable"?"—":card.count}</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:"var(--sr-text-muted-2)",marginTop:2}}>{card.label}</div></div>)}
+      </div>
+
+      {requestError&&<div style={{background:"rgba(255,140,0,0.08)",border:"1px solid rgba(255,140,0,0.35)",borderRadius:7,padding:"9px 11px",fontSize:10,color:"#FFB020",lineHeight:1.5,marginBottom:10}}>Live advisory data is unavailable. Academy is not showing a false “none found” result. Use the official links below. ({requestError})</div>}
+      <AdvisoryMap airfield={airfield} icao={icao} data={data} destinationIcao={destinationIcao}/>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(245px,1fr))",gap:8,marginTop:12}}>
+        <AdvisoryList title={routeMode?`MAPPED TFR · ±${corridor} NM ROUTE`:`MAPPED TFR · ${radius} NM`} features={uniqueTfrs} source={data?.sources?.tfr} routeMode={routeMode} emptyText={routeMode?"No mapped TFR shape was returned inside the selected route corridor. Check the complete FAA list and obtain an official briefing.":"No mapped TFR shape was returned inside the selected airport radius. Check the complete FAA list and obtain an official briefing."}/>
+        <AdvisoryList title="G-AIRMET SNAPSHOT" features={gairmets} source={data?.sources?.gairmet} routeMode={routeMode} emptyText="No G-AIRMET area was returned for this scope in the current snapshot."/>
+        <AdvisoryList title="CURRENT SIGMET" features={sigmets} source={data?.sources?.sigmet} routeMode={routeMode} emptyText="No current SIGMET area was returned for this scope."/>
+        <NasAdvisoryList data={data?.nas} source={data?.sources?.nas}/>
+      </div>
+
+      <div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:12}}>
+        <a href="https://tfr.faa.gov/tfr3/?page=list" target="_blank" rel="noreferrer" style={{background:"rgba(255,59,59,0.10)",border:"1px solid rgba(255,59,59,0.35)",borderRadius:6,padding:"7px 11px",color:"#FF7A7A",fontFamily:"'DM Mono',monospace",fontSize:8,textDecoration:"none",fontWeight:"bold"}}>FULL FAA TFR LIST →</a>
+        <a href="https://aviationweather.gov/gfa/" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.12)",border:"1px solid rgba(0,180,255,0.35)",borderRadius:6,padding:"7px 11px",color:"var(--sr-accent)",fontFamily:"'DM Mono',monospace",fontSize:8,textDecoration:"none",fontWeight:"bold"}}>OPEN AVIATIONWEATHER.GOV GFA →</a>
+        <a href="https://www.1800wxbrief.com/" target="_blank" rel="noreferrer" style={{background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:"7px 11px",color:"var(--sr-text-strong)",fontFamily:"'DM Mono',monospace",fontSize:8,textDecoration:"none",fontWeight:"bold"}}>OFFICIAL BRIEFING →</a>
+      </div>
+      <div style={{fontSize:8,color:"var(--sr-text-muted-2)",lineHeight:1.55,marginTop:10}}>Planning and training awareness only. FAA TFR map data can be incomplete or delayed, not every TFR has a mapped shape, and NAS Status does not provide tactical aircraft traffic. “No item returned” never means the airspace or route is clear. Check current NOTAMs, chart notices, official weather products and an approved preflight briefing; contact Flight Service or ATC when required.</div>
+    </div>
+  );
+}
+
 function WeatherLayerWidget({ airfield, icao, liveWx }) {
   const [layer, setLayer] = useState("radar");
+  const tabs = [["radar","🗺 RADAR"],["icing","❄ ICING / FREEZING LEVEL"]];
+  if (airfield.region !== "uk") tabs.push(["airspace","◈ AIRSPACE & ADVISORIES"]);
   return (
     <>
-      <div style={{display:"flex",gap:5,marginBottom:8,position:"relative",zIndex:1}} role="tablist" aria-label="Weather display">
-        {[["radar","🗺 RADAR"],["icing","❄ ICING / FREEZING LEVEL"]].map(([id,label])=><button key={id} role="tab" aria-selected={layer===id} onClick={()=>setLayer(id)} style={{background:layer===id?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${layer===id?"rgba(0,180,255,0.45)":"var(--sr-border)"}`,borderRadius:6,padding:"7px 12px",color:layer===id?"var(--sr-accent)":"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",letterSpacing:"0.05em"}}>{label}</button>)}
+      <div style={{display:"flex",gap:5,marginBottom:8,position:"relative",zIndex:1,flexWrap:"wrap"}} role="tablist" aria-label="Weather and airspace display">
+        {tabs.map(([id,label])=><button key={id} role="tab" aria-selected={layer===id} onClick={()=>setLayer(id)} style={{background:layer===id?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${layer===id?"rgba(0,180,255,0.45)":"var(--sr-border)"}`,borderRadius:6,padding:"7px 12px",color:layer===id?"var(--sr-accent)":"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",letterSpacing:"0.05em"}}>{label}</button>)}
       </div>
-      {layer === "radar" ? <MapWidget airfield={airfield} icao={icao}/> : <IcingPanel key={icao} airfield={airfield} icao={icao} liveWx={liveWx}/>}
+      {layer === "radar" && <MapWidget airfield={airfield} icao={icao}/>}
+      {layer === "icing" && <IcingPanel key={icao} airfield={airfield} icao={icao} liveWx={liveWx}/>}
+      {layer === "airspace" && <AirspaceAdvisoriesPanel key={icao} airfield={airfield} icao={icao}/>}
     </>
   );
 }
@@ -1642,8 +1980,8 @@ function TAFDisplay({ tafs }) {
 
 function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
   const [wxTab, setWxTab] = useState("metar");
-  if (wxLoad) return <div style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace"}}>Loading live weather…</div>;
-  if (!liveWx) return <div style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace"}}>No live weather data available for this field.</div>;
+  if (wxLoad) return <div style={{background:"var(--sr-bg-elevated)",border:"1px solid var(--sr-border)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace"}}>Loading live weather…</div>;
+  if (!liveWx) return <div style={{background:"var(--sr-bg-elevated)",border:"1px solid var(--sr-border)",borderRadius:8,padding:"12px 16px",marginBottom:14,fontSize:10,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace"}}>No live weather data available for this field.</div>;
   const metarStatus = liveWx.metarStatus || (liveWx.metar ? "current" : "unavailable");
   const metarRetained = metarStatus === "last-known-good";
   const metarTooOld = metarStatus === "stale";
@@ -1673,7 +2011,7 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
       {metarTooOld && <div style={{background:"rgba(255,59,59,0.08)",border:"1px solid rgba(255,59,59,0.35)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#FF8C00",lineHeight:1.5}}>⚠ The latest METAR is {ageLabel?`${ageLabel} old`:"not time-verifiable"}{observedLabel?` (${observedLabel})`:""}. It is shown for context only; Academy has disabled METAR-dependent calculations.</div>}
       {metarUnavailable && <div style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.28)",borderRadius:6,padding:"8px 10px",marginBottom:10,fontSize:10,color:"var(--sr-gold)",lineHeight:1.5}}>⚠ No current or retained METAR is available. METAR-dependent estimates are unavailable; use the TAF and official weather sources while Academy retries the feed.</div>}
       {/* Weather sub-tabs */}
-      <div style={{display:"flex",gap:2,marginBottom:12,borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+      <div style={{display:"flex",gap:2,marginBottom:12,borderBottom:"1px solid var(--sr-surface-hover)"}}>
         {[["metar","METAR"],["taf","TAF FORECAST"]].map(([tid,label])=>(
           <button key={tid} onClick={()=>setWxTab(tid)} style={{background:"none",border:"none",cursor:"pointer",padding:"6px 12px",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.08em",color:wxTab===tid?"var(--sr-accent)":"var(--sr-text-muted-2)",borderBottom:wxTab===tid?"2px solid #00B4FF":"2px solid transparent",marginBottom:"-1px",transition:"all 0.15s"}}>{label}</button>
         ))}
@@ -1703,7 +2041,7 @@ function WeatherStrip({ liveWx, wxLoad, requestedIcao, weatherIcao }) {
 function HazardCard({ h, expanded, onToggle }) {
   const sc = SEV[h.sev];
   return (
-    <div onClick={onToggle} style={{background:expanded?sc.bg:"var(--sr-bg-elevated)",border:`1px solid ${expanded?sc.border:"var(--sr-border-strong)"}`,borderRadius:9,marginBottom:8,cursor:"pointer",overflow:"hidden",transition:"all 0.2s",boxShadow:expanded?`0 0 20px ${sc.bg}`:"none"}}>
+    <div onClick={onToggle} style={{background:expanded?sc.bg:"rgba(15,25,40,0.9)",border:`1px solid ${expanded?sc.border:"var(--sr-border-strong)"}`,borderRadius:9,marginBottom:8,cursor:"pointer",overflow:"hidden",transition:"all 0.2s",boxShadow:expanded?`0 0 20px ${sc.bg}`:"none"}}>
       <div style={{padding:"13px 15px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{width:36,height:36,background:sc.bg,border:`1px solid ${sc.border}`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{h.icon}</div>
@@ -1718,7 +2056,7 @@ function HazardCard({ h, expanded, onToggle }) {
         </div>
       </div>
       {expanded && (
-        <div style={{padding:"0 15px 14px 15px",borderTop:`1px solid ${sc.border}55`}}>
+        <div style={{padding:"0 15px 14px 15px",borderTop:`1px solid ${sc.border}`}}>
           {h.why && <div style={{fontSize:11,color:sc.color,fontWeight:"600",fontStyle:"italic",marginBottom:8,marginTop:10,padding:"6px 10px",background:sc.bg,borderRadius:5,borderLeft:`3px solid ${sc.color}`}}>Why this matters: {h.why}</div>}
           <div style={{fontSize:12,color:"var(--sr-text)",lineHeight:1.8,marginTop:h.why?0:10}}>{h.detail}</div>
         </div>
@@ -1735,9 +2073,32 @@ function HazardCard({ h, expanded, onToggle }) {
 // is fabricated example data, clearly labelled as such everywhere it
 // appears — never presented as if it were a real live feed.
 
-const INITIAL_DEMO_WORKSPACE = createDemoWorkspaceSnapshot();
-const MOCK_OPS_PEOPLE = INITIAL_DEMO_WORKSPACE.people;
-const MOCK_OPS_AIRCRAFT = INITIAL_DEMO_WORKSPACE.aircraft;
+const MOCK_OPS_PEOPLE = [
+  { id:"p1", name:"Jordan Reyes", role:"Student — PPL", hrs90:14.2, currency:"Medical current (Class 3, exp. 8mo)", medical:"Current — 8 months remaining", lastFlight:academyDateOffset(-8), clubCurrency:"Current", nextCheck:academyDateOffset(29), trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 152"], lastCheck:academyDateOffset(-155) },
+  { id:"p2", name:"Alicia Chen", role:"Student — Instrument", hrs90:6.5, currency:"Medical current (Class 3, exp. 5mo)", medical:"Current — 5 months remaining", lastFlight:academyDateOffset(-14), clubCurrency:"Expires in 12 days", nextCheck:academyDateOffset(12), trainingStatus:"due", pendingSignoff:true, aircraftAuth:["Cessna 172N"], lastCheck:academyDateOffset(-185) },
+  { id:"p3", name:"Marcus Webb", role:"CFI", hrs90:42.0, currency:"Flight review & medical current", medical:"Current", lastFlight:academyDateOffset(-1), clubCurrency:"Current", nextCheck:academyDateOffset(115), trainingStatus:"current", pendingSignoff:false, aircraftAuth:["Cessna 172S","Cessna 172N","Piper PA-28-181","Cessna 152"], lastCheck:academyDateOffset(-69) },
+  { id:"p4", name:"Sarah Kim", role:"Student — Solo", hrs90:3.1, currency:"Medical current (Class 3, exp. 11mo)", medical:"Current — 11 months remaining", lastFlight:academyDateOffset(-50), clubCurrency:"Expired — checkout required", nextCheck:"OVERDUE", trainingStatus:"noncurrent", pendingSignoff:false, aircraftAuth:["Cessna 152"], lastCheck:academyDateOffset(-220) },
+];
+
+const MOCK_OPS_AIRCRAFT = [
+  { id:"a1", tail:"N172SR", type:"Cessna 172S", status:"airworthy", squawk:null, last100:"12 days ago", airframeHours:4218.6, nextMaintenanceHours:37.2, annualDue:academyDateOffset(86), defects:[], maintenanceHistory:[`100-hour inspection completed ${academyDateOffset(-12)}`,`Oil & filter change ${academyDateOffset(-12)}`], audit:[{time:`${academyDateOffset(-12)} 15:20`,text:"Returned to service after 100-hour inspection"}] },
+  { id:"a2", tail:"N44TR", type:"Cessna 172N", status:"restricted", squawk:"Right nav light intermittent — deferred (minor)", last100:"45 days ago", airframeHours:3184.7, nextMaintenanceHours:8.4, annualDue:academyDateOffset(43), defects:[{id:"DEF-0047",text:"Right nav light intermittent",status:"Deferred",restriction:"Day VFR only"}], maintenanceHistory:[`50-hour inspection completed ${academyDateOffset(-45)}`], audit:[{time:`${academyDateOffset(-2)} 09:15`,text:"DEF-0047 assessed — aircraft restricted to Day VFR"}] },
+  { id:"a3", tail:"N9DA", type:"Piper PA-28-181", status:"grounded", squawk:"Engine oil analysis pending — DO NOT FLY", last100:"6 days ago", airframeHours:5520.1, nextMaintenanceHours:94.0, annualDue:academyDateOffset(152), defects:[{id:"DEF-0051",text:"Engine oil analysis pending",status:"Work in progress",restriction:"Aircraft grounded"}], maintenanceHistory:[`100-hour inspection completed ${academyDateOffset(-6)}`], audit:[{time:`${academyDateOffset(-1)} 17:42`,text:"Aircraft grounded pending engine oil analysis"}] },
+  { id:"a4", tail:"N721CT", type:"Cessna 152", status:"airworthy", squawk:null, last100:"3 days ago", airframeHours:7642.3, nextMaintenanceHours:47.8, annualDue:academyDateOffset(111), defects:[], maintenanceHistory:[`50-hour inspection completed ${academyDateOffset(-3)}`], audit:[{time:`${academyDateOffset(-3)} 11:10`,text:"50-hour inspection completed — returned to service"}] },
+];
+
+const MOCK_CLUB_USERS = [
+  { id:"u1", personId:"p1", name:"Jordan Reyes", email:"jordan@example.test", status:"active", roles:["pilot"] },
+  { id:"u2", personId:"p2", name:"Alicia Chen", email:"alicia@example.test", status:"active", roles:["pilot"] },
+  { id:"u3", personId:"p3", name:"Marcus Webb", email:"marcus@example.test", status:"active", roles:["pilot","cfi","admin"] },
+  { id:"u4", personId:"p4", name:"Sarah Kim", email:"sarah@example.test", status:"active", roles:["pilot"] },
+  { id:"u5", personId:null, name:"Evelyn Carter", email:"evelyn@example.test", status:"active", roles:["engineering"] },
+];
+
+const MOCK_ADMIN_AUDIT = [
+  { time:`${academyDateOffset(0)} 09:00`, source:"Club Admin", text:"Functional beta access review opened" },
+  { time:`${academyDateOffset(-1)} 17:45`, source:"Club Admin", text:"Prototype safety policies confirmed as enforced" },
+];
 
 function AccountTypeScreen({ onSelect }) {
   return (
@@ -1770,22 +2131,7 @@ function AccountTypeScreen({ onSelect }) {
   );
 }
 
-function DemoDataNotice({ persistenceState, onReset, detail }) {
-  const saveText=persistenceState?.status==="saving"?"Saving changes…":persistenceState?.status==="error"?"Save needs attention":persistenceState?.label||"PRIVATE SYNTHETIC DEMO";
-  return (
-    <div style={{background:"var(--sr-warning-bg)",border:"1px solid var(--sr-warning-border)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-warning-text)",lineHeight:1.5,marginBottom:18}}>
-      <div className="demo-data-notice-body">
-        {onReset&&<div aria-hidden="true"/>}
-        <div className="demo-data-notice-message"><b>⚠ SYNTHETIC PRIVATE DEMO</b> — {detail||"This resettable workspace contains fictional people, aircraft and records only."}<br/><span style={{color:"var(--sr-warning-text-soft)"}}>Do not enter real personal, medical, training, maintenance or operational information.</span></div>
-        {onReset&&<button className="demo-data-notice-reset" onClick={onReset} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-warning-border)",borderRadius:6,padding:"6px 8px",color:"var(--sr-warning-text)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:8,whiteSpace:"nowrap"}}>↺ RESET DEMO DATA</button>}
-      </div>
-      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:persistenceState?.status==="error"?"var(--sr-danger-text)":"var(--sr-text-muted)",letterSpacing:"0.06em",marginTop:7,textAlign:"center"}}>{saveText}</div>
-      {persistenceState?.error&&<div style={{fontSize:9,color:"var(--sr-danger-text)",marginTop:5,textAlign:"center"}}>{persistenceState.error}</div>}
-    </div>
-  );
-}
-
-function FlightSchoolLoginScreen({ onLogin, onBack, persistenceState, onReset, workspaceName=DEFAULT_DEMO_WORKSPACE_NAME }) {
+function FlightSchoolLoginScreen({ onLogin, onBack }) {
   const secondaryButton = {
     width:"100%",background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.28)",borderRadius:8,padding:"12px",
     color:"var(--sr-accent)",fontWeight:"bold",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.04em",marginTop:9
@@ -1794,15 +2140,15 @@ function FlightSchoolLoginScreen({ onLogin, onBack, persistenceState, onReset, w
     <div style={{minHeight:"100vh",background:"var(--sr-bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"'Inter',sans-serif"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}`}</style>
       <div style={{width:"100%",maxWidth:380}}>
-        <button onClick={onBack} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:13,marginBottom:24}}>← BACK</button>
+        <button onClick={onBack} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:13,marginBottom:24}}>← BACK</button>
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.1em",color:"var(--sr-text-strong)",marginBottom:4}}>🏫 FLIGHT SCHOOL / CLUB LOGIN</div>
-        <div style={{fontSize:11,color:"var(--sr-text-muted)",lineHeight:1.6,marginBottom:20}}>Independent CFIs and invited school reviewers can explore the same resettable fictional flight school. Choose the role you want to test.</div>
-        <DemoDataNotice persistenceState={persistenceState} onReset={onReset}/>
-        <button onClick={()=>onLogin(workspaceName,"ops")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"var(--sr-bg)",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>PILOT / OPS LOGIN</button>
+        <div style={{fontSize:11,color:"var(--sr-text-muted)",lineHeight:1.6,marginBottom:20}}>Choose the workspace you want to preview.</div>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:24}}>⚠ DEMO MODE — all records are simulated and changes last only for this browser session.</div>
+        <button onClick={()=>onLogin("Demo Flight School","ops")} style={{width:"100%",background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"14px",color:"var(--sr-on-gold)",fontWeight:"bold",fontSize:14,cursor:"pointer",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>PILOT / OPS LOGIN</button>
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.1em",margin:"18px 0 4px"}}>SPECIALIST WORKSPACES</div>
-        <button onClick={()=>onLogin(workspaceName,"admin")} style={secondaryButton}>🏛 CLUB ADMIN</button>
-        <button onClick={()=>onLogin(workspaceName,"cfi")} style={secondaryButton}>🎓 INDEPENDENT CFI / TRAINING TRIAL</button>
-        <button onClick={()=>onLogin(workspaceName,"engineering")} style={secondaryButton}>🔧 ENGINEERING LOGIN</button>
+        <button onClick={()=>onLogin("Demo Flight School","admin")} style={secondaryButton}>🏛 CLUB ADMIN</button>
+        <button onClick={()=>onLogin("Demo Flight School","cfi")} style={secondaryButton}>🎓 CFI / TRAINING</button>
+        <button onClick={()=>onLogin("Demo Flight School","engineering")} style={secondaryButton}>🔧 ENGINEERING LOGIN</button>
       </div>
     </div>
   );
@@ -1810,7 +2156,7 @@ function FlightSchoolLoginScreen({ onLogin, onBack, persistenceState, onReset, w
 
 function OpsPersonCard({ person, selected, onSelect }) {
   return (
-    <button onClick={()=>onSelect(person)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:selected?"rgba(0,180,255,0.14)":"var(--sr-surface-soft)",border:`1px solid ${selected?"rgba(0,180,255,0.5)":"var(--sr-border)"}`,borderRadius:8,padding:"11px 14px",cursor:"pointer",marginBottom:8}}>
+    <button onClick={()=>onSelect(person)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:selected?"rgba(0,180,255,0.14)":"var(--sr-surface)",border:`1px solid ${selected?"rgba(0,180,255,0.5)":"var(--sr-border)"}`,borderRadius:8,padding:"11px 14px",cursor:"pointer",marginBottom:8}}>
       <div>
         <div style={{fontSize:13,color:"var(--sr-text-strong)",fontWeight:600}}>{person.name}</div>
         <div style={{fontSize:10,color:"var(--sr-text-muted)",marginTop:2}}>{person.role} · {person.hrs90}hrs/90d · {person.currency}</div>
@@ -1821,14 +2167,15 @@ function OpsPersonCard({ person, selected, onSelect }) {
 }
 
 function OpsAircraftCard({ ac, person, selected, onSelect }) {
-  const unavailable = ac.status === "grounded" || ac.status === "maintenance";
+  const groundingDefect = hasGroundingDefect(ac);
+  const unavailable = ac.status === "grounded" || ac.status === "maintenance" || groundingDefect;
   const unauthorised = !!person && !(person.aircraftAuth || []).includes(ac.type);
   const disabled = unavailable || unauthorised;
   const restricted = ac.status === "restricted";
-  const stateText = unavailable ? (ac.status==="maintenance"?"MAINTENANCE":"GROUNDED") : restricted ? "RESTRICTED" : "SERVICEABLE";
+  const stateText = groundingDefect ? "GROUNDING DEFECT" : unavailable ? (ac.status==="maintenance"?"MAINTENANCE":"GROUNDED") : restricted ? "RESTRICTED" : "SERVICEABLE";
   const stateColor = unavailable || unauthorised ? "#FF6B6B" : restricted || ac.squawk ? "var(--sr-gold)" : "var(--sr-success)";
   return (
-    <button disabled={disabled} onClick={()=>!disabled && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:disabled?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"var(--sr-surface-soft)",border:`1px solid ${disabled?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"var(--sr-border)"}`,borderRadius:8,padding:"11px 14px",cursor:disabled?"not-allowed":"pointer",marginBottom:8,opacity:disabled?0.75:1}}>
+    <button disabled={disabled} onClick={()=>!disabled && onSelect(ac)} style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",background:disabled?"rgba(255,59,59,0.06)":selected?"rgba(0,180,255,0.14)":"var(--sr-surface)",border:`1px solid ${disabled?"rgba(255,59,59,0.35)":selected?"rgba(0,180,255,0.5)":"var(--sr-border)"}`,borderRadius:8,padding:"11px 14px",cursor:disabled?"not-allowed":"pointer",marginBottom:8,opacity:disabled?0.75:1}}>
       <div>
         <div style={{fontSize:13,color:"var(--sr-text-strong)",fontWeight:600}}>{ac.tail} <span style={{color:"var(--sr-text-muted)",fontWeight:400}}>· {ac.type}</span></div>
         <div style={{fontSize:10,color:stateColor,marginTop:2}}>
@@ -1840,7 +2187,7 @@ function OpsAircraftCard({ ac, person, selected, onSelect }) {
   );
 }
 
-function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack, people=MOCK_OPS_PEOPLE, aircraftList=MOCK_OPS_AIRCRAFT, persistenceState, onReset }) {
+function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack, people=MOCK_OPS_PEOPLE, aircraftList=MOCK_OPS_AIRCRAFT }) {
   const [person, setPerson] = useState(null);
   const [aircraft, setAircraft] = useState(null);
   const eligibility = evaluateFratEligibility(person, aircraft);
@@ -1855,11 +2202,11 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
     <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
       <div style={{background:"var(--sr-header)",borderBottom:"1px solid rgba(255,180,0,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
-        <button aria-label="Log out to role selection" title="Log out to role selection" onClick={onBack} style={{background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.55)",borderRadius:7,padding:"7px 12px",color:"#FF7C7C",cursor:"pointer",fontSize:12,fontWeight:700}}>⏻ LOG OUT</button>
+        <button onClick={onBack} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>← BACK</button>
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"var(--sr-text-strong)",marginLeft:6}}>🏫 {orgName || "OPS SYSTEM"} — DEMO</div>
       </div>
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="This roster and fleet are fabricated examples illustrating the Academy integration."/>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.3)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:22}}>⚠ SIMULATED DATA — this roster and fleet are fabricated examples illustrating a planned integration. No real student, instructor, or aircraft records are connected.</div>
 
         <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",marginBottom:10}}>SELECT PILOT</div>
         {people.map(p=><OpsPersonCard key={p.id} person={p} selected={person?.id===p.id} onSelect={selectPerson}/>)}
@@ -1867,17 +2214,15 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
         <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.1em",margin:"22px 0 10px"}}>SELECT AIRCRAFT</div>
         {aircraftList.map(a=><OpsAircraftCard key={a.id} ac={a} person={person} selected={aircraft?.id===a.id} onSelect={setAircraft}/>)}
 
-        {person && !aircraft && <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"9px 11px",fontSize:10,color:"#8DCBEA",lineHeight:1.5}}>Only serviceable aircraft types currently authorised on {person.name}'s shared CFI record can be selected. Synthetic Engineering and CFI changes apply immediately and persist in this private demo workspace.</div>}
+        {person && !aircraft && <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"9px 11px",fontSize:10,color:"#8DCBEA",lineHeight:1.5}}>Only serviceable aircraft types currently authorised on {person.name}'s shared CFI record can be selected. Engineering and CFI changes apply here immediately for this session.</div>}
 
-        {person?.trainingStatus === "noncurrent" && <div style={{background:"rgba(255,59,59,0.09)",border:"1px solid rgba(255,59,59,0.38)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FF9A9A",lineHeight:1.55,marginTop:10}}><b>CFI ACTION REQUIRED — {person.clubCurrency || "training / check status is not current"}</b><br/>The FRAT remains available for structured review and will auto-fill the flight-review field as lapsed or unsure. Completing a FRAT does not authorise the flight.</div>}
-
-        {eligibility.blockers.map(blocker=><div key={blocker.code} style={{background:"rgba(255,59,59,0.09)",border:"1px solid rgba(255,59,59,0.38)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#FF9A9A",lineHeight:1.55,marginTop:10}}><b>BLOCKED — {blocker.title}</b><br/>{blocker.detail}</div>)}
+        {eligibility.blockers.map(blocker=><div key={blocker.code} style={{background:"rgba(255,59,59,0.09)",border:"1px solid rgba(255,59,59,0.38)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-danger-text)",lineHeight:1.55,marginTop:10}}><b>BLOCKED — {blocker.title}</b><br/>{blocker.detail}</div>)}
 
         <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:24}}>
-          <button disabled={!canStart} onClick={()=>canStart && onStartBriefing(person,aircraft)} style={{width:"100%",background:canStart?"linear-gradient(135deg,#00B4FF,#0090DD)":"var(--sr-surface-hover)",border:"none",borderRadius:8,padding:"13px",color:canStart?"var(--sr-bg)":"var(--sr-text-muted-2)",fontWeight:"bold",fontSize:13,cursor:canStart?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>
-            🛡 {person?.trainingStatus === "noncurrent" && person && aircraft ? `START RISK REVIEW — CFI INTERVENTION REQUIRED (${person.name.split(" ")[0]} / ${aircraft.tail})` : `START PRE-FLIGHT RISK ASSESSMENT ${person&&aircraft?`— ${person.name.split(" ")[0]} / ${aircraft.tail}`:"(select pilot & aircraft)"}`}
+          <button disabled={!canStart} onClick={()=>canStart && onStartBriefing(person,aircraft)} style={{width:"100%",background:canStart?"linear-gradient(135deg,#00B4FF,#0090DD)":"var(--sr-surface-hover)",border:"none",borderRadius:8,padding:"13px",color:canStart?"var(--sr-on-gold)":"var(--sr-text-muted-2)",fontWeight:"bold",fontSize:13,cursor:canStart?"pointer":"not-allowed",fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em"}}>
+            🛡 {person?.trainingStatus === "noncurrent" ? "CFI ACTION REQUIRED BEFORE FRAT" : `START PRE-FLIGHT RISK ASSESSMENT ${person&&aircraft?`— ${person.name.split(" ")[0]} / ${aircraft.tail}`:"(select pilot & aircraft)"}`}
           </button>
-          <button onClick={onContinueToApp} style={{width:"100%",background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,padding:"11px",color:"var(--sr-text-muted)",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>Continue to SafeRoute Academy →</button>
+          <button onClick={onContinueToApp} style={{width:"100%",background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:8,padding:"11px",color:"var(--sr-text-muted)",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>Continue to SafeRoute Academy →</button>
         </div>
       </div>
     </div>
@@ -1887,8 +2232,8 @@ function OpsDashboardScreen({ orgName, onStartBriefing, onContinueToApp, onBack,
 
 function DemoWorkspaceHeader({ icon, title, orgName, onBack, accent="var(--sr-accent)" }) {
   return (
-    <div style={{background:"var(--sr-header)",borderBottom:`1px solid ${accent}33`,padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
-      <button aria-label="Log out to role selection" title="Log out to role selection" onClick={onBack} style={{background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.55)",borderRadius:7,padding:"7px 12px",color:"#FF7C7C",cursor:"pointer",fontSize:12,fontWeight:700}}>⏻ LOG OUT</button>
+    <div style={{background:"var(--sr-header)",borderBottom:`1px solid ${alphaColor(accent,20)}`,padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
+      <button onClick={onBack} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>← LOG OUT</button>
       <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:"0.1em",color:"var(--sr-text-strong)",marginLeft:6}}>{icon} {title}</div>
       <div style={{flex:1}}/>
       <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-2)"}}>{orgName || "DEMO FLIGHT SCHOOL"} · DEMO</div>
@@ -1896,12 +2241,18 @@ function DemoWorkspaceHeader({ icon, title, orgName, onBack, accent="var(--sr-ac
   );
 }
 
-function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUsers, adminAudit, setAdminAudit, onBack, persistenceState, onReset }) {
-  const [selectedId,setSelectedId] = useState(users[0]?.id || null);
+function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUsers, adminAudit, setAdminAudit, onBack }) {
+  const [directoryFilter,setDirectoryFilter] = useState("all");
+  const [selectedId,setSelectedId] = useState(users[0]?`user:${users[0].id}`:(aircraftList[0]?`aircraft:${aircraftList[0].id}`:null));
   const [notice,setNotice] = useState(null);
-  const selectedUser = users.find(user=>user.id===selectedId) || users[0];
+  const directoryGroups=groupClubAdminDirectory(users,people,aircraftList,directoryFilter);
+  const visibleRecords=directoryGroups.flatMap(group=>group.items.map(item=>({kind:group.kind,item})));
+  const selectedRecord=visibleRecords.find(record=>`${record.kind}:${record.item.id}`===selectedId)||visibleRecords[0]||null;
+  const selectedUser = selectedRecord?.kind==="user"?selectedRecord.item:null;
+  const selectedAircraft = selectedRecord?.kind==="aircraft"?selectedRecord.item:null;
   const linkedPilot = people.find(person=>person.id===selectedUser?.personId);
   const summary = buildClubAdminSummary(people,aircraftList,users);
+  const directoryCounts = getClubAdminDirectoryCounts(users,people,aircraftList);
   const roleLabels = Object.fromEntries(CLUB_ACCESS_ROLES.map(role=>[role.id,role.label]));
   const activity = [
     ...adminAudit,
@@ -1912,7 +2263,17 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
     setAdminAudit(previous=>[{time:new Date().toLocaleString("en-GB"),source:"Club Admin",text},...previous]);
   }
 
+  function selectDirectoryFilter(nextFilter) {
+    const nextGroups=groupClubAdminDirectory(users,people,aircraftList,nextFilter);
+    const firstGroup=nextGroups[0];
+    const firstItem=firstGroup?.items[0];
+    setDirectoryFilter(nextFilter);
+    setSelectedId(firstItem?`${firstGroup.kind}:${firstItem.id}`:null);
+    setNotice(null);
+  }
+
   function changeRole(role) {
+    if(!selectedUser) return;
     const result=toggleClubUserRole(users,selectedUser.id,role);
     if(!result.changed) {
       setNotice({tone:"error",text:result.reason});
@@ -1925,6 +2286,7 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
   }
 
   function changeStatus() {
+    if(!selectedUser) return;
     const result=toggleClubUserStatus(users,selectedUser.id);
     if(!result.changed) {
       setNotice({tone:"error",text:result.reason});
@@ -1941,87 +2303,146 @@ function ClubAdminDashboardScreen({ orgName, people, aircraftList, users, setUse
     due:{label:"DUE SOON",color:"var(--sr-gold)"},
     noncurrent:{label:"ACTION REQUIRED",color:"#FF5B5B"},
   };
+  const directoryMeta={
+    all:{icon:"◉",color:"#A78BFA",background:"rgba(167,139,250,0.13)",border:"rgba(167,139,250,0.45)"},
+    students:{icon:"🎓",color:"var(--sr-accent)",background:"rgba(0,180,255,0.11)",border:"rgba(0,180,255,0.42)"},
+    instructors:{icon:"🧑‍🏫",color:"var(--sr-success)",background:"rgba(0,200,150,0.10)",border:"rgba(0,200,150,0.38)"},
+    staff:{icon:"👥",color:"#A78BFA",background:"rgba(167,139,250,0.13)",border:"rgba(167,139,250,0.45)"},
+    aircraft:{icon:"✈",color:"#FF8C42",background:"rgba(255,140,66,0.11)",border:"rgba(255,140,66,0.42)"},
+  };
+  const aircraftStatusMeta={
+    airworthy:{label:"SERVICEABLE",icon:"🟢",color:"var(--sr-success)"},
+    restricted:{label:"RESTRICTED",icon:"🟡",color:"var(--sr-gold)"},
+    maintenance:{label:"MAINTENANCE",icon:"🟠",color:"#FF8C42"},
+    grounded:{label:"UNAVAILABLE",icon:"🔴",color:"#FF5B5B"},
+  };
 
   return (
     <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
       <DemoWorkspaceHeader icon="🏛" title="CLUB ADMIN" orgName={orgName} onBack={onBack} accent="#A78BFA"/>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="Access changes persist in this private demo. Club Admin oversight remains separate from CFI and Engineering authority."/>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated Club Admin data only. Access changes last for this browser session. Club Admin provides oversight and system access; CFI sign-off and Engineering return-to-service authority remain in their specialist workspaces.</div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:10,marginBottom:18}}>
-          {[
-            ["👥","Active users",summary.activeUsers,"#A78BFA"],
-            ["🔴","Pilots requiring action",summary.attentionPilots,"#FF5B5B"],
-            ["🟡","Checks due soon",summary.dueSoonPilots,"var(--sr-gold)"],
-            ["✈","Aircraft available",summary.availableAircraft,"var(--sr-success)"],
-            ["⛔","Aircraft unavailable",summary.unavailableAircraft,"#FF6B6B"],
-            ["🛠","Open defects",summary.openDefects,"var(--sr-accent)"],
-          ].map(([icon,label,value,color])=><div key={label} style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:9,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:27,color,fontWeight:700,marginTop:4}}>{value}</div>{label==="Aircraft available"&&summary.restrictedAircraft>0&&<div style={{fontSize:9,color:"var(--sr-gold)",marginTop:2}}>{summary.restrictedAircraft} restricted</div>}</div>)}
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",marginBottom:8}}>FILTER CLUB DIRECTORY</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(135px,1fr))",gap:10,marginBottom:8}} role="group" aria-label="Filter Club Admin directory">
+          {CLUB_ADMIN_DIRECTORY_FILTERS.map(option=>{
+            const meta=directoryMeta[option.id];
+            const active=directoryFilter===option.id;
+            return <button key={option.id} aria-pressed={active} onClick={()=>selectDirectoryFilter(option.id)} style={{textAlign:"left",background:active?meta.background:"var(--sr-surface)",border:`1px solid ${active?meta.border:"var(--sr-border)"}`,borderRadius:10,padding:"13px 14px",cursor:"pointer",boxShadow:active?`inset 0 -3px 0 ${meta.color}`:"none"}}>
+              <div style={{fontSize:9,color:active?meta.color:"var(--sr-text-muted)",fontFamily:"'DM Mono',monospace",fontWeight:active?700:500}}>{meta.icon} {option.label.toUpperCase()}</div>
+              <div style={{fontSize:27,color:active?meta.color:"var(--sr-text-strong)",fontWeight:700,marginTop:4}}>{directoryCounts[option.id]}</div>
+            </button>;
+          })}
         </div>
+        <div style={{fontSize:10,color:"var(--sr-text-muted-2)",lineHeight:1.5,marginBottom:18}}>{directoryFilter==="all"?"Showing students, instructors, staff and aircraft in separate sections.":`Showing only ${CLUB_ADMIN_DIRECTORY_FILTERS.find(option=>option.id===directoryFilter)?.label.toLowerCase()}; all other records are hidden.`}</div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16,alignItems:"start",marginBottom:18}}>
-          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:10}}>USERS & ACCESS</div>
-            {users.map(user=>{
-              const selected=user.id===selectedId;
-              return <button key={user.id} onClick={()=>{setSelectedId(user.id);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selected?"rgba(167,139,250,0.13)":"var(--sr-surface-soft)",border:`1px solid ${selected?"rgba(167,139,250,0.45)":"var(--sr-border)"}`,borderRadius:8,padding:"10px 11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)",opacity:user.status==="suspended"?0.62:1}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong style={{fontSize:11.5}}>{user.name}</strong><span style={{fontSize:8,color:user.status==="active"?"var(--sr-success)":"#FF7C7C",fontFamily:"'DM Mono',monospace"}}>{user.status.toUpperCase()}</span></div>
-                <div style={{fontSize:9,color:"var(--sr-text-muted-2)",marginTop:4,lineHeight:1.4}}>{user.roles.map(role=>roleLabels[role]).join(" · ") || "No workspace access"}</div>
-              </button>;
+        <div className="admin-directory-layout">
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"14px"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:12}}>FILTERED DIRECTORY · {visibleRecords.length}</div>
+            {directoryGroups.length===0&&<div style={{padding:"22px 10px",textAlign:"center",fontSize:11,color:"var(--sr-text-muted-2)"}}>No records match this filter.</div>}
+            {directoryGroups.map(group=>{
+              const meta=directoryMeta[group.id];
+              return <section key={group.id} style={{marginBottom:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,color:meta.color,fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:"0.08em",padding:"0 2px 6px",marginBottom:7,borderBottom:`1px solid ${meta.border}`}}><span>{meta.icon} {group.label.toUpperCase()}</span><span>{group.items.length}</span></div>
+                {group.items.map(item=>{
+                  const recordId=`${group.kind}:${item.id}`;
+                  const selected=selectedRecord&&`${selectedRecord.kind}:${selectedRecord.item.id}`===recordId;
+                  if(group.kind==="aircraft") {
+                    const aircraftMeta=aircraftStatusMeta[item.status]||aircraftStatusMeta.grounded;
+                    const openDefects=(item.defects||[]).filter(defect=>defect.status!=="Closed").length;
+                    return <button key={recordId} onClick={()=>{setSelectedId(recordId);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selected?meta.background:"var(--sr-surface-soft)",border:`1px solid ${selected?meta.border:"var(--sr-border)"}`,borderRadius:8,padding:"10px 11px",marginBottom:7,cursor:"pointer",color:"var(--sr-text-strong)",boxShadow:selected?`inset 3px 0 0 ${meta.color}`:"none"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong style={{fontSize:11.5}}>{item.tail}</strong><span style={{fontSize:8,color:aircraftMeta.color,fontFamily:"'DM Mono',monospace"}}>{aircraftMeta.icon} {aircraftMeta.label}</span></div>
+                      <div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:4}}>{item.type} · {openDefects} open defect{openDefects===1?"":"s"}</div>
+                    </button>;
+                  }
+                  return <button key={recordId} onClick={()=>{setSelectedId(recordId);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selected?meta.background:"var(--sr-surface-soft)",border:`1px solid ${selected?meta.border:"var(--sr-border)"}`,borderRadius:8,padding:"10px 11px",marginBottom:7,cursor:"pointer",color:"var(--sr-text-strong)",opacity:item.status==="suspended"?0.62:1,boxShadow:selected?`inset 3px 0 0 ${meta.color}`:"none"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong style={{fontSize:11.5}}>{item.name}</strong><span style={{fontSize:8,color:item.status==="active"?"var(--sr-success)":"#FF7C7C",fontFamily:"'DM Mono',monospace"}}>{item.status.toUpperCase()}</span></div>
+                    <div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:4,lineHeight:1.4}}>{item.roles.map(role=>roleLabels[role]).join(" · ") || "No workspace access"}</div>
+                  </button>;
+                })}
+              </section>;
             })}
           </div>
 
-          {selectedUser&&<div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
+          {selectedUser&&<div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
-              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:"0.07em",color:"var(--sr-text-strong)"}}>{selectedUser.name}</div><div style={{fontSize:10,color:"var(--sr-text-muted-2)",marginTop:2}}>{selectedUser.email}</div></div>
+              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:"0.07em",color:"var(--sr-text-strong)"}}>{selectedUser.name}</div><div style={{fontSize:10,color:"var(--sr-text-muted)",marginTop:2}}>{selectedUser.email}</div></div>
               <button onClick={changeStatus} style={{background:selectedUser.status==="active"?"rgba(0,200,150,0.1)":"rgba(255,91,91,0.1)",border:`1px solid ${selectedUser.status==="active"?"rgba(0,200,150,0.35)":"rgba(255,91,91,0.35)"}`,color:selectedUser.status==="active"?"var(--sr-success)":"#FF7C7C",borderRadius:7,padding:"8px 10px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9}}>{selectedUser.status==="active"?"● ACTIVE — SUSPEND ACCESS":"● SUSPENDED — RESTORE ACCESS"}</button>
             </div>
 
             {linkedPilot&&<div style={{marginTop:14,background:"rgba(0,180,255,0.055)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"10px 11px",display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}><div><div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>LINKED PILOT RECORD</div><div style={{fontSize:11,color:"var(--sr-text-strong)",marginTop:3}}>{linkedPilot.role} · {linkedPilot.hrs90} hrs / 90d</div></div><div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:statusMeta[linkedPilot.trainingStatus].color}}>{statusMeta[linkedPilot.trainingStatus].label}</div></div>}
-            {!linkedPilot&&<div style={{marginTop:14,background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,padding:"10px 11px",fontSize:10,color:"var(--sr-text-muted-2)"}}>No pilot record is linked to this Engineering-only demo account.</div>}
+            {!linkedPilot&&<div style={{marginTop:14,background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:8,padding:"10px 11px",fontSize:10,color:"var(--sr-text-muted)"}}>No pilot record is linked to this Engineering-only demo account.</div>}
 
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",margin:"20px 0 9px"}}>WORKSPACE ACCESS</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
               {CLUB_ACCESS_ROLES.map(role=>{
                 const enabled=selectedUser.roles.includes(role.id);
-                return <button key={role.id} onClick={()=>changeRole(role.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,textAlign:"left",background:enabled?"rgba(167,139,250,0.13)":"var(--sr-surface-soft)",border:`1px solid ${enabled?"rgba(167,139,250,0.45)":"var(--sr-border)"}`,borderRadius:7,padding:"9px 10px",color:enabled?"#E4DBFF":"var(--sr-text-muted-2)",cursor:"pointer",fontSize:10}}><span>{role.label}</span><span style={{color:enabled?"#A78BFA":"var(--sr-text-muted-3)"}}>{enabled?"✓":"+"}</span></button>;
+                return <button key={role.id} onClick={()=>changeRole(role.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,textAlign:"left",background:enabled?"rgba(167,139,250,0.13)":"var(--sr-surface-soft)",border:`1px solid ${enabled?"rgba(167,139,250,0.45)":"var(--sr-border)"}`,borderRadius:7,padding:"9px 10px",color:enabled?"#E4DBFF":"var(--sr-text-muted)",cursor:"pointer",fontSize:10}}><span>{role.label}</span><span style={{color:enabled?"#A78BFA":"var(--sr-text-muted-3)"}}>{enabled?"✓":"+"}</span></button>;
               })}
             </div>
-            <div style={{fontSize:9.5,color:"var(--sr-text-muted-2)",lineHeight:1.55,marginTop:10}}>These controls manage access only. They do not change pilot currency, aircraft authorisations, defect status or airworthiness.</div>
-            {notice&&<div style={{marginTop:12,background:notice.tone==="error"?"rgba(255,91,91,0.1)":"rgba(0,200,150,0.08)",border:`1px solid ${notice.tone==="error"?"rgba(255,91,91,0.35)":"rgba(0,200,150,0.28)"}`,borderRadius:7,padding:"9px 10px",fontSize:10,color:notice.tone==="error"?"#FF9A9A":"#7CE0C0"}}>{notice.text}</div>}
+            <div style={{fontSize:9.5,color:"var(--sr-text-muted)",lineHeight:1.55,marginTop:10}}>These controls manage access only. They do not change pilot currency, aircraft authorisations, defect status or airworthiness.</div>
+            {notice&&<div style={{marginTop:12,background:notice.tone==="error"?"rgba(255,91,91,0.1)":"rgba(0,200,150,0.08)",border:`1px solid ${notice.tone==="error"?"rgba(255,91,91,0.35)":"rgba(0,200,150,0.28)"}`,borderRadius:7,padding:"9px 10px",fontSize:10,color:notice.tone==="error"?"var(--sr-danger-text)":"#7CE0C0"}}>{notice.text}</div>}
           </div>}
+
+          {selectedAircraft&&<div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
+              <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.08em",color:"var(--sr-text-strong)"}}>{selectedAircraft.tail}</div><div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:2}}>{selectedAircraft.type} · {selectedAircraft.airframeHours?.toLocaleString()} airframe hrs</div></div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:(aircraftStatusMeta[selectedAircraft.status]||aircraftStatusMeta.grounded).color,border:`1px solid ${alphaColor((aircraftStatusMeta[selectedAircraft.status]||aircraftStatusMeta.grounded).color,35)}`,borderRadius:7,padding:"8px 10px"}}>{(aircraftStatusMeta[selectedAircraft.status]||aircraftStatusMeta.grounded).icon} {(aircraftStatusMeta[selectedAircraft.status]||aircraftStatusMeta.grounded).label}</div>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginTop:16}}>
+              {[
+                ["AVAILABLE",summary.availableAircraft,"var(--sr-success)"],
+                ["RESTRICTED",summary.restrictedAircraft,"var(--sr-gold)"],
+                ["UNAVAILABLE",summary.unavailableAircraft,"#FF5B5B"],
+                ["OPEN DEFECTS",summary.openDefects,"var(--sr-accent)"],
+              ].map(([label,value,color])=><div key={label} style={{background:"var(--sr-surface)",border:"1px solid var(--sr-border)",borderRadius:8,padding:"10px"}}><div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>{label}</div><div style={{fontSize:20,color,fontWeight:700,marginTop:3}}>{value}</div></div>)}
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:8,marginTop:14}}>
+              {[["NEXT SCHEDULED MAINT.",`${selectedAircraft.nextMaintenanceHours} hrs`],["ANNUAL / INSPECTION DUE",selectedAircraft.annualDue],["LAST 100-HOUR",selectedAircraft.last100]].map(([label,value])=><div key={label} style={{background:"rgba(0,180,255,0.055)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"10px"}}><div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>{label}</div><div style={{fontSize:12,color:"var(--sr-text-strong)",marginTop:4}}>{value}</div></div>)}
+            </div>
+
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#FF8C42",letterSpacing:"0.1em",margin:"20px 0 8px"}}>DEFECTS / RESTRICTIONS</div>
+            {(selectedAircraft.defects||[]).filter(defect=>defect.status!=="Closed").length===0?<div style={{fontSize:10,color:"var(--sr-success)",padding:"10px 0"}}>✓ No open defects recorded in this fictional record.</div>:(selectedAircraft.defects||[]).filter(defect=>defect.status!=="Closed").map(defect=><div key={defect.id} style={{background:"rgba(255,140,66,0.08)",border:"1px solid rgba(255,140,66,0.26)",borderRadius:8,padding:"10px 11px",marginBottom:7}}><div style={{fontSize:10.5,color:"var(--sr-text-strong)",fontWeight:700}}>{defect.id} · {defect.text}</div><div style={{fontSize:9,color:"#FFB078",marginTop:4}}>{defect.status} · {defect.restriction}</div></div>)}
+            <div style={{marginTop:14,padding:"10px 11px",background:"rgba(255,180,0,0.07)",border:"1px solid rgba(255,180,0,0.25)",borderRadius:8,fontSize:9.5,color:"var(--sr-gold)",lineHeight:1.55}}>Club Admin is read-only for aircraft status. Defect closure and return-to-service actions remain in Engineering.</div>
+          </div>}
+
+          {!selectedRecord&&<div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"42px 18px",textAlign:"center",color:"var(--sr-text-muted-2)",fontSize:11}}>No records match this filter.</div>}
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16}}>
-          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"15px"}}>
+        {directoryFilter==="all"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16}}>
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"15px"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:11}}>ORGANISATION / TEST SETTINGS</div>
             {[
               ["Organisation",orgName||"Demo Flight School","var(--sr-text-strong)"],
               ["Environment","FUNCTIONAL DEMO / TEST","var(--sr-gold)"],
-              ["Data storage",persistenceState?.label||"OPENING PRIVATE DEMO","var(--sr-gold)"],
+              ["Data storage","BROWSER SESSION ONLY","var(--sr-gold)"],
               ["External invitations","DISABLED","var(--sr-text-muted)"],
               ["Official operational record","NO — PROTOTYPE ONLY","#FF7C7C"],
-            ].map(([label,value,color])=><div key={label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)",fontSize:10}}><span style={{color:"var(--sr-text-muted-2)"}}>{label}</span><strong style={{color,textAlign:"right",fontFamily:"'DM Mono',monospace",fontSize:9}}>{value}</strong></div>)}
+            ].map(([label,value,color])=><div key={label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)",fontSize:10}}><span style={{color:"var(--sr-text-muted)"}}>{label}</span><strong style={{color,textAlign:"right",fontFamily:"'DM Mono',monospace",fontSize:9}}>{value}</strong></div>)}
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-2)",letterSpacing:"0.08em",margin:"15px 0 8px"}}>SAFETY POLICIES — LOCKED FOR TESTING</div>
             {["Serviceable aircraft required","Pilot type authorisation required","Current training record required"].map(policy=><div key={policy} style={{fontSize:10,color:"#A9C8BE",marginTop:6}}>🔒 <span style={{color:"var(--sr-success)"}}>ENFORCED</span> · {policy}</div>)}
           </div>
 
-          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"15px"}}>
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"15px"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#A78BFA",letterSpacing:"0.1em",marginBottom:11}}>RECENT PROTOTYPE ACTIVITY</div>
             {activity.map((event,index)=><div key={`${event.time}-${index}`} style={{padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.055)"}}><div style={{display:"flex",justifyContent:"space-between",gap:8,fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted-2)"}}><span>{event.source}</span><span>{event.time}</span></div><div style={{fontSize:10.5,color:"var(--sr-text-subtle)",marginTop:4,lineHeight:1.45}}>{event.text}</div></div>)}
             <div style={{fontSize:9.5,color:"var(--sr-text-muted-2)",lineHeight:1.55,marginTop:11}}>Read-only oversight view. A production beta would use immutable, identity-linked audit records.</div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
 }
 
-function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, onBack, persistenceState, onReset }) {
+function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, onBack }) {
   const [selectedId,setSelectedId] = useState(aircraftList[0]?.id || null);
   const [newDefect,setNewDefect] = useState("");
+  const [notice,setNotice] = useState(null);
   const aircraft = aircraftList.find(a=>a.id===selectedId) || aircraftList[0];
+  const releaseBlocked = hasGroundingDefect(aircraft);
 
   function mutateAircraft(fn, auditText) {
     setAircraftList(prev=>prev.map(ac=>{
@@ -2032,8 +2453,13 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
   }
 
   function changeState(status) {
+    if ((status === "airworthy" || status === "restricted") && hasGroundingDefect(aircraft)) {
+      setNotice({tone:"error",text:`${aircraft.tail} still has an open grounding defect. Close it before recording a serviceable state.`});
+      return;
+    }
     const labels={airworthy:"SERVICEABLE",restricted:"RESTRICTED",maintenance:"MAINTENANCE",grounded:"UNSERVICEABLE"};
     mutateAircraft(ac=>({...ac,status}),`Aircraft state changed to ${labels[status]}`);
+    setNotice({tone:"success",text:`${aircraft.tail} state updated to ${labels[status]}.`});
   }
 
   function addDefect() {
@@ -2044,6 +2470,7 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
       return {...ac,defects,squawk:ac.squawk||text};
     },`New defect reported: ${text}`);
     setNewDefect("");
+    setNotice({tone:"success",text:`Defect recorded against ${aircraft.tail}.`});
   }
 
   function closeDefect(id) {
@@ -2052,10 +2479,12 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
       const open=defects.find(d=>d.status!=="Closed");
       return {...ac,defects,squawk:open?.text||null};
     },`${id} closed after engineering action`);
+    setNotice({tone:"success",text:`${id} closed. Reassess the aircraft state before returning it to service.`});
   }
 
   function recordInspection() {
     mutateAircraft(ac=>({...ac,last100:"Today",nextMaintenanceHours:100,maintenanceHistory:[`100-hour inspection completed ${new Date().toLocaleDateString("en-GB")}`,...(ac.maintenanceHistory||[])]}),"100-hour inspection recorded complete");
+    setNotice({tone:"success",text:`100-hour inspection recorded for ${aircraft.tail}.`});
   }
 
   const counts={
@@ -2065,10 +2494,10 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
     defects:aircraftList.reduce((n,a)=>n+(a.defects||[]).filter(d=>d.status!=="Closed").length,0)
   };
   const stateMeta={
-    airworthy:{label:"SERVICEABLE",color:"var(--sr-success)",icon:"🟢"},
-    restricted:{label:"SERVICEABLE WITH RESTRICTIONS",color:"var(--sr-gold)",icon:"🟡"},
-    maintenance:{label:"MAINTENANCE",color:"#FF8C42",icon:"🟠"},
-    grounded:{label:"UNSERVICEABLE / GROUNDED",color:"#FF5B5B",icon:"🔴"},
+    airworthy:{label:"SERVICEABLE",color:"var(--sr-success)",background:"rgba(0,200,150,0.10)",border:"rgba(0,200,150,0.34)",icon:"🟢"},
+    restricted:{label:"SERVICEABLE WITH RESTRICTIONS",color:"var(--sr-gold)",background:"rgba(255,215,0,0.10)",border:"rgba(255,215,0,0.34)",icon:"🟡"},
+    maintenance:{label:"MAINTENANCE",color:"#FF8C42",background:"rgba(255,140,66,0.10)",border:"rgba(255,140,66,0.34)",icon:"🟠"},
+    grounded:{label:"UNSERVICEABLE / GROUNDED",color:"#FF5B5B",background:"rgba(255,91,91,0.10)",border:"rgba(255,91,91,0.34)",icon:"🔴"},
   };
 
   return (
@@ -2076,36 +2505,41 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
       <DemoWorkspaceHeader icon="🔧" title="ENGINEERING" orgName={orgName} onBack={onBack} accent="#FF8C42"/>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="Fictional fleet changes persist and update the Pilot / Ops view so the workflow can be tested end-to-end."/>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated fleet data only. Changes below update the Pilot / Ops view during this browser session so the workflow can be tested end-to-end.</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
           {[
             ["🟢","Serviceable",counts.serviceable,"var(--sr-success)"],
             ["🟡","Restricted",counts.restricted,"var(--sr-gold)"],
             ["🔴","Unavailable",counts.unavailable,"#FF5B5B"],
             ["🛠","Open defects",counts.defects,"var(--sr-accent)"],
-          ].map(([icon,label,value,color])=><div key={label} style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}><div style={{fontSize:10,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
+          ].map(([icon,label,value,color])=><div key={label} style={{background:"var(--sr-surface)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"14px"}}><div style={{fontSize:10,color:"var(--sr-text-muted)",fontFamily:"'DM Mono',monospace"}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
         </div>
-        <div className="cfi-workspace-grid" style={{gap:16,alignItems:"start"}}>
-          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
+        <div style={{display:"grid",gridTemplateColumns:"minmax(250px,0.8fr) minmax(0,2fr)",gap:16,alignItems:"start"}}>
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"14px"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#FF8C42",letterSpacing:"0.1em",marginBottom:10}}>FLEET</div>
             {aircraftList.map(ac=>{
               const meta=stateMeta[ac.status]||stateMeta.airworthy;
-              return <button key={ac.id} onClick={()=>setSelectedId(ac.id)} style={{width:"100%",textAlign:"left",background:selectedId===ac.id?"rgba(255,140,66,0.12)":"var(--sr-surface-soft)",border:`1px solid ${selectedId===ac.id?"rgba(255,140,66,0.42)":"var(--sr-border)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)"}}>
+              return <button key={ac.id} onClick={()=>{setSelectedId(ac.id);setNotice(null);}} style={{width:"100%",textAlign:"left",background:selectedId===ac.id?"rgba(255,140,66,0.12)":"var(--sr-surface-soft)",border:`1px solid ${selectedId===ac.id?"rgba(255,140,66,0.42)":"var(--sr-border)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:8}}><strong>{ac.tail}</strong><span style={{color:meta.color,fontSize:10}}>{meta.icon} {meta.label}</span></div>
-                <div style={{fontSize:10,color:"var(--sr-text-muted-2)",marginTop:3}}>{ac.type} · {ac.nextMaintenanceHours} hrs to maint.</div>
+                <div style={{fontSize:10,color:"var(--sr-text-muted)",marginTop:3}}>{ac.type} · {ac.nextMaintenanceHours} hrs to maint.</div>
               </button>;
             })}
           </div>
-          {aircraft && <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
+          {aircraft && <div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
               <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"0.08em",color:"var(--sr-text-strong)"}}>{aircraft.tail}</div><div style={{fontSize:12,color:"var(--sr-text-muted)"}}>{aircraft.type} · {aircraft.airframeHours?.toLocaleString()} airframe hrs</div></div>
-              <div style={{background:`${stateMeta[aircraft.status].color}16`,border:`1px solid ${stateMeta[aircraft.status].color}55`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:stateMeta[aircraft.status].color}}>{stateMeta[aircraft.status].icon} {stateMeta[aircraft.status].label}</div>
+              <div style={{background:stateMeta[aircraft.status].background,border:`1px solid ${stateMeta[aircraft.status].border}`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:stateMeta[aircraft.status].color}}>{stateMeta[aircraft.status].icon} {stateMeta[aircraft.status].label}</div>
             </div>
 
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",margin:"22px 0 8px"}}>UPDATE AIRCRAFT STATE</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
-              {[["airworthy","🟢 SERVICEABLE"],["restricted","🟡 RESTRICTED"],["maintenance","🟠 MAINTENANCE"],["grounded","🔴 UNSERVICEABLE"]].map(([id,label])=><button key={id} onClick={()=>changeState(id)} style={{background:aircraft.status===id?"rgba(0,180,255,0.14)":"var(--sr-surface)",border:`1px solid ${aircraft.status===id?"rgba(0,180,255,0.45)":"var(--sr-border-strong)"}`,borderRadius:6,padding:"8px 10px",color:"var(--sr-text)",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>{label}</button>)}
+              {[["airworthy","🟢 SERVICEABLE"],["restricted","🟡 RESTRICTED"],["maintenance","🟠 MAINTENANCE"],["grounded","🔴 UNSERVICEABLE"]].map(([id,label])=>{
+                const blocked=releaseBlocked&&(id==="airworthy"||id==="restricted");
+                return <button key={id} disabled={blocked} onClick={()=>changeState(id)} title={blocked?"Close the grounding defect before selecting a serviceable state":undefined} style={{background:aircraft.status===id?"rgba(0,180,255,0.14)":"var(--sr-surface)",border:`1px solid ${aircraft.status===id?"rgba(0,180,255,0.45)":"var(--sr-border-strong)"}`,borderRadius:6,padding:"8px 10px",color:blocked?"var(--sr-text-muted-2)":"var(--sr-text)",cursor:blocked?"not-allowed":"pointer",fontSize:10,fontFamily:"'DM Mono',monospace",opacity:blocked?0.6:1}}>{label}</button>;
+              })}
             </div>
+            {releaseBlocked&&<div style={{marginTop:10,background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.38)",borderRadius:7,padding:"9px 10px",fontSize:10,color:"var(--sr-danger-text)",lineHeight:1.5}}>🔒 Return to service is blocked while an open defect contains a grounding or “do not fly” restriction.</div>}
+            {notice&&<div style={{marginTop:10,background:notice.tone==="error"?"rgba(255,91,91,0.1)":"rgba(0,200,150,0.08)",border:`1px solid ${notice.tone==="error"?"rgba(255,91,91,0.35)":"rgba(0,200,150,0.28)"}`,borderRadius:7,padding:"9px 10px",fontSize:10,color:notice.tone==="error"?"var(--sr-danger-text)":"#7CE0C0"}}>{notice.text}</div>}
 
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:9,marginTop:18}}>
               <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:8,padding:"11px"}}><div style={{fontSize:9,color:"var(--sr-text-muted-2)"}}>NEXT SCHEDULED MAINT.</div><div style={{fontSize:18,color:aircraft.nextMaintenanceHours<10?"var(--sr-gold)":"var(--sr-text-strong)",marginTop:3}}>{aircraft.nextMaintenanceHours} hrs</div></div>
@@ -2117,21 +2551,21 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#FF8C42",letterSpacing:"0.1em"}}>DEFECTS / WORK IN PROGRESS</div>
             </div>
             {(aircraft.defects||[]).length===0 && <div style={{fontSize:11,color:"var(--sr-success)",padding:"10px 0"}}>✓ No recorded defects</div>}
-            {(aircraft.defects||[]).map(d=><div key={d.id} style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"10px 11px",marginBottom:7}}>
+            {(aircraft.defects||[]).map(d=><div key={d.id} style={{background:"var(--sr-surface)",border:"1px solid var(--sr-border)",borderRadius:8,padding:"10px 11px",marginBottom:7}}>
               <div style={{display:"flex",justifyContent:"space-between",gap:8}}><div><strong style={{fontSize:11,color:"var(--sr-text-strong)"}}>{d.id}</strong><div style={{fontSize:11,color:"var(--sr-text)",marginTop:3}}>{d.text}</div><div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:3}}>{d.status} · {d.restriction}</div></div>{d.status!=="Closed"&&<button onClick={()=>closeDefect(d.id)} style={{alignSelf:"center",background:"rgba(0,200,150,0.1)",border:"1px solid rgba(0,200,150,0.3)",color:"var(--sr-success)",borderRadius:6,padding:"6px 8px",cursor:"pointer",fontSize:9}}>CLOSE</button>}</div>
             </div>)}
             <div style={{display:"flex",gap:7,marginTop:9}}>
-              <input value={newDefect} onChange={e=>setNewDefect(e.target.value)} placeholder="Enter new defect / discrepancy..." style={{flex:1,minWidth:0,background:"var(--sr-bg-input)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"9px 10px",color:"var(--sr-text-strong)",outline:"none"}}/>
+              <input value={newDefect} onChange={e=>setNewDefect(e.target.value)} placeholder="Enter new defect / discrepancy..." style={{flex:1,minWidth:0,background:"var(--sr-bg-input)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"9px 10px",color:"var(--sr-text-strong)",outline:"none"}}/>
               <button onClick={addDefect} style={{background:"rgba(255,140,66,0.14)",border:"1px solid rgba(255,140,66,0.4)",color:"#FFAA65",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontWeight:700}}>ADD</button>
             </div>
 
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:18}}>
               <button onClick={recordInspection} style={{background:"rgba(0,180,255,0.12)",border:"1px solid rgba(0,180,255,0.35)",color:"var(--sr-accent)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RECORD 100-HOUR COMPLETE</button>
-              <button onClick={()=>changeState("airworthy")} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"var(--sr-success)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>RETURN TO SERVICE</button>
+              <button disabled={releaseBlocked} onClick={()=>changeState("airworthy")} title={releaseBlocked?"Close the grounding defect before returning this aircraft to service":undefined} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:releaseBlocked?"var(--sr-text-muted-2)":"var(--sr-success)",borderRadius:7,padding:"9px 11px",cursor:releaseBlocked?"not-allowed":"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,opacity:releaseBlocked?0.6:1}}>RETURN TO SERVICE</button>
             </div>
 
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",margin:"22px 0 8px"}}>AUDIT TRAIL</div>
-            {(aircraft.audit||[]).slice(0,5).map((a,i)=><div key={i} style={{fontSize:10,color:"var(--sr-text-subtle)",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}><span style={{color:"var(--sr-text-muted-2)"}}>{a.time}</span> · {a.text}</div>)}
+            {(aircraft.audit||[]).slice(0,5).map((a,i)=><div key={i} style={{fontSize:10,color:"var(--sr-text-subtle)",padding:"5px 0",borderBottom:"1px solid var(--sr-surface)"}}><span style={{color:"var(--sr-text-muted-2)"}}>{a.time}</span> · {a.text}</div>)}
           </div>}
         </div>
       </div>
@@ -2139,26 +2573,38 @@ function EngineeringDashboardScreen({ orgName, aircraftList, setAircraftList, on
   );
 }
 
-function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, persistenceState, onReset }) {
-  const [selectedId,setSelectedId] = useState(people[0]?.id || null);
-  const person=people.find(p=>p.id===selectedId) || people[0];
+function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack }) {
+  const firstAttention=groupCfiRoster(people,"attention").flatMap(group=>group.people)[0];
+  const [selectedId,setSelectedId] = useState(firstAttention?.id || people[0]?.id || null);
+  const [rosterFilter,setRosterFilter] = useState("attention");
+  const rosterGroups=groupCfiRoster(people,rosterFilter);
+  const visiblePeople=rosterGroups.flatMap(group=>group.people);
+  const selectedPersonId=visiblePeople.some(p=>p.id===selectedId)?selectedId:(visiblePeople[0]?.id||null);
+  const person=people.find(p=>p.id===selectedPersonId) || null;
   const types=[...new Set(aircraftList.map(a=>a.type))];
   const statusMeta={
-    current:{label:"CURRENT",color:"var(--sr-success)",icon:"🟢"},
-    due:{label:"DUE SOON",color:"var(--sr-warning-text)",icon:"🟡"},
-    noncurrent:{label:"ACTION REQUIRED",color:"var(--sr-danger-text)",icon:"🔴"},
+    current:{label:"CURRENT",color:"var(--sr-success)",background:"rgba(0,200,150,0.10)",border:"rgba(0,200,150,0.34)",icon:"🟢"},
+    due:{label:"DUE SOON",color:"var(--sr-gold)",background:"rgba(255,215,0,0.10)",border:"rgba(255,215,0,0.34)",icon:"🟡"},
+    noncurrent:{label:"ACTION REQUIRED",color:"#FF5B5B",background:"rgba(255,91,91,0.16)",border:"rgba(255,91,91,0.6)",icon:"🔴"},
   };
-  const counts={
-    current:people.filter(p=>p.trainingStatus==="current").length,
-    due:people.filter(p=>p.trainingStatus==="due").length,
-    noncurrent:people.filter(p=>p.trainingStatus==="noncurrent").length,
-    signoff:people.filter(p=>p.pendingSignoff).length,
+  const rosterMeta={
+    action:{label:"ACTION REQUIRED",color:"#FF5B5B",icon:"🔴",background:"rgba(255,91,91,0.10)",border:"rgba(255,91,91,0.5)"},
+    due:{label:"DUE SOON",color:"var(--sr-gold)",icon:"🟡",background:"rgba(255,215,0,0.09)",border:"rgba(255,215,0,0.42)"},
+    signoff:{label:"AWAITING SIGN-OFF",color:"var(--sr-accent)",icon:"🔵",background:"rgba(0,180,255,0.09)",border:"rgba(0,180,255,0.42)"},
+    current:{label:"CURRENT",color:"var(--sr-success)",icon:"🟢",background:"rgba(0,200,150,0.08)",border:"rgba(0,200,150,0.38)"},
   };
+  const counts=getCfiRosterCounts(people);
+
+  function selectRosterFilter(nextFilter){
+    setRosterFilter(nextFilter);
+    const nextPerson=groupCfiRoster(people,nextFilter).flatMap(group=>group.people)[0];
+    setSelectedId(nextPerson?.id||null);
+  }
   function updatePerson(patch){
-    setPeople(prev=>prev.map(p=>p.id===selectedId?{...p,...patch}:p));
+    setPeople(prev=>prev.map(p=>p.id===selectedPersonId?{...p,...patch}:p));
   }
   function completeCheck(){
-    updatePerson({trainingStatus:"current",pendingSignoff:false,clubCurrency:"Current",lastCheck:new Date().toLocaleDateString("en-GB"),nextCheck:"06 Apr 2027"});
+    updatePerson({trainingStatus:"current",pendingSignoff:false,clubCurrency:"Current",lastCheck:formatAcademyDate(new Date()),nextCheck:academyDateOffset(180)});
   }
   function toggleAuth(type){
     const has=(person.aircraftAuth||[]).includes(type);
@@ -2169,39 +2615,52 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;}button{touch-action:manipulation;}`}</style>
       <DemoWorkspaceHeader icon="🎓" title="CFI / TRAINING" orgName={orgName} onBack={onBack} accent="var(--sr-accent)"/>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 18px 60px"}}>
-        <DemoDataNotice persistenceState={persistenceState} onReset={onReset} detail="Fictional CFI changes persist and update the pilot record used by the Pilot / Ops workspace."/>
+        <div style={{background:"rgba(255,180,0,0.08)",border:"1px solid rgba(255,180,0,0.28)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-gold)",lineHeight:1.5,marginBottom:18}}>⚠ PROTOTYPE — simulated training records only. CFI changes update the shared pilot record used by the Pilot / Ops workspace for this browser session.</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:18}}>
           {[
-            ["🟢","Current",counts.current,"var(--sr-success)","neutral"],
-            ["🟡","Due soon",counts.due,"var(--sr-warning-text-strong)","warning"],
-            ["🔴","Action required",counts.noncurrent,"var(--sr-danger-text-strong)","danger"],
-            ["🔵","Awaiting sign-off",counts.signoff,"var(--sr-accent)","neutral"],
-          ].map(([icon,label,value,color,tone])=>{
-            const warning=tone==="warning";
-            const urgent=tone==="danger";
-            return <div key={label} style={{background:urgent?"var(--sr-danger-bg)":warning?"var(--sr-warning-bg)":"var(--sr-surface-soft)",border:`1px solid ${urgent?"var(--sr-danger-border)":warning?"var(--sr-warning-border)":"var(--sr-border)"}`,borderRadius:10,padding:"14px",boxShadow:urgent&&value>0?"0 0 0 1px rgba(255,91,91,0.08), 0 0 18px rgba(255,91,91,0.08)":"none"}}><div style={{fontSize:10,color:urgent?"var(--sr-danger-text)":warning?"var(--sr-warning-text)":"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontWeight:(urgent||warning)?700:400}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>;
-          })}
+            ["🟢","Current",counts.current,"var(--sr-success)",false],
+            ["🟡","Due soon",counts.due,"var(--sr-gold)",false],
+            ["🔴","Action required",counts.action,"#FF5B5B",true],
+            ["🔵","Awaiting sign-off",counts.signoff,"var(--sr-accent)",false],
+          ].map(([icon,label,value,color,urgent])=><div key={label} style={{background:urgent?"rgba(255,91,91,0.12)":"var(--sr-surface)",border:`1px solid ${urgent?"rgba(255,91,91,0.5)":"var(--sr-border)"}`,borderRadius:10,padding:"14px",boxShadow:urgent&&value>0?"0 0 0 1px rgba(255,91,91,0.08), 0 0 18px rgba(255,91,91,0.08)":"none"}}><div style={{fontSize:10,color:urgent?"#FF7C7C":"var(--sr-text-muted)",fontFamily:"'DM Mono',monospace",fontWeight:urgent?700:400}}>{icon} {label.toUpperCase()}</div><div style={{fontSize:28,color,fontWeight:700,marginTop:4}}>{value}</div></div>)}
         </div>
 
-        <div className="cfi-workspace-grid" style={{gap:16,alignItems:"start"}}>
-          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px"}}>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-accent)",letterSpacing:"0.1em",marginBottom:10}}>PILOTS REQUIRING ATTENTION</div>
-            {people.map(p=>{
-              const meta=statusMeta[p.trainingStatus]||statusMeta.current;
-              const urgent=p.trainingStatus==="noncurrent";
-              const warning=p.trainingStatus==="due";
-              const selected=selectedId===p.id;
-              return <button key={p.id} onClick={()=>setSelectedId(p.id)} style={{width:"100%",textAlign:"left",background:urgent?(selected?"var(--sr-danger-bg-strong)":"var(--sr-danger-bg)"):warning?(selected?"var(--sr-warning-bg-strong)":"var(--sr-warning-bg)"):(selected?"rgba(0,180,255,0.12)":"var(--sr-surface-soft)"),border:`1px solid ${urgent?"var(--sr-danger-border)":warning?"var(--sr-warning-border)":selected?"rgba(0,180,255,0.42)":"var(--sr-border)"}`,borderRadius:8,padding:"11px",marginBottom:8,cursor:"pointer",color:"var(--sr-text-strong)",boxShadow:urgent?"inset 3px 0 0 var(--sr-danger-text)":warning?"inset 3px 0 0 var(--sr-warning-text)":"none"}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong>{p.name}</strong><span style={{color:meta.color,fontSize:10,fontWeight:(urgent||warning)?800:500,background:urgent?"var(--sr-danger-bg-strong)":warning?"var(--sr-warning-bg-strong)":"transparent",border:`1px solid ${urgent?"var(--sr-danger-border)":warning?"var(--sr-warning-border)":"transparent"}`,borderRadius:5,padding:(urgent||warning)?"4px 6px":"0"}}>{meta.icon} {meta.label}</span></div>
-                <div style={{fontSize:10,color:urgent?"var(--sr-danger-text-strong)":warning?"var(--sr-warning-text-strong)":"var(--sr-text-muted-2)",marginTop:3}}>{p.role} · {p.hrs90} hrs / 90d{urgent?` · ${p.clubCurrency}`:""}</div>
-              </button>;
+        <div style={{marginBottom:16}}>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",marginBottom:8}}>SHOW PILOTS BY STATUS</div>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap"}} role="group" aria-label="Filter pilot roster by status">
+            {CFI_ROSTER_FILTERS.map(option=>{
+              const active=rosterFilter===option.id;
+              const meta=rosterMeta[option.id];
+              const accent=meta?.color||"var(--sr-accent)";
+              return <button key={option.id} aria-pressed={active} onClick={()=>selectRosterFilter(option.id)} style={{display:"inline-flex",alignItems:"center",gap:7,background:active?(meta?.background||"rgba(0,180,255,0.12)"):"var(--sr-surface-soft)",border:`1px solid ${active?(meta?.border||"rgba(0,180,255,0.5)"):"var(--sr-border-strong)"}`,borderRadius:999,padding:"8px 11px",color:active?accent:"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:active?700:500}}>{meta?.icon||"◉"} {option.label.toUpperCase()} <span style={{minWidth:19,padding:"2px 5px",borderRadius:999,background:active?"var(--sr-border-strong)":"var(--sr-surface)",color:active?accent:"var(--sr-text-muted-2)",textAlign:"center"}}>{counts[option.id]}</span></button>;
+            })}
+          </div>
+          <div style={{fontSize:10,color:"var(--sr-text-muted-2)",marginTop:8,lineHeight:1.5}}>{rosterFilter==="attention"?"Showing only pilots who need action, are due soon, or await sign-off.":rosterFilter==="all"?"Showing everyone, grouped in a consistent priority order.":`Showing only ${CFI_ROSTER_FILTERS.find(option=>option.id===rosterFilter)?.label.toLowerCase()} records.`}</div>
+        </div>
+
+        <div className="cfi-roster-layout">
+          <div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"14px"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-accent)",letterSpacing:"0.1em",marginBottom:12}}>FILTERED PILOT ROSTER · {visiblePeople.length}</div>
+            {rosterGroups.length===0&&<div style={{padding:"22px 10px",textAlign:"center",fontSize:11,color:"var(--sr-text-muted-2)",lineHeight:1.6}}>No pilots match this filter.</div>}
+            {rosterGroups.map(group=>{
+              const meta=rosterMeta[group.id];
+              return <section key={group.id} style={{marginBottom:14}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,color:meta.color,fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:"0.08em",margin:"2px 2px 7px",paddingBottom:6,borderBottom:`1px solid ${meta.border}`}}><span>{meta.icon} {meta.label}</span><span>{group.people.length}</span></div>
+                {group.people.map(p=>{
+                  const selected=selectedPersonId===p.id;
+                  return <button key={p.id} onClick={()=>setSelectedId(p.id)} style={{width:"100%",textAlign:"left",background:selected?meta.background:"var(--sr-surface-soft)",border:`1px solid ${selected?meta.border:"var(--sr-border)"}`,borderRadius:8,padding:"11px",marginBottom:7,cursor:"pointer",color:"var(--sr-text-strong)",boxShadow:selected?`inset 3px 0 0 ${meta.color}`:"none"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}><strong>{p.name}</strong><span style={{color:meta.color,fontSize:9,fontWeight:700,whiteSpace:"nowrap"}}>{meta.icon} {meta.label}</span></div>
+                    <div style={{fontSize:10,color:group.id==="action"?"var(--sr-danger-text)":"var(--sr-text-muted)",marginTop:3}}>{p.role} · {p.hrs90} hrs / 90d{group.id==="action"?` · ${p.clubCurrency}`:""}</div>
+                  </button>;
+                })}
+              </section>;
             })}
           </div>
 
-          {person && <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"16px"}}>
+          {person ? <div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
               <div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:29,letterSpacing:"0.07em",color:"var(--sr-text-strong)"}}>{person.name}</div><div style={{fontSize:12,color:"var(--sr-text-muted)"}}>{person.role}</div></div>
-              <div style={{background:person.trainingStatus==="noncurrent"?"var(--sr-danger-bg-strong)":person.trainingStatus==="due"?"var(--sr-warning-bg-strong)":`${statusMeta[person.trainingStatus].color}16`,border:`1px solid ${person.trainingStatus==="noncurrent"?"var(--sr-danger-border)":person.trainingStatus==="due"?"var(--sr-warning-border)":statusMeta[person.trainingStatus].color+"55"}`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:statusMeta[person.trainingStatus].color,fontWeight:person.trainingStatus==="noncurrent"||person.trainingStatus==="due"?800:500,boxShadow:person.trainingStatus==="noncurrent"?"0 0 16px rgba(255,91,91,0.1)":"none"}}>{statusMeta[person.trainingStatus].icon} {statusMeta[person.trainingStatus].label}</div>
+              <div style={{background:statusMeta[person.trainingStatus].background,border:`1px solid ${statusMeta[person.trainingStatus].border}`,borderRadius:8,padding:"9px 12px",fontFamily:"'DM Mono',monospace",fontSize:10,color:statusMeta[person.trainingStatus].color,fontWeight:person.trainingStatus==="noncurrent"?800:500,boxShadow:person.trainingStatus==="noncurrent"?"0 0 16px rgba(255,91,91,0.1)":"none"}}>{statusMeta[person.trainingStatus].icon} {statusMeta[person.trainingStatus].label}</div>
             </div>
 
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:9,marginTop:18}}>
@@ -2216,9 +2675,9 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
                   (label==="NEXT CHECK" && (text.includes("due") || text.includes("soon"))) ||
                   (label==="MEDICAL" && (text.includes("expires in") || text.includes("expiring")))
                 );
-                return <div key={label} style={{background:isCritical?"var(--sr-danger-bg)":isWarning?"var(--sr-warning-bg)":"rgba(0,180,255,0.055)",border:`1px solid ${isCritical?"var(--sr-danger-border)":isWarning?"var(--sr-warning-border)":"rgba(0,180,255,0.14)"}`,borderRadius:8,padding:"10px",boxShadow:isCritical?"inset 3px 0 0 var(--sr-danger-text)":isWarning?"inset 3px 0 0 var(--sr-warning-text)":"none"}}>
-                  <div style={{fontSize:8,color:isCritical?"var(--sr-danger-text)":isWarning?"var(--sr-warning-text)":"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontWeight:(isCritical||isWarning)?700:400}}>{label}</div>
-                  <div style={{fontSize:12,color:isCritical?"var(--sr-danger-text-strong)":isWarning?"var(--sr-warning-text-strong)":"var(--sr-text-strong)",marginTop:4,lineHeight:1.35,fontWeight:(isCritical||isWarning)?700:400}}>{isCritical?"🔴 ":isWarning?"🟡 ":""}{value}</div>
+                return <div key={label} style={{background:isCritical?"rgba(255,91,91,0.14)":isWarning?"rgba(255,215,0,0.10)":"rgba(0,180,255,0.055)",border:`1px solid ${isCritical?"rgba(255,91,91,0.58)":isWarning?"rgba(255,215,0,0.42)":"rgba(0,180,255,0.14)"}`,borderRadius:8,padding:"10px",boxShadow:isCritical?"inset 3px 0 0 #FF5B5B":"none"}}>
+                  <div style={{fontSize:8,color:isCritical?"#FF8F8F":isWarning?"#FFD75A":"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontWeight:(isCritical||isWarning)?700:400}}>{label}</div>
+                  <div style={{fontSize:12,color:isCritical?"#FFB0B0":isWarning?"#FFE38A":"var(--sr-text-strong)",marginTop:4,lineHeight:1.35,fontWeight:isCritical?700:400}}>{isCritical?"🔴 ":isWarning?"🟡 ":""}{value}</div>
                 </div>;
               })}
             </div>
@@ -2227,26 +2686,26 @@ function CfiDashboardScreen({ orgName, people, setPeople, aircraftList, onBack, 
             <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
               {types.map(type=>{
                 const authorised=(person.aircraftAuth||[]).includes(type);
-                return <button key={type} onClick={()=>toggleAuth(type)} style={{background:authorised?"rgba(0,200,150,0.11)":"var(--sr-surface-soft)",border:`1px solid ${authorised?"rgba(0,200,150,0.35)":"var(--sr-border-strong)"}`,borderRadius:7,padding:"8px 10px",color:authorised?"var(--sr-success)":"var(--sr-text-muted-2)",cursor:"pointer",fontSize:10}}>{authorised?"✓ ":""}{type}</button>;
+                return <button key={type} onClick={()=>toggleAuth(type)} style={{background:authorised?"rgba(0,200,150,0.11)":"var(--sr-surface)",border:`1px solid ${authorised?"rgba(0,200,150,0.35)":"var(--sr-border-strong)"}`,borderRadius:7,padding:"8px 10px",color:authorised?"var(--sr-success)":"var(--sr-text-muted)",cursor:"pointer",fontSize:10}}>{authorised?"✓ ":""}{type}</button>;
               })}
             </div>
 
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-accent)",letterSpacing:"0.1em",margin:"22px 0 8px"}}>CFI ACTIONS</div>
-            {person.pendingSignoff && <div style={{background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"var(--sr-accent)",marginBottom:10}}>🔵 A completed training item is awaiting CFI sign-off.</div>}
+            {person.pendingSignoff && <div style={{background:"rgba(0,180,255,0.08)",border:"1px solid rgba(0,180,255,0.25)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#7DD8FF",marginBottom:10}}>🔵 A completed training item is awaiting CFI sign-off.</div>}
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <button onClick={completeCheck} style={{background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",color:"var(--sr-success)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>✓ RECORD CHECK / SIGN OFF</button>
-              <button onClick={()=>updatePerson({trainingStatus:"due",clubCurrency:"Check due soon"})} style={{background:"var(--sr-warning-bg)",border:"1px solid var(--sr-warning-border)",color:"var(--sr-warning-text)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700}}>MARK DUE SOON</button>
-              <button onClick={()=>updatePerson({trainingStatus:"noncurrent",clubCurrency:"Expired — instructor check required"})} style={{background:"var(--sr-danger-bg)",border:"1px solid var(--sr-danger-border)",color:"var(--sr-danger-text)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700}}>REQUIRE TRAINING</button>
+              <button onClick={()=>updatePerson({trainingStatus:"due",clubCurrency:"Check due soon"})} style={{background:"rgba(255,215,0,0.1)",border:"1px solid rgba(255,215,0,0.3)",color:"var(--sr-gold)",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>MARK DUE SOON</button>
+              <button onClick={()=>updatePerson({trainingStatus:"noncurrent",clubCurrency:"Expired — instructor check required"})} style={{background:"rgba(255,91,91,0.1)",border:"1px solid rgba(255,91,91,0.3)",color:"#FF7C7C",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>REQUIRE TRAINING</button>
             </div>
-            <div style={{marginTop:18,padding:"11px 12px",background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.55}}>These actions are saved to synthetic demo records only. Step 4 will add identity-linked permission enforcement; Step 5 will add the immutable operational audit trail.</div>
-          </div>}
+            <div style={{marginTop:18,padding:"11px 12px",background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:8,fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.55}}>In the production version, these actions would be permission-controlled and create an immutable instructor audit record. This prototype is intentionally session-only.</div>
+          </div>:<div style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border)",borderRadius:10,padding:"42px 18px",textAlign:"center",color:"var(--sr-text-muted-2)",fontSize:11}}>No pilot is selected because this filter has no matching records.</div>}
         </div>
       </div>
     </div>
   );
 }
 
-function WelcomeScreen({ onSelect }) {
+function WelcomeScreen({ onSelect, onReturnToOps }) {
   const count = region => Object.values(AIRFIELDS).filter(airfield => airfield.region === region).length;
   const options = [
     { id:"florida", label:"FLORIDA", icon:"🌴", desc:`${count("florida")} training airfields across Florida — Class B/C/D operations, thunderstorm patterns, bird strike corridors, skydiving fields, Tampa Bay.` },
@@ -2277,6 +2736,7 @@ function WelcomeScreen({ onSelect }) {
         ))}
       </div>
       <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",marginTop:36,letterSpacing:"0.1em"}}>YOU CAN SWITCH LOCATIONS ANY TIME FROM THE APP</div>
+      {onReturnToOps&&<button onClick={onReturnToOps} style={{marginTop:16,background:"rgba(255,180,0,0.1)",border:"1px solid rgba(255,180,0,0.35)",borderRadius:7,padding:"9px 13px",color:"var(--sr-gold)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>← RETURN TO PILOT / OPS</button>}
     </div>
   );
 }
@@ -2410,8 +2870,8 @@ function FRATFlow({ stage }) {
         const active = id === stage;
         const complete = index < activeIndex;
         return (
-          <div key={id} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 9px",borderRadius:7,background:active?"rgba(0,180,255,0.13)":complete?"rgba(0,200,150,0.08)":"var(--sr-surface-soft)",border:`1px solid ${active?"rgba(0,180,255,0.45)":complete?"rgba(0,200,150,0.25)":"var(--sr-border)"}`}}>
-            <span style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",color:active?"var(--sr-bg)":complete?"var(--sr-success)":"var(--sr-text-muted-2)",background:active?"var(--sr-accent)":complete?"rgba(0,200,150,0.12)":"var(--sr-surface)"}}>{complete?"✓":number}</span>
+          <div key={id} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 9px",borderRadius:7,background:active?"rgba(0,180,255,0.13)":complete?"rgba(0,200,150,0.08)":"var(--sr-surface)",border:`1px solid ${active?"rgba(0,180,255,0.45)":complete?"rgba(0,200,150,0.25)":"var(--sr-border)"}`}}>
+            <span style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",color:active?"var(--sr-on-gold)":complete?"var(--sr-success)":"var(--sr-text-muted-2)",background:active?"var(--sr-accent)":complete?"rgba(0,200,150,0.12)":"var(--sr-surface)"}}>{complete?"✓":number}</span>
             <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:"0.06em",color:active?"var(--sr-text-strong)":complete?"var(--sr-success)":"var(--sr-text-muted-2)"}}>{label}</span>
           </div>
         );
@@ -2423,7 +2883,7 @@ function FRATFlow({ stage }) {
 function FRATQuestion({ q, options, value, onChange, color, isPrefilled, academyContext, link, onLinkClick }) {
   const hasAnswer = value !== undefined;
   const entryLabel = isPrefilled ? "🔗 ACADEMY AUTO-FILL" : hasAnswer ? "✎ PILOT ENTERED" : "✎ PILOT INPUT REQUIRED";
-  const entryColor = isPrefilled ? "var(--sr-gold)" : hasAnswer ? "var(--sr-accent)" : "var(--sr-text-muted-2)";
+  const entryColor = isPrefilled ? "var(--sr-gold)" : hasAnswer ? "#7DD8FF" : "var(--sr-text-muted-2)";
   return (
     <div style={{marginBottom:16}}>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8,flexWrap:"wrap"}}>
@@ -2433,12 +2893,12 @@ function FRATQuestion({ q, options, value, onChange, color, isPrefilled, academy
           <button onClick={()=>onLinkClick(link.action)} style={{background:"none",border:"none",padding:0,color:"var(--sr-accent)",fontSize:10.5,fontFamily:"'DM Mono',monospace",cursor:"pointer",textDecoration:"underline",flexShrink:0}}>{link.label}</button>
         )}
       </div>
-      {academyContext && <div style={{background:"rgba(255,180,0,0.055)",border:"1px solid rgba(255,180,0,0.18)",borderRadius:6,padding:"8px 10px",marginBottom:8,fontSize:10,color:"#B8A974",lineHeight:1.5}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-gold)",letterSpacing:"0.06em"}}>{academyContext.source.toUpperCase()}</span><br/>{academyContext.detail}{!isPrefilled && hasAnswer && <><br/><span style={{color:"var(--sr-accent)"}}>Pilot override recorded; Academy context remains visible.</span></>}</div>}
+      {academyContext && <div style={{background:"rgba(255,180,0,0.055)",border:"1px solid rgba(255,180,0,0.18)",borderRadius:6,padding:"8px 10px",marginBottom:8,fontSize:10,color:"#B8A974",lineHeight:1.5}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-gold)",letterSpacing:"0.06em"}}>{academyContext.source.toUpperCase()}</span><br/>{academyContext.detail}{!isPrefilled && hasAnswer && <><br/><span style={{color:"#7DD8FF"}}>Pilot override recorded; Academy context remains visible.</span></>}</div>}
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {options.map(([label,pts],i)=>(
           <button key={i} onClick={()=>onChange(pts)} style={{
             display:"flex",alignItems:"center",justifyContent:"space-between",textAlign:"left",
-            background:value===pts?`${color}22`:"var(--sr-surface-soft)",
+            background:value===pts?alphaColor(color,13):"var(--sr-surface)",
             border:`1px solid ${value===pts?color:"var(--sr-border)"}`,
             borderRadius:7,padding:"9px 12px",cursor:"pointer",
             color:value===pts?"var(--sr-text-strong)":"var(--sr-text-muted)",fontSize:11.5,
@@ -2471,7 +2931,7 @@ function FRATSection({ section, answers, onAnswer, prefillKeys, academyContexts,
 
 function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score, reset, title="ASSESSMENT STATUS", onContinue }) {
   return (
-    <div style={{background:risk?`${risk.color}15`:"var(--sr-surface-soft)",border:`1px solid ${risk?risk.color:"var(--sr-border-strong)"}55`,borderRadius:10,padding:"16px 18px",marginBottom:20}}>
+    <div style={{background:risk?alphaColor(risk.color,8):"var(--sr-surface)",border:`1px solid ${risk?alphaColor(risk.color,33):"var(--sr-border-strong)"}`,borderRadius:10,padding:"16px 18px",marginBottom:20}}>
       <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:risk?.color||"var(--sr-text-muted-2)",letterSpacing:"0.12em",marginBottom:9}}>{title}</div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:allAnswered?10:0}}>
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-text-muted)",letterSpacing:"0.08em"}}>PROGRESS: {answeredCount}/{totalQuestions} ANSWERED</div>
@@ -2488,11 +2948,11 @@ function FRATScoreBox({ answeredCount, totalQuestions, allAnswered, risk, score,
             <div style={{width:14,height:14,borderRadius:"50%",background:risk.color,flexShrink:0}}/>
             <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.08em",color:risk.color}}>{risk.level} — {risk.label}</div>
           </div>
-          <div style={{fontSize:11.5,color:"var(--sr-text-subtle)",lineHeight:1.6}}>{risk.detail}</div>
+          <div style={{fontSize:11.5,color:"var(--sr-text)",lineHeight:1.6}}>{risk.detail}</div>
           {onContinue && <button onClick={onContinue} style={{width:"100%",marginTop:14,background:"linear-gradient(135deg,#00B4FF,#008FE0)",border:"none",borderRadius:7,padding:"11px 14px",color:"#04101C",cursor:"pointer",fontSize:11,fontWeight:"bold",fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em"}}>CONTINUE TO RISK CONTROLS →</button>}
         </>
       )}
-      {reset && <button onClick={reset} style={{marginTop:12,background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:"6px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>↺ START OVER</button>}
+      {reset && <button onClick={reset} style={{marginTop:12,background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:"6px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:10,fontFamily:"'DM Mono',monospace"}}>↺ START OVER</button>}
     </div>
   );
 }
@@ -2505,7 +2965,7 @@ function MitigationCard({ factor, initialPoints, control, residualValue, onToggl
   const canReduce = canControlReduce(question, control);
   const choices = [...question.mitigations, FRAT_RETAIN_CONTROL];
   return (
-    <div style={{background:"var(--sr-surface-soft)",border:`1px solid ${section.color}33`,borderRadius:10,padding:"17px 18px",marginBottom:14}}>
+    <div style={{background:"var(--sr-surface-soft)",border:`1px solid ${alphaColor(section.color,20)}`,borderRadius:10,padding:"17px 18px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",marginBottom:12}}>
         <div>
           <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:section.color,letterSpacing:"0.12em",marginBottom:5}}>{section.icon} {section.title}</div>
@@ -2521,7 +2981,7 @@ function MitigationCard({ factor, initialPoints, control, residualValue, onToggl
           const selected = actions.includes(action);
           const retain = action === FRAT_RETAIN_CONTROL;
           return (
-            <button key={action} onClick={()=>onToggleAction(action)} style={{display:"flex",alignItems:"flex-start",gap:9,textAlign:"left",background:selected?(retain?"rgba(255,215,0,0.09)":`${section.color}18`):"var(--sr-surface-soft)",border:`1px solid ${selected?(retain?"rgba(255,215,0,0.35)":section.color):"var(--sr-border)"}`,borderRadius:7,padding:"9px 11px",color:selected?"var(--sr-text-strong)":"var(--sr-text-muted)",fontSize:11,cursor:"pointer",lineHeight:1.45}}>
+            <button key={action} onClick={()=>onToggleAction(action)} style={{display:"flex",alignItems:"flex-start",gap:9,textAlign:"left",background:selected?(retain?"rgba(255,215,0,0.09)":alphaColor(section.color,9)):"var(--sr-surface-soft)",border:`1px solid ${selected?(retain?"rgba(255,215,0,0.35)":section.color):"var(--sr-border)"}`,borderRadius:7,padding:"9px 11px",color:selected?"var(--sr-text-strong)":"var(--sr-text-muted)",fontSize:11,cursor:"pointer",lineHeight:1.45}}>
               <span style={{width:15,height:15,borderRadius:3,border:`1px solid ${selected?(retain?"var(--sr-gold)":section.color):"var(--sr-text-muted-2)"}`,background:selected?(retain?"var(--sr-gold)":section.color):"transparent",color:"#05101A",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:"bold",flexShrink:0,marginTop:1}}>{selected?"✓":""}</span>
               <span>{action}</span>
             </button>
@@ -2530,7 +2990,7 @@ function MitigationCard({ factor, initialPoints, control, residualValue, onToggl
       </div>
 
       <label style={{display:"block",fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-subtle)",letterSpacing:"0.08em",margin:"13px 0 6px"}}>CONTROL NOTES / CUSTOM MITIGATION</label>
-      <textarea value={note} onChange={event=>onNoteChange(event.target.value)} placeholder="Record what will actually change before the flight…" rows={3} style={{width:"100%",resize:"vertical",background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"9px 10px",color:"var(--sr-text-strong)",fontFamily:"'Inter',sans-serif",fontSize:11.5,lineHeight:1.5,outline:"none"}}/>
+      <textarea value={note} onChange={event=>onNoteChange(event.target.value)} placeholder="Record what will actually change before the flight…" rows={3} style={{width:"100%",resize:"vertical",background:"rgba(0,0,0,0.25)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"9px 10px",color:"var(--sr-text-strong)",fontFamily:"'Inter',sans-serif",fontSize:11.5,lineHeight:1.5,outline:"none"}}/>
 
       <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-subtle)",letterSpacing:"0.08em",margin:"14px 0 4px"}}>REASSESS AFTER THE CONTROL IS ACTUALLY APPLIED</div>
       <div style={{fontSize:10,color:"var(--sr-text-muted-2)",lineHeight:1.5,marginBottom:8}}>Choose the condition that will genuinely exist after mitigation. Selecting a control does not automatically reduce the score.</div>
@@ -2539,7 +2999,7 @@ function MitigationCard({ factor, initialPoints, control, residualValue, onToggl
           const reductionBlocked = points < initialPoints && !canReduce;
           const disabled = !recorded || reductionBlocked;
           return (
-            <button key={points} disabled={disabled} onClick={()=>onResidualChange(points)} style={{display:"flex",justifyContent:"space-between",gap:10,textAlign:"left",background:residualValue===points?`${section.color}20`:"var(--sr-surface-soft)",border:`1px solid ${residualValue===points?section.color:"var(--sr-border)"}`,borderRadius:7,padding:"8px 10px",color:disabled?"#3F4D5A":residualValue===points?"var(--sr-text-strong)":"var(--sr-text-muted)",fontSize:11,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.65:1}}>
+            <button key={points} disabled={disabled} onClick={()=>onResidualChange(points)} style={{display:"flex",justifyContent:"space-between",gap:10,textAlign:"left",background:residualValue===points?alphaColor(section.color,12):"var(--sr-surface-soft)",border:`1px solid ${residualValue===points?section.color:"var(--sr-border)"}`,borderRadius:7,padding:"8px 10px",color:disabled?"#3F4D5A":residualValue===points?"var(--sr-text-strong)":"var(--sr-text-muted)",fontSize:11,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.65:1}}>
               <span>{label}</span><span style={{fontFamily:"'DM Mono',monospace",fontSize:9,flexShrink:0}}>+{points}</span>
             </button>
           );
@@ -2561,13 +3021,13 @@ function FRATComparison({ initialScore, residualScore, initialRisk, residualRisk
     <div style={{marginBottom:18}}>
       <div style={{display:"flex",alignItems:"stretch",gap:9,flexWrap:"wrap"}}>
         {resultCards.map(([title, score, risk], index) => (
-          <div key={title} style={{flex:"1 1 210px",background:`${risk.color}12`,border:`1px solid ${risk.color}55`,borderRadius:9,padding:"14px 15px"}}>
+          <div key={title} style={{flex:"1 1 210px",background:alphaColor(risk.color,7),border:`1px solid ${alphaColor(risk.color,33)}`,borderRadius:9,padding:"14px 15px"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted)",letterSpacing:"0.12em",marginBottom:7}}>{title}</div>
             <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",gap:8}}>
               <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:23,color:risk.color,letterSpacing:"0.08em"}}>{risk.level}</div>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:risk.color}}>{score}/{FRAT_MAX}</div>
             </div>
-            <div style={{fontSize:10.5,color:"var(--sr-text-subtle)",marginTop:3}}>{risk.label}</div>
+            <div style={{fontSize:10.5,color:"var(--sr-text)",marginTop:3}}>{risk.label}</div>
             {index===1 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:delta<0?"var(--sr-success)":delta>0?"#FF6B6B":"var(--sr-text-muted)",marginTop:8}}>{delta<0?`−${Math.abs(delta)} points after controls`:delta>0?`+${delta} points after reassessment`:"No score change"}</div>}
           </div>
         ))}
@@ -2581,7 +3041,7 @@ function FRATFinalReview({ materialFactors, initialAnswers, controls, residualAn
   const residualRisk = fratRiskLevel(residualScore);
   return (
     <>
-      <div style={{background:`${residualRisk.color}10`,border:`1px solid ${residualRisk.color}55`,borderRadius:10,padding:"17px 18px",marginBottom:16}}>
+      <div style={{background:alphaColor(residualRisk.color,6),border:`1px solid ${alphaColor(residualRisk.color,33)}`,borderRadius:10,padding:"17px 18px",marginBottom:16}}>
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:residualRisk.color,letterSpacing:"0.12em",marginBottom:7}}>FINAL RISK REVIEW</div>
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,letterSpacing:"0.08em",color:residualRisk.color,marginBottom:5}}>{residualRisk.label}</div>
         <div style={{fontSize:12,color:"var(--sr-text)",lineHeight:1.65}}>{residualRisk.detail}</div>
@@ -2596,15 +3056,15 @@ function FRATFinalReview({ materialFactors, initialAnswers, controls, residualAn
         const residualValue = residualAnswers[factor.key] ?? initialValue;
         const control = controls[factor.key] || { actions: [], note: "" };
         return (
-          <div key={factor.key} style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"13px 14px",marginBottom:9}}>
+          <div key={factor.key} style={{background:"var(--sr-surface-soft)",border:"1px solid var(--sr-border-strong)",borderRadius:8,padding:"13px 14px",marginBottom:9}}>
             <div style={{fontSize:12,color:"var(--sr-text-strong)",fontWeight:600,marginBottom:7}}>{factor.question.q}</div>
             <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto minmax(0,1fr)",gap:8,alignItems:"center",fontSize:10.5}}>
               <div style={{color:"var(--sr-text-muted)"}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted-2)"}}>INITIAL</span><br/>{fratAnswerLabel(factor.question, initialValue)} <span style={{color:"var(--sr-gold)"}}>+{initialValue}</span></div>
               <div style={{color:"var(--sr-text-muted-2)"}}>→</div>
               <div style={{color:"var(--sr-text)"}}><span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted-2)"}}>RESIDUAL</span><br/>{fratAnswerLabel(factor.question, residualValue)} <span style={{color:residualValue<initialValue?"var(--sr-success)":residualValue>initialValue?"#FF6B6B":"var(--sr-gold)"}}>+{residualValue}</span></div>
             </div>
-            <div style={{marginTop:9,paddingTop:8,borderTop:"1px solid rgba(255,255,255,0.06)",fontSize:10.5,color:"#8FA1B2",lineHeight:1.55}}>
-              <b style={{color:"var(--sr-text-subtle)"}}>Controls:</b> {control.actions.join("; ") || "Custom control recorded"}{control.note?.trim() && <><br/><b style={{color:"var(--sr-text-subtle)"}}>Notes:</b> {control.note.trim()}</>}
+            <div style={{marginTop:9,paddingTop:8,borderTop:"1px solid var(--sr-surface-hover)",fontSize:10.5,color:"var(--sr-text-subtle)",lineHeight:1.55}}>
+              <b style={{color:"var(--sr-text)"}}>Controls:</b> {control.actions.join("; ") || "Custom control recorded"}{control.note?.trim() && <><br/><b style={{color:"var(--sr-text)"}}>Notes:</b> {control.note.trim()}</>}
             </div>
           </div>
         );
@@ -2612,8 +3072,8 @@ function FRATFinalReview({ materialFactors, initialAnswers, controls, residualAn
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:18}}>
         <button onClick={onBackToControls} style={{flex:"1 1 170px",background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:7,padding:"10px 12px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>← EDIT CONTROLS</button>
-        <button onClick={onEditInitial} style={{flex:"1 1 170px",background:"var(--sr-surface)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"10px 12px",color:"var(--sr-text-subtle)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>EDIT INITIAL ASSESSMENT</button>
-        <button onClick={onReset} style={{flex:"1 1 120px",background:"var(--sr-surface)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"10px 12px",color:"var(--sr-text-muted-2)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>↺ START OVER</button>
+        <button onClick={onEditInitial} style={{flex:"1 1 170px",background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"10px 12px",color:"var(--sr-text-subtle)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>EDIT INITIAL ASSESSMENT</button>
+        <button onClick={onReset} style={{flex:"1 1 120px",background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"10px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:10}}>↺ START OVER</button>
       </div>
     </>
   );
@@ -2701,8 +3161,8 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
     <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
       <div style={{background:"var(--sr-header)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
-        <button onClick={onClose} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>← BACK</button>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"var(--sr-text-strong)",marginLeft:6}}>🛡 FLIGHT RISK ASSESSMENT{opsPrefill ? " — DEMO" : ""}</div>
+        <button onClick={onClose} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>← BACK</button>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"var(--sr-text-strong)",marginLeft:6}}>🛡 FLIGHT RISK ASSESSMENT</div>
       </div>
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
         <FRATFlow stage={stage}/>
@@ -2714,10 +3174,7 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
           </div>
         )}
 
-        {stage==="assessment" && academySeed.advisories.map(advisory=>{
-          const requiresAction = advisory.level === "action";
-          return <div key={advisory.id} style={{background:requiresAction?"rgba(255,59,59,0.09)":"rgba(255,215,0,0.055)",border:`1px solid ${requiresAction?"rgba(255,59,59,0.38)":"rgba(255,215,0,0.22)"}`,borderRadius:8,padding:"10px 12px",fontSize:10.5,color:requiresAction?"#FF9A9A":"#C8B76E",lineHeight:1.55,marginBottom:9}}><b style={{color:requiresAction?"#FF7C7C":"var(--sr-gold)"}}>{requiresAction?"🔴 ACTION REQUIRED":"🟡 ADVISORY"} — {advisory.title}</b><br/>{advisory.detail}</div>;
-        })}
+        {stage==="assessment" && academySeed.advisories.map(advisory=><div key={advisory.id} style={{background:"rgba(255,215,0,0.055)",border:"1px solid rgba(255,215,0,0.22)",borderRadius:8,padding:"10px 12px",fontSize:10.5,color:"#C8B76E",lineHeight:1.55,marginBottom:9}}><b style={{color:"var(--sr-gold)"}}>🟡 ADVISORY — {advisory.title}</b><br/>{advisory.detail}</div>)}
 
         {stage==="assessment" && <>
           <FRATScoreBox answeredCount={answeredCount} totalQuestions={totalQuestions} allAnswered={allAnswered} risk={risk} score={score} reset={reset}/>
@@ -2729,8 +3186,8 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
 
         {stage==="controls" && <>
           <FRATScoreBox answeredCount={totalQuestions} totalQuestions={totalQuestions} allAnswered risk={fratRiskLevel(initialScore)} score={initialScore} title="INITIAL ASSESSMENT — LOCKED"/>
-          <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"12px 13px",fontSize:11,color:"#9DB2C5",lineHeight:1.6,marginBottom:16}}>
-            <b style={{color:"var(--sr-text)"}}>{materialFactors.length} material factor{materialFactors.length===1?"":"s"}</b> scored 2 or 3. Record a real control and then reassess the condition that will exist after that control is applied. Initial answers stay locked for comparison.
+          <div style={{background:"rgba(0,180,255,0.06)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:8,padding:"12px 13px",fontSize:11,color:"var(--sr-text-subtle)",lineHeight:1.6,marginBottom:16}}>
+            <b style={{color:"#D0E2F2"}}>{materialFactors.length} material factor{materialFactors.length===1?"":"s"}</b> scored 2 or 3. Record a real control and then reassess the condition that will exist after that control is applied. Initial answers stay locked for comparison.
           </div>
           <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"var(--sr-text-muted)",letterSpacing:"0.1em"}}>CONTROL PROGRESS {completedControls}/{materialFactors.length}</div>
@@ -2738,7 +3195,7 @@ function FRATScreen({ onClose, opsPrefill, onOpenDA, answers, setAnswers, prefil
           </div>
           {materialFactors.length===0 && <div style={{background:"rgba(0,200,150,0.06)",border:"1px solid rgba(0,200,150,0.2)",borderRadius:8,padding:"13px",fontSize:11,color:"#A9C8BE",lineHeight:1.6,marginBottom:14}}>No individual answer scored 2 or 3. There are no generated material-factor controls, but the final review will still preserve the initial and residual result.</div>}
           {materialFactors.map(factor=><MitigationCard key={factor.key} factor={factor} initialPoints={initialAnswers[factor.key]} control={controls[factor.key]} residualValue={residualAnswers[factor.key]} onToggleAction={action=>toggleAction(factor.key,action)} onNoteChange={note=>setControlNote(factor.key,note)} onResidualChange={value=>setResidualAnswer(factor.key,value)}/>)}
-          <div style={{background:"var(--sr-surface-soft)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,padding:"14px 15px",marginTop:18}}>
+          <div style={{background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:9,padding:"14px 15px",marginTop:18}}>
             <div style={{fontSize:10.5,color:"var(--sr-text-muted)",lineHeight:1.55,marginBottom:10}}>{allControlsComplete?"Every material factor has a recorded control and residual assessment.":`Complete ${materialFactors.length-completedControls} remaining factor${materialFactors.length-completedControls===1?"":"s"} to produce the final comparison.`}</div>
             <button disabled={!allControlsComplete} onClick={()=>{setReviewComplete(true);window.scrollTo({top:0,behavior:"smooth"});}} style={{width:"100%",background:allControlsComplete?"linear-gradient(135deg,#00C896,#00A879)":"var(--sr-surface-hover)",border:"none",borderRadius:7,padding:"11px 14px",color:allControlsComplete?"#04120E":"var(--sr-text-muted-2)",cursor:allControlsComplete?"pointer":"not-allowed",fontSize:11,fontWeight:"bold",fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em"}}>VIEW INITIAL → RESIDUAL SUMMARY →</button>
           </div>
@@ -2773,7 +3230,7 @@ function LabeledNumberInput({ label, value, onChange, suffix }) {
 function E6BResultBox(props) {
   const { label, value, color="var(--sr-accent)" } = props;
   return (
-    <div style={{background:"rgba(0,0,0,0.35)",border:`1px solid ${color}44`,borderRadius:8,padding:"12px 14px",textAlign:"center",flex:1,minWidth:110}}>
+    <div style={{background:"rgba(0,0,0,0.35)",border:`1px solid ${alphaColor(color,27)}`,borderRadius:8,padding:"12px 14px",textAlign:"center",flex:1,minWidth:110}}>
       <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--sr-text-muted-2)",letterSpacing:"0.1em",marginBottom:4}}>{label}</div>
       <div style={{fontFamily:"'DM Mono',monospace",fontSize:20,color,fontWeight:"bold"}}>{value}</div>
     </div>
@@ -2890,7 +3347,7 @@ function E6BScreen({ onClose }) {
     <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}input[type=number]::-webkit-inner-spin-button{opacity:0.5;}`}</style>
       <div style={{background:"var(--sr-header)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:"0 20px",display:"flex",alignItems:"center",gap:10,height:56,position:"sticky",top:0,zIndex:100}}>
-        <button onClick={onClose} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>← BACK</button>
+        <button onClick={onClose} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"7px 12px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>← BACK</button>
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:"0.12em",color:"var(--sr-text-strong)",marginLeft:6}}>🧮 E6B FLIGHT COMPUTER</div>
       </div>
       <div style={{maxWidth:640,margin:"0 auto",padding:"22px 18px 60px"}}>
@@ -2915,19 +3372,6 @@ export default function App() {
   });
   const [systemPrefersDark,setSystemPrefersDark] = useState(()=>typeof window!=="undefined" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches);
   const resolvedAppearance = resolveAppearance(appearance,systemPrefersDark);
-  const initialWorkspaceRef = useRef(null);
-  if (!initialWorkspaceRef.current) {
-    const seed = createDemoWorkspaceSnapshot();
-    initialWorkspaceRef.current = loadBrowserWorkspaceSnapshot(
-      typeof window!=="undefined" ? window.localStorage : null,
-      seed,
-    );
-  }
-  const initialWorkspace = initialWorkspaceRef.current;
-  const workspaceRepositoryRef = useRef(null);
-  const persistenceReadyRef = useRef(false);
-  const lastWorkspaceSignatureRef = useRef(null);
-  const saveChainRef = useRef(Promise.resolve());
   const [region,setRegion] = useState("florida");
   const [selected,setSelected] = useState("KVRB");
   const [query,setQuery] = useState("KVRB");
@@ -2940,29 +3384,10 @@ export default function App() {
   const [opsPrefill,setOpsPrefill] = useState(null); // { person, aircraft } | null
   const [showOpsDashboard,setShowOpsDashboard] = useState(false);
   const [opsWorkspace,setOpsWorkspace] = useState(null); // "ops" | "admin" | "cfi" | "engineering"
-  const [workspaceMeta,setWorkspaceMeta] = useState(()=>({
-    id:initialWorkspace.id,
-    name:initialWorkspace.name,
-    kind:initialWorkspace.kind,
-    schemaVersion:initialWorkspace.schemaVersion,
-    templateVersion:initialWorkspace.templateVersion,
-    dataMode:"synthetic",
-    authoritative:false,
-    resettable:true,
-    revision:initialWorkspace.revision || 0,
-    createdAt:initialWorkspace.createdAt,
-    updatedAt:initialWorkspace.updatedAt,
-  }));
-  const [persistenceState,setPersistenceState] = useState({
-    mode:"loading",
-    label:"OPENING PRIVATE SYNTHETIC DEMO",
-    status:"loading",
-    error:null,
-  });
-  const [opsPeople,setOpsPeople] = useState(()=>initialWorkspace.people);
-  const [opsAircraftList,setOpsAircraftList] = useState(()=>initialWorkspace.aircraft);
-  const [opsUsers,setOpsUsers] = useState(()=>initialWorkspace.users);
-  const [opsAdminAudit,setOpsAdminAudit] = useState(()=>initialWorkspace.adminAudit);
+  const [opsPeople,setOpsPeople] = useState(()=>MOCK_OPS_PEOPLE.map(p=>({...p,aircraftAuth:[...(p.aircraftAuth||[])]})));
+  const [opsAircraftList,setOpsAircraftList] = useState(()=>MOCK_OPS_AIRCRAFT.map(a=>({...a,defects:(a.defects||[]).map(d=>({...d})),maintenanceHistory:[...(a.maintenanceHistory||[])],audit:[...(a.audit||[])]})));
+  const [opsUsers,setOpsUsers] = useState(()=>MOCK_CLUB_USERS.map(user=>({...user,roles:[...user.roles]})));
+  const [opsAdminAudit,setOpsAdminAudit] = useState(()=>MOCK_ADMIN_AUDIT.map(event=>({...event})));
   const [fratAnswers,setFratAnswers] = useState({});
   const [fratPrefillKeys,setFratPrefillKeys] = useState({});
   const [fratInitialAnswers,setFratInitialAnswers] = useState(null);
@@ -2984,7 +3409,6 @@ export default function App() {
     if(typeof window==="undefined" || !window.matchMedia) return undefined;
     const media=window.matchMedia("(prefers-color-scheme: dark)");
     const update=event=>setSystemPrefersDark(event.matches);
-    setSystemPrefersDark(media.matches);
     media.addEventListener?.("change",update);
     return ()=>media.removeEventListener?.("change",update);
   },[]);
@@ -2995,131 +3419,11 @@ export default function App() {
     try { window.localStorage.setItem(APPEARANCE_STORAGE_KEY,appearance); } catch { /* device preference remains session-only */ }
   },[appearance,resolvedAppearance]);
 
-  const applyWorkspaceSnapshot = useCallback((snapshot)=>{
-    setWorkspaceMeta({
-      id:snapshot.id,
-      name:snapshot.name,
-      kind:snapshot.kind,
-      schemaVersion:snapshot.schemaVersion,
-      templateVersion:snapshot.templateVersion,
-      dataMode:"synthetic",
-      authoritative:false,
-      resettable:true,
-      revision:snapshot.revision || 0,
-      createdAt:snapshot.createdAt,
-      updatedAt:snapshot.updatedAt,
-    });
-    setOpsPeople(snapshot.people);
-    setOpsAircraftList(snapshot.aircraft);
-    setOpsUsers(snapshot.users);
-    setOpsAdminAudit(snapshot.adminAudit);
-  },[]);
-
-  const workspaceSignature = useCallback((snapshot)=>JSON.stringify({
-    people:snapshot.people,
-    aircraft:snapshot.aircraft,
-    users:snapshot.users,
-    adminAudit:snapshot.adminAudit,
-  }),[]);
-
-  useEffect(()=>{
-    let cancelled=false;
-    const seed=createDemoWorkspaceSnapshot({
-      id:initialWorkspace.id,
-      name:initialWorkspace.name,
-      kind:initialWorkspace.kind,
-    });
-    const storage=typeof window!=="undefined"?window.localStorage:null;
-    let repository=createConfiguredWorkspaceRepository({env:import.meta.env,storage,seed});
-    workspaceRepositoryRef.current=repository;
-
-    async function openWorkspace() {
-      try {
-        const snapshot=await repository.loadOrCreate();
-        if(cancelled) return;
-        applyWorkspaceSnapshot(snapshot);
-        lastWorkspaceSignatureRef.current=workspaceSignature(snapshot);
-        persistenceReadyRef.current=true;
-        setPersistenceState({mode:repository.mode,label:repository.label,status:"saved",error:null});
-      } catch (error) {
-        if(cancelled) return;
-        repository=createConfiguredWorkspaceRepository({env:{},storage,seed:initialWorkspace});
-        workspaceRepositoryRef.current=repository;
-        const snapshot=await repository.loadOrCreate();
-        if(cancelled) return;
-        applyWorkspaceSnapshot(snapshot);
-        lastWorkspaceSignatureRef.current=workspaceSignature(snapshot);
-        persistenceReadyRef.current=true;
-        setPersistenceState({
-          mode:repository.mode,
-          label:repository.label,
-          status:"saved",
-          error:`Cloud save unavailable; using the private device fallback. ${error.message}`,
-        });
-      }
-    }
-
-    openWorkspace();
-    return ()=>{cancelled=true;};
-  },[applyWorkspaceSnapshot,initialWorkspace,workspaceSignature]);
-
-  useEffect(()=>{
-    if(!persistenceReadyRef.current || !workspaceRepositoryRef.current) return;
-    const snapshot={
-      ...workspaceMeta,
-      people:opsPeople,
-      aircraft:opsAircraftList,
-      users:opsUsers,
-      adminAudit:opsAdminAudit,
-    };
-    const signature=workspaceSignature(snapshot);
-    if(signature===lastWorkspaceSignatureRef.current) return;
-
-    setPersistenceState(previous=>({...previous,status:"saving",error:null}));
-    const timer=window.setTimeout(()=>{
-      saveChainRef.current=saveChainRef.current
-        .then(()=>workspaceRepositoryRef.current.save(snapshot))
-        .then(saved=>{
-          lastWorkspaceSignatureRef.current=workspaceSignature(saved);
-          setWorkspaceMeta(previous=>({...previous,revision:saved.revision,updatedAt:saved.updatedAt}));
-          setPersistenceState(previous=>({...previous,status:"saved",error:null}));
-        })
-        .catch(error=>setPersistenceState(previous=>({...previous,status:"error",error:error.message})));
-    },300);
-    return ()=>window.clearTimeout(timer);
-  },[opsAdminAudit,opsAircraftList,opsPeople,opsUsers,workspaceMeta,workspaceSignature]);
-
-  async function resetDemoWorkspace() {
-    if(!workspaceRepositoryRef.current) return;
-    if(typeof window!=="undefined" && !window.confirm("Reset this private synthetic workspace to the original SafeRoute demo data?")) return;
-    setPersistenceState(previous=>({...previous,status:"saving",error:null}));
-    try {
-      const snapshot=await workspaceRepositoryRef.current.reset();
-      applyWorkspaceSnapshot(snapshot);
-      lastWorkspaceSignatureRef.current=workspaceSignature(snapshot);
-      setPersistenceState(previous=>({...previous,status:"saved",error:null}));
-    } catch (error) {
-      setPersistenceState(previous=>({...previous,status:"error",error:error.message}));
-    }
-  }
-
-  function logOutToRoleSelection() {
-    setOpsLoggedIn(false);
-    setOpsWorkspace(null);
-    setShowOpsDashboard(false);
-    setShowFRAT(false);
-    setShowE6B(false);
-    setOpsPrefill(null);
-    setMenuOpen(false);
-  }
-
-  function withAppearance(content,{showLogout=false}={}) {
+  function withAppearance(content) {
     return <AppearanceShell
       appearance={appearance}
       resolvedAppearance={resolvedAppearance}
       onAppearanceChange={value=>setAppearance(normaliseAppearance(value))}
-      showLogout={showLogout}
-      onLogout={logOutToRoleSelection}
     >{content}</AppearanceShell>;
   }
 
@@ -3252,7 +3556,7 @@ export default function App() {
 
   const sidebar = (
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",background:"var(--sr-bg-elevated)"}}>
-      <div style={{padding:"14px 12px 10px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
+      <div style={{padding:"14px 12px 10px",borderBottom:"1px solid var(--sr-border)"}}>
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.15em",marginBottom:8}}>SEARCH AIRFIELD</div>
         <div style={{position:"relative",marginBottom:10}}>
           <input value={query} onChange={e=>handleSearch(e.target.value)} placeholder="ICAO code or name…"
@@ -3262,13 +3566,13 @@ export default function App() {
               {suggestions.map(([code,a])=>{
                 const critCount = a.hazards.filter(h=>h.sev==="critical").length;
                 return (
-                  <div key={code} onMouseDown={()=>selectAirfield(code)} style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid rgba(255,255,255,0.05)",transition:"background 0.1s"}}
+                  <div key={code} onMouseDown={()=>selectAirfield(code)} style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid var(--sr-surface)",transition:"background 0.1s"}}
                     onMouseEnter={e=>e.currentTarget.style.background="rgba(0,180,255,0.1)"}
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"var(--sr-accent)",fontWeight:"bold",marginRight:8}}>{code}</span>
-                        <span style={{fontSize:11,color:"var(--sr-accent)"}}>{a.name}</span>
+                        <span style={{fontSize:11,color:"#8BCCF0"}}>{a.name}</span>
                         <div style={{fontSize:9,color:"var(--sr-text-muted-3)",marginTop:2}}>{a.city} · {a.class}</div>
                       </div>
                       {critCount>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#FF3B3B",background:"rgba(255,59,59,0.12)",border:"1px solid rgba(255,59,59,0.3)",padding:"2px 6px",borderRadius:3,flexShrink:0}}>⚠ {critCount}</span>}
@@ -3309,7 +3613,7 @@ export default function App() {
           {fieldsForRegion(region).map(([code,a])=>{
             const critCount=a.hazards.filter(h=>h.sev==="critical").length;
             return (
-              <div key={code} onClick={()=>selectAirfield(code)} style={{padding:"7px 10px",borderRadius:6,marginBottom:3,cursor:"pointer",background:selected===code?"rgba(0,180,255,0.12)":"rgba(255,255,255,0.02)",border:`1px solid ${selected===code?"rgba(0,180,255,0.35)":"var(--sr-surface)"}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div key={code} onClick={()=>selectAirfield(code)} style={{padding:"7px 10px",borderRadius:6,marginBottom:3,cursor:"pointer",background:selected===code?"rgba(0,180,255,0.12)":"var(--sr-surface-soft)",border:`1px solid ${selected===code?"rgba(0,180,255,0.35)":"var(--sr-surface)"}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
                   <span style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:selected===code?"var(--sr-accent)":"var(--sr-text-strong)",fontWeight:"bold",marginRight:6}}>{code}</span>
                   <span style={{fontSize:9,color:"var(--sr-text-muted-2)"}}>{a.name.split(" ").slice(0,2).join(" ")}</span>
@@ -3320,7 +3624,7 @@ export default function App() {
           })}
         </div>
       </div>
-      <div style={{padding:"10px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
+      <div style={{padding:"10px 12px",borderBottom:"1px solid var(--sr-border)"}}>
         <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.12em",marginBottom:7}}>FLIGHT PHASE</div>
         <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
           {PHASES.map(p=>(
@@ -3343,9 +3647,6 @@ export default function App() {
   if (accountType === "flightschool" && !opsLoggedIn) return withAppearance(<FlightSchoolLoginScreen
     onLogin={(org,workspace)=>{setOrgName(org);setOpsWorkspace(workspace||"ops");setOpsLoggedIn(true);setShowOpsDashboard((workspace||"ops")==="ops");}}
     onBack={()=>setAccountType(null)}
-    persistenceState={persistenceState}
-    onReset={resetDemoWorkspace}
-    workspaceName={workspaceMeta.name}
   />);
   if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "admin") return withAppearance(<ClubAdminDashboardScreen
     orgName={orgName}
@@ -3355,32 +3656,24 @@ export default function App() {
     setUsers={setOpsUsers}
     adminAudit={opsAdminAudit}
     setAdminAudit={setOpsAdminAudit}
-    persistenceState={persistenceState}
-    onReset={resetDemoWorkspace}
-    onBack={logOutToRoleSelection}
+    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
   />);
   if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "engineering") return withAppearance(<EngineeringDashboardScreen
     orgName={orgName}
     aircraftList={opsAircraftList}
     setAircraftList={setOpsAircraftList}
-    persistenceState={persistenceState}
-    onReset={resetDemoWorkspace}
-    onBack={logOutToRoleSelection}
+    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
   />);
   if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "cfi") return withAppearance(<CfiDashboardScreen
     orgName={orgName}
     people={opsPeople}
     setPeople={setOpsPeople}
     aircraftList={opsAircraftList}
-    persistenceState={persistenceState}
-    onReset={resetDemoWorkspace}
-    onBack={logOutToRoleSelection}
+    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}}
   />);
   if (accountType === "flightschool" && opsLoggedIn && opsWorkspace === "ops" && showOpsDashboard) return withAppearance(<OpsDashboardScreen orgName={orgName}
     people={opsPeople}
     aircraftList={opsAircraftList}
-    persistenceState={persistenceState}
-    onReset={resetDemoWorkspace}
     onStartBriefing={(person,aircraft)=>{
       if (!evaluateFratEligibility(person,aircraft).allowed) return;
       setOpsPrefill({person,aircraft});
@@ -3389,12 +3682,19 @@ export default function App() {
       setFratInitialAnswers(null); setFratControls({}); setFratResidualAnswers({}); setFratReviewComplete(false);
       setShowOpsDashboard(false);setShowWelcome(false);setShowFRAT(true);
     }}
-    onContinueToApp={()=>setShowOpsDashboard(false)}
-    onBack={logOutToRoleSelection} />);
-  if (showWelcome) return withAppearance(<WelcomeScreen onSelect={chooseRegion}/>,{showLogout:opsLoggedIn});
-  if (showE6B) return withAppearance(<E6BScreen onClose={()=>{setShowE6B(false);setMenuOpen(false);}}/>,{showLogout:opsLoggedIn});
+    onContinueToApp={()=>{setShowOpsDashboard(false);setShowWelcome(false);}}
+    onBack={()=>{setOpsLoggedIn(false);setOpsWorkspace(null);setShowOpsDashboard(false);}} />);
+  if (showWelcome) return withAppearance(<WelcomeScreen
+    onSelect={chooseRegion}
+    onReturnToOps={accountType==="flightschool"&&opsLoggedIn&&opsWorkspace==="ops"?()=>{setShowWelcome(false);setShowOpsDashboard(true);}:null}
+  />);
+  if (showE6B) return withAppearance(<E6BScreen onClose={()=>{setShowE6B(false);setMenuOpen(false);}}/>);
   if (showFRAT) return withAppearance(<FRATScreen
-    onClose={()=>{setShowFRAT(false);setOpsPrefill(null);setMenuOpen(false);}}
+    onClose={()=>{
+      const launchedFromOps=!!opsPrefill&&accountType==="flightschool"&&opsLoggedIn&&opsWorkspace==="ops";
+      setShowFRAT(false);setOpsPrefill(null);setMenuOpen(false);
+      if(launchedFromOps) setShowOpsDashboard(true);
+    }}
     opsPrefill={opsPrefill}
     answers={fratAnswers} setAnswers={setFratAnswers}
     prefillKeys={fratPrefillKeys} setPrefillKeys={setFratPrefillKeys}
@@ -3402,28 +3702,29 @@ export default function App() {
     controls={fratControls} setControls={setFratControls}
     residualAnswers={fratResidualAnswers} setResidualAnswers={setFratResidualAnswers}
     reviewComplete={fratReviewComplete} setReviewComplete={setFratReviewComplete}
-    onOpenDA={()=>{setShowFRAT(false);setMenuOpen(false);}} />,{showLogout:opsLoggedIn});
+    onOpenDA={()=>{setShowFRAT(false);setMenuOpen(false);}} />);
 
   return withAppearance(
     <div style={{minHeight:"100vh",background:"var(--sr-bg)",fontFamily:"'Inter',sans-serif",color:"var(--sr-text)",display:"flex",flexDirection:"column"}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:#08121E;}::-webkit-scrollbar-thumb{background:#1A3050;border-radius:2px;}input[type=range]{-webkit-appearance:none;height:5px;border-radius:3px;background:rgba(255,255,255,0.12);}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#00B4FF;cursor:pointer;border:2px solid #050D18;}button{touch-action:manipulation;}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0;}::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:#08121E;}::-webkit-scrollbar-thumb{background:#1A3050;border-radius:2px;}input[type=range]{-webkit-appearance:none;height:5px;border-radius:3px;background:var(--sr-border-strong);}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#00B4FF;cursor:pointer;border:2px solid #050D18;}button{touch-action:manipulation;}`}</style>
       <div style={{background:"var(--sr-header)",borderBottom:"1px solid rgba(0,180,255,0.2)",padding:`0 ${isMobile?8:20}px`,display:"flex",alignItems:"center",gap:isMobile?6:10,height:56,backdropFilter:"blur(12px)",position:"sticky",top:0,zIndex:100,flexShrink:0}}>
-        {!isDesktop&&<button onClick={()=>setMenuOpen(o=>!o)} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"7px 10px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14}}>☰</button>}
+        {!isDesktop&&<button aria-label="Open navigation menu" onClick={()=>setMenuOpen(o=>!o)} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:7,padding:"7px 9px",color:"var(--sr-text-muted)",cursor:"pointer",fontSize:14,flexShrink:0}}>☰</button>}
         <div style={{display:"flex",alignItems:"center",gap:isMobile?5:9,minWidth:0}}>
           {!isMobile&&<div style={{width:28,height:28,background:"linear-gradient(135deg,#0055DD,#00B4FF)",borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>✈</div>}
           <div style={{display:"flex",flexDirection:"column",lineHeight:1}}>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:isMobile?15:21,letterSpacing:isMobile?"0.08em":"0.15em",color:"var(--sr-text-strong)",whiteSpace:"nowrap"}}>SAFEROUTE <span style={{color:"var(--sr-accent)"}}>ACADEMY</span></div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:isMobile?14:21,letterSpacing:isMobile?"0.08em":"0.15em",color:"var(--sr-text-strong)",whiteSpace:"nowrap"}}>SAFEROUTE <span style={{color:"var(--sr-accent)"}}>ACADEMY</span></div>
             {!isMobile&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:"var(--sr-text-muted-3)",letterSpacing:"0.15em",marginTop:1}}>STUDENT PILOT SAFETY INTELLIGENCE</div>}
           </div>
-          <span style={{fontFamily:"'DM Mono',monospace",fontSize:isMobile?7:8,color:"var(--sr-success)",background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",padding:isMobile?"1px 4px":"2px 6px",borderRadius:3,letterSpacing:"0.1em"}}>BETA</span>
+          <span style={{fontFamily:"'DM Mono',monospace",fontSize:isMobile?7:8,color:"var(--sr-success)",background:"rgba(0,200,150,0.12)",border:"1px solid rgba(0,200,150,0.35)",padding:isMobile?"2px 4px":"2px 6px",borderRadius:3,letterSpacing:isMobile?"0.04em":"0.1em",flexShrink:0}}>BETA</span>
         </div>
         <div style={{flex:1}}/>
-        <button aria-label="Change location" title="Change location" onClick={()=>setShowWelcome(true)} style={{background:"var(--sr-surface-hover)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",marginRight:isMobile?0:6}}>{isMobile?"⟲":"⟲ CHANGE LOCATION"}</button>
-        <a aria-label="Send feedback" title="Send feedback" href="https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_academy_feedback_form.html" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"var(--sr-accent)",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",textDecoration:"none",marginRight:isMobile?0:10}}>{isMobile?"✉":"✉ FEEDBACK"}</a>
-        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:wxLoad?"var(--sr-gold)":"var(--sr-success)"}}>● {wxLoad?"LOADING":"LIVE"}</span>
+        <button aria-label="Change location" title="Change location" onClick={()=>setShowWelcome(true)} style={{background:"var(--sr-surface-hover)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",marginRight:isMobile?0:6,flexShrink:0}}>⟲{!isMobile&&" CHANGE LOCATION"}</button>
+        <a aria-label="Send feedback" title="Send feedback" href="https://marchantlaurie-lgtm.github.io/Saferoute-feedback/saferoute_academy_feedback_form.html" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:6,padding:isMobile?"6px 8px":"6px 10px",color:"var(--sr-accent)",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"0.05em",textDecoration:"none",marginRight:isMobile?2:10,flexShrink:0}}>✉{!isMobile&&" FEEDBACK"}</a>
+        <span aria-label={wxLoad?"Weather loading":"Live weather connected"} title={wxLoad?"Weather loading":"Live weather connected"} style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:wxLoad?"var(--sr-gold)":"var(--sr-success)",whiteSpace:"nowrap",flexShrink:0}}>●{!isMobile&&` ${wxLoad?"LOADING":"LIVE"}`}</span>
       </div>
+      {accountType==="flightschool"&&opsLoggedIn&&opsWorkspace==="ops"&&<button onClick={()=>{setOpsPrefill(null);setShowFRAT(false);setShowE6B(false);setShowWelcome(false);setMenuOpen(false);setShowOpsDashboard(true);}} style={{position:"fixed",right:isMobile?12:20,bottom:isMobile?62:64,zIndex:2500,background:"linear-gradient(135deg,#FFD700,#FFB800)",border:"none",borderRadius:8,padding:"10px 13px",color:"var(--sr-on-gold)",fontWeight:800,fontSize:10,cursor:"pointer",fontFamily:"'DM Mono',monospace",boxShadow:"0 8px 24px rgba(0,0,0,0.35)"}}>← PILOT / OPS</button>}
       <div style={{flex:1,display:"flex",overflow:"hidden",height:"calc(100vh - 56px)"}}>
-        {isDesktop?<div style={{width:270,flexShrink:0,overflow:"auto",borderRight:"1px solid rgba(255,255,255,0.06)"}}>{sidebar}</div>:menuOpen&&(
+        {isDesktop?<div style={{width:270,flexShrink:0,overflow:"auto",borderRight:"1px solid var(--sr-surface-hover)"}}>{sidebar}</div>:menuOpen&&(
           <div style={{position:"fixed",inset:0,zIndex:3000,display:"flex",isolation:"isolate"}}>
             <div onClick={()=>setMenuOpen(false)} style={{position:"absolute",inset:0,zIndex:0,background:"var(--sr-overlay)"}}/>
             <div style={{position:"relative",zIndex:1,width:280,height:"100%",overflow:"auto",background:"var(--sr-bg-elevated)",borderRight:"1px solid rgba(0,180,255,0.2)",boxShadow:"12px 0 30px rgba(0,0,0,0.55)"}}>{sidebar}</div>
@@ -3435,10 +3736,10 @@ export default function App() {
               <div>
                 <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
                   <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:isMobile?26:32,letterSpacing:"0.1em",color:"var(--sr-text-strong)"}}>{selected}</span>
-                  <span style={{fontSize:14,color:"var(--sr-accent)",fontWeight:500}}>{airfield.name}</span>
+                  <span style={{fontSize:14,color:"#8BCCF0",fontWeight:500}}>{airfield.name}</span>
                 </div>
                 <div style={{fontSize:11,color:"var(--sr-text-muted-2)",marginBottom:8}}>{airfield.city}  ·  <span style={{color:"var(--sr-accent)",fontWeight:600}}>{airfield.class}</span>  ·  {airfield.type}  ·  Elevation <span style={{color:"var(--sr-gold)",fontWeight:600}}>{airfield.elevation.toLocaleString()}ft</span></div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{airfield.runways.map(r=><span key={r} style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted)",background:"var(--sr-surface)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:4,padding:"3px 8px"}}>{r}</span>)}</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{airfield.runways.map(r=><span key={r} style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted)",background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:4,padding:"3px 8px"}}>{r}</span>)}</div>
                 <div style={{fontSize:8.5,color:airfield.source?"var(--sr-success)":"var(--sr-gold)",marginTop:7,lineHeight:1.5}}>
                   {airfield.source ? <>✓ Verified against <a href={airfield.source.url} target="_blank" rel="noreferrer" style={{color:"var(--sr-accent)"}}>{airfield.source.label}</a> · {airfield.source.cycle}</> : <>Reference training summary — verify runways, frequencies, airspace, hours, and NOTAMs in the current <a href={airfield.region==="uk"?UK_AIP:FAA_CHART_SUPPLEMENT_SEARCH} target="_blank" rel="noreferrer" style={{color:"var(--sr-accent)"}}>{airfield.region==="uk"?"UK AIP":"FAA Chart Supplement"}</a> before flight.</>}
                 </div>
@@ -3451,7 +3752,7 @@ export default function App() {
           <WeatherStrip liveWx={liveWx} wxLoad={wxLoad} requestedIcao={selected} weatherIcao={weatherIcao}/>
           {airfield.region==="uk" ? <UkWeatherWidget key={`${selected}:${liveWx?.metar||"loading"}`} airfield={airfield} liveWx={liveWx}/> : <DAWidget key={`${selected}:${liveWx?.metar||"loading"}`} airfield={airfield} liveWx={liveWx}/>}
           <WeatherLayerWidget airfield={airfield} icao={selected} liveWx={liveWx}/>
-          <div style={{display:"flex",borderBottom:"2px solid rgba(255,255,255,0.06)",marginBottom:14,overflowX:"auto",gap:2}}>
+          <div style={{display:"flex",borderBottom:"2px solid var(--sr-surface-hover)",marginBottom:14,overflowX:"auto",gap:2}}>
             {[["hazards",`THREATS (${filteredHazards.length})`],["atc","ATC & AIRSPACE"],["cfi","CFI NOTES"],["brief","W-A-N-T BRIEF"]].map(([tid,label])=>(
               <button key={tid} onClick={()=>setTab(tid)} style={{background:tab===tid?"rgba(0,180,255,0.08)":"none",border:"none",cursor:"pointer",padding:"10px 16px",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:"0.08em",whiteSpace:"nowrap",color:tab===tid?"var(--sr-accent)":"var(--sr-text-strong)",borderBottom:tab===tid?"2px solid #00B4FF":"2px solid transparent",transition:"all 0.15s",marginBottom:"-2px"}}>{label}</button>
             ))}
@@ -3460,11 +3761,11 @@ export default function App() {
             <div style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:"var(--sr-text-muted-3)",letterSpacing:"0.15em",marginBottom:10}}>{filteredHazards.length} THREAT{filteredHazards.length!==1?"S":""} FOR {selected} · TAP ANY CARD TO EXPAND</div>
             {filteredHazards.map(h=><HazardCard key={h.id} h={h} expanded={!!expanded[h.id]} onToggle={()=>setExpanded(e=>({...e,[h.id]:!e[h.id]}))}/>)}
           </div>}
-          {tab==="atc"&&<div style={{background:"var(--sr-blue-panel)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"18px 20px"}}>
+          {tab==="atc"&&<div style={{background:"rgba(0,20,45,0.8)",border:"1px solid rgba(0,180,255,0.2)",borderRadius:10,padding:"18px 20px"}}>
             <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.15em",marginBottom:12,fontWeight:"bold"}}>📡 ATC & AIRSPACE NOTES</div>
             <pre style={{fontSize:13,color:"var(--sr-text)",lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{airfield.atcNotes}</pre>
           </div>}
-          {tab==="cfi"&&<div style={{background:"var(--sr-green-panel)",border:"1px solid rgba(0,200,150,0.25)",borderRadius:10,padding:"18px 20px"}}>
+          {tab==="cfi"&&<div style={{background:"rgba(0,40,25,0.6)",border:"1px solid rgba(0,200,150,0.25)",borderRadius:10,padding:"18px 20px"}}>
             <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-success)",letterSpacing:"0.15em",marginBottom:12,fontWeight:"bold"}}>📋 CFI BRIEFING NOTES</div>
             <p style={{fontSize:13,color:"var(--sr-text)",lineHeight:1.9}}>{airfield.cfiNotes}</p>
           </div>}
@@ -3502,7 +3803,7 @@ export default function App() {
                   <div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:4}}>{aircraftPerf.hasDew?"":"Dewpoint estimated — not directly reported in this METAR. "}Estimate only — confirm against the actual TAF/METAR and F214/F215 charts.</div>
                 </div>
               )}
-              <div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",lineHeight:1.6}}>Performance is only part of this section — before flight, also check <b style={{color:"var(--sr-text)"}}>aircraft status</b>, the <b style={{color:"var(--sr-text)"}}>tech log</b>, and any <b style={{color:"var(--sr-text)"}}>MEL (Minimum Equipment List)</b> items with your instructor or dispatcher.</div>
+              <div style={{fontSize:11,color:"var(--sr-text-muted)",marginTop:12,paddingTop:10,borderTop:"1px solid var(--sr-surface-hover)",lineHeight:1.6}}>Performance is only part of this section — before flight, also check <b style={{color:"var(--sr-text)"}}>aircraft status</b>, the <b style={{color:"var(--sr-text)"}}>tech log</b>, and any <b style={{color:"var(--sr-text)"}}>MEL (Minimum Equipment List)</b> items with your instructor or dispatcher.</div>
             </div>
 
             {/* N — NOTAMS */}
@@ -3533,27 +3834,26 @@ export default function App() {
             </div>
 
             {/* AI Summary */}
-            {!briefing&&!briefLoad&&<div style={{textAlign:"center",padding:"30px 20px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10}}>
+            {!briefing&&!briefLoad&&<div style={{textAlign:"center",padding:"30px 20px",background:"var(--sr-surface-soft)",border:"1px solid var(--sr-surface-hover)",borderRadius:10}}>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"var(--sr-text-muted-3)",marginBottom:6}}>AI SUMMARY</div>
               <div style={{fontSize:11,color:"var(--sr-text-muted-3)",marginBottom:16}}>Generate a plain-language narrative pulling the above together</div>
               <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.18)",border:"1px solid rgba(0,180,255,0.4)",borderRadius:8,padding:"11px 26px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:"0.1em",fontWeight:"bold"}}>GENERATE AI SUMMARY →</button>
             </div>}
-            {briefLoad&&<div style={{textAlign:"center",padding:"30px",background:"var(--sr-blue-panel)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:10}}>
+            {briefLoad&&<div style={{textAlign:"center",padding:"30px",background:"rgba(0,20,40,0.6)",border:"1px solid rgba(0,180,255,0.15)",borderRadius:10}}>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--sr-accent)",marginBottom:6}}>Generating summary…</div>
               <div style={{fontSize:10,color:"var(--sr-text-muted-3)"}}>Analysing hazards · live METAR · TAF forecast · airspace</div>
             </div>}
-            {briefing&&<div style={{background:"var(--sr-blue-panel)",border:"1px solid rgba(0,180,255,0.18)",borderRadius:10,padding:"18px"}}>
+            {briefing&&<div style={{background:"rgba(0,15,35,0.8)",border:"1px solid rgba(0,180,255,0.18)",borderRadius:10,padding:"18px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
                 <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--sr-accent)",letterSpacing:"0.1em",fontWeight:"bold"}}>★ AI SUMMARY</div>
                 <button onClick={generateBriefing} style={{background:"rgba(0,180,255,0.1)",border:"1px solid rgba(0,180,255,0.3)",borderRadius:5,padding:"5px 12px",color:"var(--sr-accent)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9}}>↻ REGENERATE</button>
               </div>
               <pre style={{fontSize:12,color:"var(--sr-text)",lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{briefing}</pre>
-              <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.05)",fontSize:9,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace"}}>W-A-N-T ABOVE IS BUILT FROM LIVE APP DATA · THIS SUMMARY IS AI-GENERATED · FOR EDUCATIONAL PURPOSES ONLY · NOT A SUBSTITUTE FOR CFI INSTRUCTION</div>
+              <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid var(--sr-surface)",fontSize:9,color:"var(--sr-text-muted-3)",fontFamily:"'DM Mono',monospace"}}>W-A-N-T ABOVE IS BUILT FROM LIVE APP DATA · THIS SUMMARY IS AI-GENERATED · FOR EDUCATIONAL PURPOSES ONLY · NOT A SUBSTITUTE FOR CFI INSTRUCTION</div>
             </div>}
           </div>}
         </div>
       </div>
-    </div>,
-    {showLogout:opsLoggedIn},
+    </div>
   );
 }
