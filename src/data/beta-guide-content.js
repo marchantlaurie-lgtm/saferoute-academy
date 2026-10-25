@@ -155,6 +155,8 @@ export const FULL_GUIDE_SECTIONS = [
     ],
     items: [
       "Select a region and airfield, then review weather status, local threats, airspace notes and CFI prompts.",
+      "At US airfields, use Radar, Icing / Freezing Level and Airspace & Advisories as separate views. The advisory view can show the FAA sectional, mapped TFRs, G-AIRMETs, current SIGMETs and FAA NAS airport events.",
+      "Choose a 25, 50 or 100 NM airport radius, or select another Academy airfield for a direct-line training route check. A route sketch is not an airway route, clearance or navigation service.",
       "Compare the weather against personal minima and current official products; Academy does not make the go/no-go decision.",
       "Use the E6B tools for planning calculations and cross-check critical results against the POH/AFM.",
       "In Pilot / Ops, select the pilot before the aircraft so authorisation and currency gates can be applied.",
@@ -263,7 +265,9 @@ export const FULL_GUIDE_SECTIONS = [
       "Include the workspace, fictional pilot/aircraft and action when describing a workflow issue.",
       "Include device/browser and Display setting for layout or contrast problems.",
       "Reloading resets all Flight School / Club demo changes.",
-      "Academy does not provide live NOTAM ingestion, an official briefing, authentication, durable records or a production audit trail.",
+      "For US airports, Academy provides awareness from the FAA mapped-TFR feed, Aviation Weather Center advisory feeds and FAA NAS Status. It does not ingest the complete NOTAM set, provide live aircraft traffic or replace an official briefing.",
+      "A green or empty advisory result means only that the named source returned no matching item in the selected scope. It never means the airspace or route is clear.",
+      "Academy does not provide authentication, durable operational records or a production audit trail.",
     ],
   },
 ];

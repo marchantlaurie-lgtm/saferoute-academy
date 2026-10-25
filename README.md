@@ -35,6 +35,10 @@ The Ops/FRAT integration:
 
 Guide and Display controls are available from every screen. Guide contains the full public-beta instructions plus Quick Starts for Students & Pilots, Club Admin, CFI / Training and Engineering. Display offers System, Light and Dark appearances and saves the selection on the current device.
 
+US airfields also provide a separate Airspace & Advisories view. It uses the FAA sectional tile service, the FAA mapped-TFR feed, Aviation Weather Center G-AIRMET and SIGMET feeds, and FAA NAS airport events. Users can select a 25, 50 or 100 NM airport radius or draw a direct training line between Academy airfields and screen a configurable corridor. Every upstream source reports its own live, partial or unavailable state; an unavailable source is never presented as “no advisories.”
+
+The direct line is a training-awareness sketch, not an airway route, clearance, navigation service or complete route briefing. The TFR display is limited to records with mapped FAA geometry, NAS Status is not live aircraft traffic, and the interface continues to direct users to the complete FAA TFR list, AviationWeather.gov and Flight Service.
+
 ## Demo limitations and tester access
 
 The flight-school/club login is a workspace selector demonstrating a planned integration, not a live organisation login. Club users, pilots, instructors and fleet records are fabricated examples. Workspace changes are held only for the current browser session; no real club records or durable operational audit trail are connected to these workflows. Production permission controls and immutable instructor audit records remain future work.
@@ -47,9 +51,12 @@ Suggested tester focus: Club Admin access controls and authority boundaries; CFI
 
 ## Verification state
 
-A fresh functional and data audit was completed on 20 October 2026:
+The full prototype workflow audit was completed on 20 October 2026. Automated verification was rerun and the live official advisory sources were validated on 25 October 2026:
 
-- `npm test` — 43 passing tests; `npm run lint` and `npm run build` successful.
+- `npm test` — 51 passing tests; `npm run lint` and `npm run build` successful.
+- Live requests for Vero Beach returned healthy FAA mapped-TFR, FAA NAS Status, Aviation Weather Center G-AIRMET and current SIGMET sources. Empty results remained distinct from unavailable-source results.
+- The official FAA sectional tile service rendered at Vero Beach, with independent TFR, G-AIRMET and SIGMET overlay controls.
+- A Vero Beach–Fort Lauderdale Executive training route check returned the current mapped TFR and weather-advisory intersections within the selected corridor, with official detail links.
 - Public tester access verified without username/password prompts for Club Admin, CFI / Training, Engineering and Pilot / Ops.
 - Final-active-admin safeguard verified in Club Admin.
 - CFI sign-off propagation into Pilot / Ops and the Academy-prefilled FRAT verified end to end.
@@ -74,6 +81,7 @@ The build still reports a non-blocking JavaScript chunk-size warning. These chec
 | `src/lib/appearance.js` | System, Light and Dark appearance preference handling. |
 | `src/components/help-guide.jsx`, `src/data/beta-guide-content.js` | Public-beta How To and role Quick Start guides. |
 | `src/lib/` | Supporting weather, airfield, icing and FRAT-control logic. |
+| `api/advisories.js`, `src/lib/advisories.js` | Server-side official advisory aggregation, source health, spatial filtering and direct-route awareness calculations. |
 | `src/components/uk-weather-map.jsx` | UK weather-map component. |
 | `src/main.jsx`, `src/*.css`, `src/assets/`, `public/` | Application entry point, styling and assets. |
 | `test/` | Node test suites for the extracted logic. |

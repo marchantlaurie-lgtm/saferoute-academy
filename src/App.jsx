@@ -15,6 +15,7 @@ import {
   hasVisibleMoistureSignal,
   isNegativeIcingIntensity,
 } from "./lib/icing.js";
+import { formatAdvisoryAltitude } from "./lib/advisories.js";
 import {
   academyDateOffset,
   buildOpsFratSeed,
@@ -1513,14 +1514,339 @@ function IcingPanel({ airfield, icao, liveWx }) {
   );
 }
 
+const ADVISORIES_API_ROOT = import.meta.env.VITE_ADVISORIES_API_URL || "/api/advisories";
+const FAA_SECTIONAL_TILE_URL = "https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}";
+
+function escapeMapText(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatUtcTime(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString([], {
+    timeZone:"UTC",
+    day:"numeric",
+    month:"short",
+    hour:"2-digit",
+    minute:"2-digit",
+    timeZoneName:"short",
+  });
+}
+
+function AdvisorySourceBadge({ status }) {
+  const presentation = status === "ok"
+    ? { label:"● LIVE", color:"var(--sr-success)" }
+    : status === "partial"
+      ? { label:"PARTIAL", color:"var(--sr-gold)" }
+      : { label:"DATA UNAVAILABLE", color:"var(--sr-text-muted)" };
+  return <span style={{fontSize:7,fontFamily:"'DM Mono',monospace",fontWeight:"bold",color:presentation.color,border:`1px solid ${alphaColor(presentation.color,38)}`,background:alphaColor(presentation.color,10),borderRadius:4,padding:"3px 6px",whiteSpace:"nowrap"}}>{presentation.label}</span>;
+}
+
+function AdvisoryMap({ airfield, icao, data, destinationIcao }) {
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const streetLayerRef = useRef(null);
+  const sectionalLayerRef = useRef(null);
+  const overlayGroupRef = useRef(null);
+  const [leaflet,setLeaflet] = useState(null);
+  const [baseLayer,setBaseLayer] = useState("sectional");
+  const [visible,setVisible] = useState({ tfr:true, gairmet:true, sigmet:true });
+  const coords = FIELD_COORDS[icao];
+  const destinationCoords = destinationIcao ? FIELD_COORDS[destinationIcao] : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    import("leaflet")
+      .then(module => { if (!cancelled) setLeaflet(module.default); })
+      .catch(() => { if (!cancelled) setLeaflet(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || !leaflet || !coords) return;
+    if (mapRef.current) mapRef.current.remove();
+    const map = leaflet.map(mapContainerRef.current, {
+      center:coords,
+      zoom:8,
+      minZoom:4,
+      maxZoom:16,
+      scrollWheelZoom:false,
+      touchZoom:true,
+      zoomControl:true,
+    });
+    map.on("click", () => map.scrollWheelZoom.enable());
+    streetLayerRef.current = leaflet.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      maxZoom:16,
+      zIndex:0,
+    });
+    sectionalLayerRef.current = leaflet.tileLayer(FAA_SECTIONAL_TILE_URL, {
+      attribution:'Sectional: <a href="https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/vfr/">FAA Aeronautical Information Services</a>',
+      minNativeZoom:8,
+      maxNativeZoom:12,
+      maxZoom:16,
+      zIndex:0,
+    });
+    leaflet.marker(coords).addTo(map).bindPopup(`${escapeMapText(airfield.name)} (${escapeMapText(icao)})`);
+    mapRef.current = map;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      streetLayerRef.current = null;
+      sectionalLayerRef.current = null;
+      overlayGroupRef.current = null;
+    };
+  }, [airfield.name, coords, icao, leaflet]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const street = streetLayerRef.current;
+    const sectional = sectionalLayerRef.current;
+    if (street && map.hasLayer(street)) map.removeLayer(street);
+    if (sectional && map.hasLayer(sectional)) map.removeLayer(sectional);
+    const selected = baseLayer === "sectional" ? sectional : street;
+    if (selected) selected.addTo(map);
+  }, [baseLayer, icao, leaflet]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !leaflet || !coords) return;
+    if (overlayGroupRef.current) map.removeLayer(overlayGroupRef.current);
+    const group = leaflet.layerGroup().addTo(map);
+    overlayGroupRef.current = group;
+    const categories = [
+      { id:"tfr", collection:data?.tfrs, color:"#FF3B3B", fillOpacity:0.16 },
+      { id:"gairmet", collection:data?.gairmets, color:"#FFB020", fillOpacity:0.12 },
+      { id:"sigmet", collection:data?.sigmets, color:"#C77DFF", fillOpacity:0.15 },
+    ];
+    categories.forEach(category => {
+      if (!visible[category.id] || !category.collection?.features?.length) return;
+      leaflet.geoJSON(category.collection, {
+        style:{ color:category.color, weight:2, fillColor:category.color, fillOpacity:category.fillOpacity },
+        pointToLayer:(_feature,latlng) => leaflet.circleMarker(latlng, { radius:7, color:category.color, fillOpacity:0.45 }),
+        onEachFeature:(feature,layer) => {
+          const properties = feature.properties || {};
+          const distance = data?.scope?.mode === "route" ? properties.routeDistanceNm : properties.departureDistanceNm;
+          const distanceText = distance === 0
+            ? (data?.scope?.mode === "route" ? "Intersects route" : "Contains selected airport")
+            : Number.isFinite(distance) ? `${distance} NM ${data?.scope?.mode === "route" ? "from route" : "from airport"}` : "";
+          layer.bindPopup(`<strong>${escapeMapText(properties.title || properties.type)}</strong><br>${escapeMapText(distanceText)}<br><small>${escapeMapText(properties.source)}</small>`);
+        },
+      }).addTo(group);
+    });
+    if (destinationCoords) {
+      leaflet.polyline([coords,destinationCoords], { color:"#00B4FF", weight:3, dashArray:"8 7" })
+        .addTo(group)
+        .bindPopup(`Direct training line ${escapeMapText(icao)}–${escapeMapText(destinationIcao)}`);
+      leaflet.marker(destinationCoords).addTo(group).bindPopup(`${escapeMapText(AIRFIELDS[destinationIcao]?.name)} (${escapeMapText(destinationIcao)})`);
+      if ((data?.scope?.directDistanceNm || Infinity) <= 180) {
+        map.fitBounds([coords,destinationCoords], { padding:[28,28], maxZoom:9 });
+      } else {
+        map.setView(coords,8);
+      }
+    } else {
+      map.setView(coords,8);
+    }
+    return () => {
+      if (map.hasLayer(group)) map.removeLayer(group);
+      if (overlayGroupRef.current === group) overlayGroupRef.current = null;
+    };
+  }, [coords, data, destinationCoords, destinationIcao, icao, leaflet, visible]);
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap",marginBottom:8}}>
+        <div style={{display:"flex",gap:5}}>
+          {[{id:"sectional",label:"FAA SECTIONAL"},{id:"street",label:"STREET"}].map(option=><button key={option.id} aria-pressed={baseLayer===option.id} onClick={()=>setBaseLayer(option.id)} style={{background:baseLayer===option.id?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${baseLayer===option.id?"rgba(0,180,255,0.5)":"var(--sr-border)"}`,borderRadius:5,padding:"5px 8px",color:baseLayer===option.id?"var(--sr-accent)":"var(--sr-text-muted)",fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:"bold",cursor:"pointer"}}>{option.label}</button>)}
+        </div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+          {[
+            {id:"tfr",label:"TFR",color:"#FF3B3B"},
+            {id:"gairmet",label:"G-AIRMET",color:"#FFB020"},
+            {id:"sigmet",label:"SIGMET",color:"#C77DFF"},
+          ].map(option=><button key={option.id} aria-pressed={visible[option.id]} onClick={()=>setVisible(current=>({...current,[option.id]:!current[option.id]}))} style={{background:visible[option.id]?alphaColor(option.color,15):"var(--sr-surface)",border:`1px solid ${visible[option.id]?alphaColor(option.color,55):"var(--sr-border)"}`,borderRadius:5,padding:"5px 8px",color:visible[option.id]?option.color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:"bold",cursor:"pointer"}}>{visible[option.id]?"●":"○"} {option.label}</button>)}
+        </div>
+      </div>
+      <div ref={mapContainerRef} style={{height:330,width:"100%",borderRadius:8,overflow:"hidden",position:"relative",zIndex:0,background:"var(--sr-surface)"}}/>
+      <div style={{fontSize:8,color:"var(--sr-text-muted-2)",marginTop:7,lineHeight:1.45}}>FAA sectional tiles are maintained by Aeronautical Information Services. Zoom 8–12 provides the native chart detail; check the chart cycle, chart notices and current NOTAMs before flight.</div>
+    </div>
+  );
+}
+
+function advisoryAltitudeText(properties) {
+  const base = formatAdvisoryAltitude(properties.base);
+  const top = formatAdvisoryAltitude(properties.top);
+  if (base && top) return `${base} to ${top}`;
+  return top || base;
+}
+
+function AdvisoryList({ title, features, source, routeMode, emptyText }) {
+  return (
+    <div style={{background:"rgba(0,0,0,0.22)",border:"1px solid var(--sr-surface-hover)",borderRadius:8,padding:"11px 12px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+        <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",fontWeight:"bold"}}>{title}</div>
+        <AdvisorySourceBadge status={source?.status || "unavailable"}/>
+      </div>
+      {source?.status === "unavailable" ? <div style={{fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.5}}>Official source could not be reached. No absence-of-hazard conclusion is shown.</div> : features.length ? features.slice(0,6).map((feature,index)=>{
+        const properties = feature.properties || {};
+        const distance = routeMode ? properties.routeDistanceNm : properties.departureDistanceNm;
+        const distanceLabel = distance === 0 ? (routeMode?"INTERSECTS ROUTE":"AT AIRPORT") : `${distance} NM ${routeMode?"FROM ROUTE":"AWAY"}`;
+        const validity = properties.validTo ? `Valid to ${formatUtcTime(properties.validTo)}` : properties.modifiedAt ? `FAA record updated ${formatUtcTime(properties.modifiedAt)}` : null;
+        const altitude = advisoryAltitudeText(properties);
+        return <div key={`${properties.notamId||properties.title}-${index}`} style={{borderTop:index?"1px solid var(--sr-border)":"none",paddingTop:index?8:0,marginTop:index?8:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:9,alignItems:"flex-start"}}>
+            <div style={{fontSize:10,color:"var(--sr-text-strong)",fontWeight:"bold",lineHeight:1.45}}>{properties.title}</div>
+            <span style={{fontSize:7,fontFamily:"'DM Mono',monospace",color:distance===0?"#FF8C00":"var(--sr-text-muted)",whiteSpace:"nowrap"}}>{distanceLabel}</span>
+          </div>
+          {(altitude||validity)&&<div style={{fontSize:8,color:"var(--sr-text-muted-2)",marginTop:3,lineHeight:1.45}}>{[altitude,validity].filter(Boolean).join(" · ")}</div>}
+          {properties.detailUrl&&<a href={properties.detailUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",fontSize:8,color:"var(--sr-accent)",marginTop:4,fontFamily:"'DM Mono',monospace"}}>OPEN OFFICIAL TFR →</a>}
+        </div>;
+      }) : <div style={{fontSize:10,color:"var(--sr-success)",lineHeight:1.5}}>{emptyText}</div>}
+      {source?.retrievedAt&&<div style={{fontSize:7,color:"var(--sr-text-muted-3)",marginTop:8}}>Feed checked {formatUtcTime(source.retrievedAt)}</div>}
+    </div>
+  );
+}
+
+function NasAdvisoryList({ data, source }) {
+  const records = [data?.departure,data?.destination].filter(Boolean);
+  const events = records.flatMap(record => (record.events || []).map(event => ({...event,airportId:record.airportId,airportName:record.airportName})));
+  return (
+    <div style={{background:"rgba(0,0,0,0.22)",border:"1px solid var(--sr-surface-hover)",borderRadius:8,padding:"11px 12px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+        <div style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace",letterSpacing:"0.08em",fontWeight:"bold"}}>FAA NAS AIRPORT EVENTS</div>
+        <AdvisorySourceBadge status={source?.status || "unavailable"}/>
+      </div>
+      {source?.status === "unavailable" ? <div style={{fontSize:10,color:"var(--sr-text-muted)",lineHeight:1.5}}>FAA NAS Status could not be reached. Check the official status page directly.</div> : events.length ? events.map((event,index)=><div key={`${event.airportId}-${event.type}-${index}`} style={{borderTop:index?"1px solid var(--sr-border)":"none",paddingTop:index?8:0,marginTop:index?8:0}}>
+        <div style={{fontSize:10,color:event.type.includes("Closure")||event.type.includes("Stop")?"#FF6B6B":"var(--sr-gold)",fontWeight:"bold"}}>{event.airportId} · {event.type}</div>
+        <div style={{fontSize:9,color:"var(--sr-text)",lineHeight:1.5,marginTop:3}}>{event.detail}</div>
+        {(event.startsAt||event.endsAt)&&<div style={{fontSize:8,color:"var(--sr-text-muted-2)",marginTop:3}}>{event.startsAt?formatUtcTime(event.startsAt):"Current"}{event.endsAt?` to ${formatUtcTime(event.endsAt)}`:""}</div>}
+      </div>) : <div style={{fontSize:10,color:"var(--sr-success)",lineHeight:1.5}}>{data?.destination?"No active FAA NAS airport event was returned for either selected airport.":"No active FAA NAS airport event was returned for the selected airport."} This is not a NOTAM or traffic-avoidance check.</div>}
+      <a href="https://nasstatus.faa.gov/" target="_blank" rel="noreferrer" style={{display:"inline-block",fontSize:8,color:"var(--sr-accent)",marginTop:8,fontFamily:"'DM Mono',monospace"}}>OPEN FAA NAS STATUS →</a>
+    </div>
+  );
+}
+
+function AirspaceAdvisoriesPanel({ airfield, icao }) {
+  const coords = FIELD_COORDS[icao];
+  const [radius,setRadius] = useState(50);
+  const [corridor,setCorridor] = useState(25);
+  const [destinationIcao,setDestinationIcao] = useState("");
+  const [data,setData] = useState(null);
+  const [loading,setLoading] = useState(true);
+  const [requestError,setRequestError] = useState(null);
+  const destinationCoords = destinationIcao ? FIELD_COORDS[destinationIcao] : null;
+  const destinationOptions = Object.entries(AIRFIELDS)
+    .filter(([code,field]) => code !== icao && field.region !== "uk" && FIELD_COORDS[code])
+    .sort((left,right) => left[1].name.localeCompare(right[1].name));
+
+  useEffect(() => {
+    if (!coords) return;
+    const controller = new AbortController();
+    const url = new URL(ADVISORIES_API_ROOT, window.location.origin);
+    url.searchParams.set("icao",icao);
+    url.searchParams.set("lat",coords[0]);
+    url.searchParams.set("lon",coords[1]);
+    url.searchParams.set("radius",radius);
+    url.searchParams.set("corridor",corridor);
+    if (destinationCoords) {
+      url.searchParams.set("destIcao",destinationIcao);
+      url.searchParams.set("destLat",destinationCoords[0]);
+      url.searchParams.set("destLon",destinationCoords[1]);
+    }
+    fetch(url, { signal:controller.signal })
+      .then(response => {
+        if (!response.ok) throw new Error(`Advisory service returned ${response.status}`);
+        return response.json();
+      })
+      .then(result => setData(result))
+      .catch(error => { if (error.name !== "AbortError") { setRequestError(error.message); setData(null); } })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [coords, corridor, destinationCoords, destinationIcao, icao, radius]);
+
+  const routeMode = data?.scope?.mode === "route";
+  const uniqueTfrs = [...new Map((data?.tfrs?.features || []).map(feature => [feature.properties.notamId || feature.id,feature])).values()];
+  const gairmets = data?.gairmets?.features || [];
+  const sigmets = data?.sigmets?.features || [];
+  const nasEventCount = [data?.nas?.departure,data?.nas?.destination].filter(Boolean).reduce((total,record)=>total+(record.events?.length||0),0);
+  const cardData = [
+    {label:"MAPPED TFR",count:uniqueTfrs.length,status:data?.sources?.tfr?.status,color:"#FF6B6B"},
+    {label:"G-AIRMET",count:gairmets.length,status:data?.sources?.gairmet?.status,color:"#FFB020"},
+    {label:"SIGMET",count:sigmets.length,status:data?.sources?.sigmet?.status,color:"#C77DFF"},
+    {label:"NAS EVENT",count:nasEventCount,status:data?.sources?.nas?.status,color:"#8BCCF0"},
+  ];
+
+  return (
+    <div style={{background:"var(--sr-bg-elevated)",border:"1px solid rgba(0,180,255,0.24)",borderRadius:10,padding:"16px 18px",marginBottom:14}} aria-busy={loading}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,flexWrap:"wrap",marginBottom:12}}>
+        <div><div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"var(--sr-accent)",letterSpacing:"0.12em",fontWeight:"bold"}}>◈ AIRSPACE & ADVISORIES</div><div style={{fontSize:9,color:"var(--sr-text-muted)",marginTop:4}}>Official FAA and Aviation Weather Center awareness feeds</div></div>
+        {loading&&<span style={{fontSize:8,fontFamily:"'DM Mono',monospace",color:"var(--sr-gold)"}}>REFRESHING…</span>}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:12}}>
+        <label style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>AIRPORT RADIUS
+          <select value={radius} onChange={event=>{setLoading(true);setRequestError(null);setData(null);setRadius(Number(event.target.value));}} disabled={!!destinationIcao} style={{display:"block",width:"100%",marginTop:5,background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:"8px 9px",color:"var(--sr-text-strong)",fontFamily:"'DM Mono',monospace",fontSize:10}}>
+            {[25,50,100].map(value=><option key={value} value={value}>{value} NM</option>)}
+          </select>
+        </label>
+        <label style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>OPTIONAL TRAINING ROUTE
+          <select value={destinationIcao} onChange={event=>{setLoading(true);setRequestError(null);setData(null);setDestinationIcao(event.target.value);}} style={{display:"block",width:"100%",marginTop:5,background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:"8px 9px",color:"var(--sr-text-strong)",fontFamily:"'DM Mono',monospace",fontSize:10}}>
+            <option value="">Nearby {icao} only</option>
+            {destinationOptions.map(([code,field])=><option key={code} value={code}>{code} · {field.name}</option>)}
+          </select>
+        </label>
+        <label style={{fontSize:8,color:"var(--sr-text-muted-2)",fontFamily:"'DM Mono',monospace"}}>ROUTE CORRIDOR
+          <select value={corridor} onChange={event=>{setLoading(true);setRequestError(null);setData(null);setCorridor(Number(event.target.value));}} disabled={!destinationIcao} style={{display:"block",width:"100%",marginTop:5,background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:"8px 9px",color:"var(--sr-text-strong)",fontFamily:"'DM Mono',monospace",fontSize:10}}>
+            {[10,25,50].map(value=><option key={value} value={value}>± {value} NM</option>)}
+          </select>
+        </label>
+      </div>
+      {destinationIcao&&<div style={{fontSize:8,color:"var(--sr-gold)",lineHeight:1.45,marginBottom:10}}>Route sketch: direct line {icao}–{destinationIcao}{data?.scope?.directDistanceNm?` · ${data.scope.directDistanceNm} NM`:""}. Training awareness only—this is not an airway route, clearance, navigation service or complete route briefing.</div>}
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(85px,1fr))",gap:7,marginBottom:12}}>
+        {cardData.map(card=><div key={card.label} style={{background:"var(--sr-surface-soft)",border:`1px solid ${alphaColor(card.color,28)}`,borderRadius:7,padding:"9px 7px",textAlign:"center"}}><div style={{fontFamily:"'DM Mono',monospace",fontSize:18,color:card.status==="unavailable"?"var(--sr-text-muted)":card.color,fontWeight:"bold"}}>{card.status==="unavailable"?"—":card.count}</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:"var(--sr-text-muted-2)",marginTop:2}}>{card.label}</div></div>)}
+      </div>
+
+      {requestError&&<div style={{background:"rgba(255,140,0,0.08)",border:"1px solid rgba(255,140,0,0.35)",borderRadius:7,padding:"9px 11px",fontSize:10,color:"#FFB020",lineHeight:1.5,marginBottom:10}}>Live advisory data is unavailable. Academy is not showing a false “none found” result. Use the official links below. ({requestError})</div>}
+      <AdvisoryMap airfield={airfield} icao={icao} data={data} destinationIcao={destinationIcao}/>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(245px,1fr))",gap:8,marginTop:12}}>
+        <AdvisoryList title={routeMode?`MAPPED TFR · ±${corridor} NM ROUTE`:`MAPPED TFR · ${radius} NM`} features={uniqueTfrs} source={data?.sources?.tfr} routeMode={routeMode} emptyText={routeMode?"No mapped TFR shape was returned inside the selected route corridor. Check the complete FAA list and obtain an official briefing.":"No mapped TFR shape was returned inside the selected airport radius. Check the complete FAA list and obtain an official briefing."}/>
+        <AdvisoryList title="G-AIRMET SNAPSHOT" features={gairmets} source={data?.sources?.gairmet} routeMode={routeMode} emptyText="No G-AIRMET area was returned for this scope in the current snapshot."/>
+        <AdvisoryList title="CURRENT SIGMET" features={sigmets} source={data?.sources?.sigmet} routeMode={routeMode} emptyText="No current SIGMET area was returned for this scope."/>
+        <NasAdvisoryList data={data?.nas} source={data?.sources?.nas}/>
+      </div>
+
+      <div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:12}}>
+        <a href="https://tfr.faa.gov/tfr3/?page=list" target="_blank" rel="noreferrer" style={{background:"rgba(255,59,59,0.10)",border:"1px solid rgba(255,59,59,0.35)",borderRadius:6,padding:"7px 11px",color:"#FF7A7A",fontFamily:"'DM Mono',monospace",fontSize:8,textDecoration:"none",fontWeight:"bold"}}>FULL FAA TFR LIST →</a>
+        <a href="https://aviationweather.gov/gfa/" target="_blank" rel="noreferrer" style={{background:"rgba(0,180,255,0.12)",border:"1px solid rgba(0,180,255,0.35)",borderRadius:6,padding:"7px 11px",color:"var(--sr-accent)",fontFamily:"'DM Mono',monospace",fontSize:8,textDecoration:"none",fontWeight:"bold"}}>OPEN AVIATIONWEATHER.GOV GFA →</a>
+        <a href="https://www.1800wxbrief.com/" target="_blank" rel="noreferrer" style={{background:"var(--sr-surface)",border:"1px solid var(--sr-border-strong)",borderRadius:6,padding:"7px 11px",color:"var(--sr-text-strong)",fontFamily:"'DM Mono',monospace",fontSize:8,textDecoration:"none",fontWeight:"bold"}}>OFFICIAL BRIEFING →</a>
+      </div>
+      <div style={{fontSize:8,color:"var(--sr-text-muted-2)",lineHeight:1.55,marginTop:10}}>Planning and training awareness only. FAA TFR map data can be incomplete or delayed, not every TFR has a mapped shape, and NAS Status does not provide tactical aircraft traffic. “No item returned” never means the airspace or route is clear. Check current NOTAMs, chart notices, official weather products and an approved preflight briefing; contact Flight Service or ATC when required.</div>
+    </div>
+  );
+}
+
 function WeatherLayerWidget({ airfield, icao, liveWx }) {
   const [layer, setLayer] = useState("radar");
+  const tabs = [["radar","🗺 RADAR"],["icing","❄ ICING / FREEZING LEVEL"]];
+  if (airfield.region !== "uk") tabs.push(["airspace","◈ AIRSPACE & ADVISORIES"]);
   return (
     <>
-      <div style={{display:"flex",gap:5,marginBottom:8,position:"relative",zIndex:1}} role="tablist" aria-label="Weather display">
-        {[["radar","🗺 RADAR"],["icing","❄ ICING / FREEZING LEVEL"]].map(([id,label])=><button key={id} role="tab" aria-selected={layer===id} onClick={()=>setLayer(id)} style={{background:layer===id?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${layer===id?"rgba(0,180,255,0.45)":"var(--sr-border)"}`,borderRadius:6,padding:"7px 12px",color:layer===id?"var(--sr-accent)":"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",letterSpacing:"0.05em"}}>{label}</button>)}
+      <div style={{display:"flex",gap:5,marginBottom:8,position:"relative",zIndex:1,flexWrap:"wrap"}} role="tablist" aria-label="Weather and airspace display">
+        {tabs.map(([id,label])=><button key={id} role="tab" aria-selected={layer===id} onClick={()=>setLayer(id)} style={{background:layer===id?"rgba(0,180,255,0.18)":"var(--sr-surface)",border:`1px solid ${layer===id?"rgba(0,180,255,0.45)":"var(--sr-border)"}`,borderRadius:6,padding:"7px 12px",color:layer===id?"var(--sr-accent)":"var(--sr-text-muted)",cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:"bold",letterSpacing:"0.05em"}}>{label}</button>)}
       </div>
-      {layer === "radar" ? <MapWidget airfield={airfield} icao={icao}/> : <IcingPanel key={icao} airfield={airfield} icao={icao} liveWx={liveWx}/>}
+      {layer === "radar" && <MapWidget airfield={airfield} icao={icao}/>}
+      {layer === "icing" && <IcingPanel key={icao} airfield={airfield} icao={icao} liveWx={liveWx}/>}
+      {layer === "airspace" && <AirspaceAdvisoriesPanel key={icao} airfield={airfield} icao={icao}/>}
     </>
   );
 }
